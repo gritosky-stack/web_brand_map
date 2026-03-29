@@ -1,0 +1,25 @@
+/* Base settings for the deep dark aesthetic */
+body {
+    background-color: #09090b; /* zinc-950 */
+    color: #ffffff;
+}
+
+/* Enhancing typography manually just in case, though Tailwind does a good job */
+h1 {
+    line-height: 1.1;
+}
+
+/* Custom scrollbar to keep minimalism */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #09090b; 
+}
+::-webkit-scrollbar-thumb {
+    background: #27272a; 
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46; 
+}
