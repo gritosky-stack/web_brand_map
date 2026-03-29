@@ -37,6 +37,70 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+
+        /* Desktop Route Carousel */
+        #route-carousel-outer {
+            display: none;
+        }
+
+        /* Expanded Photos Side Panel — horizontal row */
+        #photos-side-panel {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+            align-self: flex-end;
+            background: rgba(0, 0, 0, 0.80);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid transparent;
+            border-right: 1px solid transparent;
+            border-bottom: 1px solid transparent;
+            border-left: none;
+            border-radius: 0 1.5rem 1.5rem 0;
+            overflow: hidden;
+            max-width: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease, padding 0.45s ease;
+            padding: 0;
+            white-space: nowrap;
+        }
+        #photos-side-panel.expanded {
+            max-width: 1200px;
+            opacity: 1;
+            pointer-events: auto;
+            padding: 8px;
+            border-top-color: rgba(63, 63, 70, 0.5);
+            border-right-color: rgba(63, 63, 70, 0.5);
+            border-bottom-color: rgba(63, 63, 70, 0.5);
+        }
+        @media (min-width: 768px) {
+            #route-carousel-outer {
+                display: block;
+            }
+        }
+
+        @keyframes marquee {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .marquee-track {
+            display: flex;
+            gap: 12px;
+            animation: marquee 55s linear infinite;
+            will-change: transform;
+        }
+        .marquee-track:hover {
+            animation-play-state: paused;
+        }
+        .carousel-card {
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+        .carousel-card:hover {
+            transform: scale(1.06) translateY(-4px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.2);
+        }
     </style>
     <!-- EXIF extraction library -->
     <script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js"></script>
@@ -195,20 +259,24 @@
     </div>
 
     <!-- Floating Route Tooltip / UI Panel -->
-    <div id="route-panel"
-        class="absolute bottom-6 left-4 right-4 md:bottom-16 md:left-16 md:right-auto md:translate-x-0 z-50 flex flex-col bg-black/50 md:bg-black/80 backdrop-blur-xl md:backdrop-blur-lg shadow-2xl border border-zinc-500/30 md:border-zinc-800/50 rounded-3xl p-5 md:p-6 opacity-0 pointer-events-none transition-all duration-700 translate-y-8 md:min-w-[320px]">
-        
-        <div class="flex items-center justify-between mb-5 md:mb-6">
-            <h2 id="panel-name"
-                class="text-xl md:text-2xl font-medium tracking-tight text-white drop-shadow-md truncate max-w-[65%] md:max-w-none">
-                Route Name</h2>
-            <button id="btn-back"
-                class="ml-2 text-[10px] md:text-[11px] font-medium tracking-widest uppercase text-white bg-black/50 hover:bg-zinc-700 px-3 py-1.5 md:px-4 md:py-2 rounded-full transition-colors border border-zinc-600 md:border-zinc-700 whitespace-nowrap">
-                Назад к обзору
-            </button>
-        </div>
+    <div id="route-panel-group"
+        class="absolute bottom-6 left-4 right-4 md:bottom-16 md:left-16 md:right-auto z-50 flex items-stretch opacity-0 pointer-events-none transition-all duration-700 translate-y-8">
 
-            <div class="grid grid-cols-3 md:grid-cols-3 gap-y-4 gap-x-2 md:gap-y-6 md:gap-x-8">
+        <!-- Main Route Panel -->
+        <div id="route-panel"
+            class="flex flex-col bg-black/50 md:bg-black/80 backdrop-blur-xl md:backdrop-blur-lg shadow-2xl border border-zinc-500/30 md:border-zinc-800/50 rounded-3xl p-4 md:p-6 flex-1 md:flex-none md:w-[500px] max-h-[50vh] md:max-h-none overflow-y-auto md:overflow-visible scrollbar-hide">
+
+            <div class="flex items-start justify-between mb-3 md:mb-6 gap-3">
+                <h2 id="panel-name"
+                    class="text-xl md:text-2xl font-medium tracking-tight text-white drop-shadow-md leading-tight flex-1 min-w-0 break-words">
+                    Route Name</h2>
+                <button id="btn-back"
+                    class="shrink-0 text-[10px] md:text-[11px] font-medium tracking-widest uppercase text-white bg-black/50 hover:bg-zinc-700 px-3 py-1.5 md:px-4 md:py-2 rounded-full transition-colors border border-zinc-600 md:border-zinc-700 whitespace-nowrap mt-1">
+                    Назад к обзору
+                </button>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-3 gap-y-2 gap-x-2 md:gap-y-6 md:gap-x-8">
                 <div>
                     <div
                         class="text-zinc-300 md:text-zinc-400 text-[9px] md:text-[10px] uppercase tracking-widest mb-1">
@@ -249,10 +317,26 @@
 
             <!-- Photo Thumbnails Track -->
             <div id="panel-photos-container"
-                class="mt-4 md:mt-6 hidden flex space-x-3 overflow-x-auto scrollbar-hide py-1">
+                class="mt-3 md:mt-6 hidden flex space-x-2 md:space-x-3 overflow-x-auto scrollbar-hide py-1 w-full min-w-0">
                 <!-- Populated by JS -->
             </div>
         </div>
+
+        <!-- Expand Photos Toggle Strip (shown by JS when 5+ photos on desktop) -->
+        <button id="btn-photos-toggle"
+            onclick="togglePhotosPanel()"
+            style="display:none"
+            class="flex-col items-center justify-center gap-2 w-7 shrink-0 bg-zinc-800/60 hover:bg-zinc-700/80 border-t border-r border-b border-zinc-800/50 rounded-r-2xl transition-colors cursor-pointer select-none">
+            <svg id="photos-toggle-arrow" class="w-3.5 h-3.5 text-zinc-300 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+            </svg>
+            <span id="photos-toggle-label" class="text-[8px] text-zinc-300 font-medium uppercase tracking-wider" style="writing-mode:vertical-rl;transform:rotate(180deg)">Ещё</span>
+        </button>
+
+        <!-- Expanded Photos Side Panel (populated by JS) -->
+        <div id="photos-side-panel"></div>
+
+    </div>
 
     <!-- Lightbox Gallery Modal -->
     <div id="gallery-lightbox"
@@ -294,6 +378,19 @@
                 class="absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-md px-5 py-2 rounded-full border border-white/10 text-xs tracking-widest text-white flex items-center shadow-lg transition-opacity duration-300">
                 <span id="gallery-coord-text">GPS: Loading...</span>
             </div>
+        </div>
+    </div>
+
+    <!-- Desktop Route Carousel (hidden on mobile) -->
+    <div id="route-carousel-outer" class="fixed bottom-0 left-0 right-0 z-40 overflow-hidden pointer-events-none">
+        <!-- Bottom gradient backing -->
+        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none"></div>
+        <!-- Fade edges -->
+        <div class="absolute left-0 top-0 bottom-0 w-36 bg-gradient-to-r from-black/80 to-transparent z-10 pointer-events-none"></div>
+        <div class="absolute right-0 top-0 bottom-0 w-36 bg-gradient-to-l from-black/80 to-transparent z-10 pointer-events-none"></div>
+        <!-- Track -->
+        <div id="marquee-track" class="marquee-track pointer-events-auto py-5 px-2">
+            <!-- Cards populated by JS -->
         </div>
     </div>
 
