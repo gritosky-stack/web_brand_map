@@ -1,11 +1,10 @@
 // Configuration
-const MAPBOX_TOKEN = '';
+const MAPBOX_TOKEN = 'pk.eyJ1IjoidG9jemtpamciLCJhIjoiY21uYWE1dnY0MGdjMTJwcDYwMW9hN3IzbyJ9.z8vVKr9lNliGDfC5Kd8Ttg';
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
 // Route files with explicit manual stat overrides
 // Fill in the exact data from your App here to bypass GPX raw noise!
 const routesList = [
-    { file: 'Дебело Брдо - Ябланик.gpx', overrideAscent: 818, overrideDescent: 819, overrideTime: '~6h' },
     {
         file: 'Samari - Lastra.gpx', overrideAscent: 718, overrideDescent: 829, overrideTime: '6h 24m', photos: [
             'photos/Samari - Lastra/IMG_6806.JPG', 'photos/Samari - Lastra/IMG_6817.JPG'
@@ -23,11 +22,11 @@ const routesList = [
         ]
     },
     {
-        file: 'Samari - Magleš (Pali).gpx', overrideAscent: 805, overrideDescent: 805, overrideTime: '7h', photos: [
-            'photos/Samari - Magleš (Pali)/IMG_6278.JPG', 'photos/Samari - Magleš (Pali)/IMG_6312.JPG', 'photos/Samari - Magleš (Pali)/IMG_6317.JPG',
-            'photos/Samari - Magleš (Pali)/IMG_6360.JPG', 'photos/Samari - Magleš (Pali)/IMG_6408.JPG', 'photos/Samari - Magleš (Pali)/IMG_6427.JPG',
-            'photos/Samari - Magleš (Pali)/IMG_6435.JPG', 'photos/Samari - Magleš (Pali)/IMG_6448.JPG', 'photos/Samari - Magleš (Pali)/IMG_6451.JPG',
-            'photos/Samari - Magleš (Pali)/IMG_6495.JPG', 'photos/Samari - Magleš (Pali)/IMG_6502.JPG'
+        file: 'Samari - Magleš (Pali).gpx', overrideAscent: 805, overrideDescent: 805, overrideTime: '7h', photos: [
+            'photos/Samari - Magleš (Pali)/IMG_6278.JPG', 'photos/Samari - Magleš (Pali)/IMG_6312.JPG', 'photos/Samari - Magleš (Pali)/IMG_6317.JPG',
+            'photos/Samari - Magleš (Pali)/IMG_6360.JPG', 'photos/Samari - Magleš (Pali)/IMG_6408.JPG', 'photos/Samari - Magleš (Pali)/IMG_6427.JPG',
+            'photos/Samari - Magleš (Pali)/IMG_6435.JPG', 'photos/Samari - Magleš (Pali)/IMG_6448.JPG', 'photos/Samari - Magleš (Pali)/IMG_6451.JPG',
+            'photos/Samari - Magleš (Pali)/IMG_6495.JPG', 'photos/Samari - Magleš (Pali)/IMG_6502.JPG'
         ]
     },
     {
@@ -39,7 +38,7 @@ const routesList = [
     },
     { file: 'Valjevo - Gradac River Canyon.gpx', overrideAscent: 301, overrideDescent: 382, overrideTime: '4h', overrideMinEle: 171 },
     {
-        file: 'Istoćni Maljen - Mokra Pecina.gpx', overrideAscent: 931, overrideDescent: 935, overrideTime: '7h 57m', photos: [
+        file: 'Istoćni Maljen - Mokra Pecina.gpx', overrideAscent: 931, overrideDescent: 935, overrideTime: '7h 57m', photos: [
             'photos/Maljen/IMG_5753.JPG', 'photos/Maljen/IMG_5819.JPG', 'photos/Maljen/IMG_5837.JPG', 'photos/Maljen/IMG_5852.JPG',
             'photos/Maljen/IMG_5888.JPG', 'photos/Maljen/IMG_5975.JPG', 'photos/Maljen/IMG_5999.JPG', 'photos/Maljen/IMG_6033.JPG'
         ]
@@ -51,12 +50,12 @@ const routesList = [
         ]
     },
     {
-        file: 'Lastra - Magleš - Kušakovići.gpx', overrideAscent: 987, overrideDescent: 986, overrideTime: '5h', overrideMinEle: 365, photos: [
-            'photos/Lastra - Magleš - Kušakovići/IMG_5170.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5216.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5238.JPG',
-            'photos/Lastra - Magleš - Kušakovići/IMG_5265.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5320.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5334.JPG',
-            'photos/Lastra - Magleš - Kušakovići/IMG_5339.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5358.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5396.JPG',
-            'photos/Lastra - Magleš - Kušakovići/IMG_5408.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5441.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5478.JPG',
-            'photos/Lastra - Magleš - Kušakovići/IMG_5489.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5498.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5506.JPG'
+        file: 'Lastra - Magleš - Kušakovići.gpx', overrideAscent: 987, overrideDescent: 986, overrideTime: '5h', overrideMinEle: 365, photos: [
+            'photos/Lastra - Magleš - Kušakovići/IMG_5170.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5216.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5238.JPG',
+            'photos/Lastra - Magleš - Kušakovići/IMG_5265.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5320.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5334.JPG',
+            'photos/Lastra - Magleš - Kušakovići/IMG_5339.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5358.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5396.JPG',
+            'photos/Lastra - Magleš - Kušakovići/IMG_5408.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5441.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5478.JPG',
+            'photos/Lastra - Magleš - Kušakovići/IMG_5489.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5498.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5506.JPG'
         ]
     }
 ];
@@ -175,8 +174,13 @@ const futurePulsingDot = {
         this.context = canvas.getContext('2d', { willReadFrequently: true });
     },
     render: function () {
+        const now = performance.now();
+        // Limit texture updates to ~25fps to reduce GPU load
+        if (now - (this._lastFrame || 0) < 40) return false;
+        this._lastFrame = now;
+
         const duration = 2400;
-        const t = (performance.now() % duration) / duration;
+        const t = (now % duration) / duration;
         const radius = (size / 2) * 0.25;
         const outerRadius = (size / 2) * 0.75 * t + radius;
         const context = this.context;
@@ -205,7 +209,7 @@ const futurePulsingDot = {
         context.stroke();
 
         this.data = context.getImageData(0, 0, this.width, this.height).data;
-        return false; // setInterval drives repaints at controlled rate
+        return true;
     }
 };
 
