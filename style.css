@@ -21,5 +21,29 @@ h1 {
     border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #3f3f46; 
+    background: #3f3f46;
+}
+
+/* Performance: reduce backdrop-blur on large/full-screen elements */
+#gallery-lightbox {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* Route panel — was backdrop-blur-xl (24px), reduce to 4px */
+#route-panel {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* Mobile info modal */
+#mobile-info {
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+}
+
+/* Desktop nav */
+nav.hidden.md\\:flex {
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
 }

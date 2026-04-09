@@ -80,7 +80,6 @@ routesList.forEach((data, index) => {
 // Planned future trips
 const futureRoutesList = [
     { file: 'future_trips/Dom_Vis-Javoracki-vrh.gpx' },
-    { file: 'future_trips/ПД_Грза_Велики_Козји_Рог_Вис_Црни_врх_Јаворак_ПД_Грза.gpx' },
     { file: 'future_trips/Рудник - Благовештење.gpx' },
     { file: 'future_trips/Дебело Брдо - Ябланик.gpx' },
     { file: 'future_trips/Каблар.gpx' },
@@ -107,8 +106,52 @@ futureRoutesList.forEach((data, index) => {
 const parsedRouteDataCache = {};
 const routeFeatures = []; // GeoJSON Array for WebGL Points
 
+// Total km counter
+let _totalKm = 0;
+let _kmAnimFrame = null;
+
+function addToKmCounter(km) {
+    const from = _totalKm;
+    _totalKm += km;
+    const to = _totalKm;
+
+    const ids = [
+        { val: 'total-km-value', display: 'total-km-display' },
+        { val: 'total-km-value-mobile', display: 'total-km-display-mobile' }
+    ];
+
+    ids.forEach(({ display }) => {
+        const el = document.getElementById(display);
+        if (el) el.style.opacity = '1';
+    });
+
+    if (_kmAnimFrame) cancelAnimationFrame(_kmAnimFrame);
+    const startTime = performance.now();
+    const duration = 900;
+
+    function tick(now) {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = from + (to - from) * eased;
+        const display = current.toFixed(1);
+        ids.forEach(({ val }) => {
+            const el = document.getElementById(val);
+            if (el) el.textContent = display;
+        });
+        if (progress < 1) {
+            _kmAnimFrame = requestAnimationFrame(tick);
+        } else {
+            ids.forEach(({ val }) => {
+                const el = document.getElementById(val);
+                if (el) el.textContent = to.toFixed(1);
+            });
+        }
+    }
+    _kmAnimFrame = requestAnimationFrame(tick);
+}
+
 // WebGL Animated Pattern for Pulsing Dot
-const size = 90; // Smaller dot for cleaner visuals
+const size = 64; // Reduced for better GPU performance
 const pulsingDot = {
     width: size,
     height: size,
@@ -123,42 +166,44 @@ const pulsingDot = {
 
     render: function () {
         const now = performance.now();
-        // Limit texture updates to ~25fps to reduce GPU load
-        if (now - (this._lastFrame || 0) < 40) return false;
-        this._lastFrame = now;
+        // Only redraw canvas texture at ~25fps; always return true so Mapbox
+        // owns the repaint schedule and never needs an external triggerRepaint() call.
+        if (now - (this._lastFrame || 0) >= 80) {
+            this._lastFrame = now;
 
-        const duration = 2000;
-        const t = (now % duration) / duration;
-        const radius = (size / 2) * 0.25;
-        const outerRadius = (size / 2) * 0.75 * t + radius;
-        const context = this.context;
+            const duration = 2000;
+            const t = (now % duration) / duration;
+            const radius = (size / 2) * 0.25;
+            const outerRadius = (size / 2) * 0.75 * t + radius;
+            const context = this.context;
 
-        context.clearRect(0, 0, this.width, this.height);
+            context.clearRect(0, 0, this.width, this.height);
 
-        const gradient = context.createRadialGradient(
-            this.width / 2, this.height / 2, radius,
-            this.width / 2, this.height / 2, outerRadius
-        );
-        gradient.addColorStop(0, `rgba(255, 77, 77, ${0.7 * (1 - t)})`);
-        gradient.addColorStop(1, `rgba(255, 77, 77, 0)`);
-        context.beginPath();
-        context.arc(this.width / 2, this.height / 2, outerRadius, 0, Math.PI * 2);
-        context.fillStyle = gradient;
-        context.fill();
+            const gradient = context.createRadialGradient(
+                this.width / 2, this.height / 2, radius,
+                this.width / 2, this.height / 2, outerRadius
+            );
+            gradient.addColorStop(0, `rgba(255, 77, 77, ${0.7 * (1 - t)})`);
+            gradient.addColorStop(1, `rgba(255, 77, 77, 0)`);
+            context.beginPath();
+            context.arc(this.width / 2, this.height / 2, outerRadius, 0, Math.PI * 2);
+            context.fillStyle = gradient;
+            context.fill();
 
-        context.beginPath();
-        context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
-        context.shadowColor = 'rgba(255, 77, 77, 0.9)';
-        context.shadowBlur = 15;
-        context.fillStyle = '#ff4d4d';
-        context.fill();
-        context.shadowBlur = 0;
-        context.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-        context.lineWidth = 2.5;
-        context.stroke();
+            context.beginPath();
+            context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
+            context.shadowColor = 'rgba(255, 77, 77, 0.9)';
+            context.shadowBlur = 15;
+            context.fillStyle = '#ff4d4d';
+            context.fill();
+            context.shadowBlur = 0;
+            context.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+            context.lineWidth = 2.5;
+            context.stroke();
 
-        this.data = context.getImageData(0, 0, this.width, this.height).data;
-        return true;
+            this.data = context.getImageData(0, 0, this.width, this.height).data;
+        }
+        return true; // Always keep Mapbox's render loop alive — no external repaint needed
     }
 };
 
@@ -175,40 +220,40 @@ const futurePulsingDot = {
     },
     render: function () {
         const now = performance.now();
-        // Limit texture updates to ~25fps to reduce GPU load
-        if (now - (this._lastFrame || 0) < 40) return false;
-        this._lastFrame = now;
+        if (now - (this._lastFrame || 0) >= 80) {
+            this._lastFrame = now;
 
-        const duration = 2400;
-        const t = (now % duration) / duration;
-        const radius = (size / 2) * 0.25;
-        const outerRadius = (size / 2) * 0.75 * t + radius;
-        const context = this.context;
-        context.clearRect(0, 0, this.width, this.height);
+            const duration = 2400;
+            const t = (now % duration) / duration;
+            const radius = (size / 2) * 0.25;
+            const outerRadius = (size / 2) * 0.75 * t + radius;
+            const context = this.context;
+            context.clearRect(0, 0, this.width, this.height);
 
-        const gradient = context.createRadialGradient(
-            this.width / 2, this.height / 2, radius,
-            this.width / 2, this.height / 2, outerRadius
-        );
-        gradient.addColorStop(0, `rgba(255, 200, 0, ${0.7 * (1 - t)})`);
-        gradient.addColorStop(1, `rgba(255, 200, 0, 0)`);
-        context.beginPath();
-        context.arc(this.width / 2, this.height / 2, outerRadius, 0, Math.PI * 2);
-        context.fillStyle = gradient;
-        context.fill();
+            const gradient = context.createRadialGradient(
+                this.width / 2, this.height / 2, radius,
+                this.width / 2, this.height / 2, outerRadius
+            );
+            gradient.addColorStop(0, `rgba(255, 200, 0, ${0.7 * (1 - t)})`);
+            gradient.addColorStop(1, `rgba(255, 200, 0, 0)`);
+            context.beginPath();
+            context.arc(this.width / 2, this.height / 2, outerRadius, 0, Math.PI * 2);
+            context.fillStyle = gradient;
+            context.fill();
 
-        context.beginPath();
-        context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
-        context.shadowColor = 'rgba(255, 180, 0, 0.9)';
-        context.shadowBlur = 15;
-        context.fillStyle = '#FFD700';
-        context.fill();
-        context.shadowBlur = 0;
-        context.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-        context.lineWidth = 2.5;
-        context.stroke();
+            context.beginPath();
+            context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
+            context.shadowColor = 'rgba(255, 180, 0, 0.9)';
+            context.shadowBlur = 15;
+            context.fillStyle = '#FFD700';
+            context.fill();
+            context.shadowBlur = 0;
+            context.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+            context.lineWidth = 2.5;
+            context.stroke();
 
-        this.data = context.getImageData(0, 0, this.width, this.height).data;
+            this.data = context.getImageData(0, 0, this.width, this.height).data;
+        }
         return true;
     }
 };
@@ -221,28 +266,46 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
         center: [20.9029, 44.2107],
         zoom: 6.5,
         pitch: 0,
-        interactive: true
+        interactive: true,
+        antialias: false,
+        fadeDuration: 0
     });
+
+    // Hide tile loading on initial page load — reveal smoothly once map is fully ready
+    {
+        const canvas = map.getCanvas();
+        canvas.style.filter = 'blur(14px) brightness(0.5)';
+        map.once('idle', () => {
+            canvas.style.transition = 'filter 1.4s ease';
+            canvas.style.filter = '';
+        });
+    }
 
     map.on('load', async () => {
         // Add 3D terrain
         map.addSource('mapbox-dem', {
             'type': 'raster-dem',
             'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
-            'tileSize': 512,
+            'tileSize': 256,
             'maxzoom': 14
         });
-        map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+        map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.1 });
 
         // Apply dark mask + disable labels outside Serbia
         await applySerbiaMask();
 
-        // Register animated dots
+        // Eliminate tile fade-in shimmer: raster tiles (satellite) now appear instantly
+        // instead of the default 300ms cross-fade that causes flicker during camera movement
+        map.getStyle().layers.forEach(layer => {
+            if (layer.type === 'raster') {
+                map.setPaintProperty(layer.id, 'raster-fade-duration', 0);
+            }
+        });
+
+        // Register animated dots — render() always returns true so Mapbox owns
+        // the repaint schedule; no external triggerRepaint() loop needed
         map.addImage('pulsing-dot', pulsingDot, { pixelRatio: 1.5 });
         map.addImage('future-pulsing-dot', futurePulsingDot, { pixelRatio: 1.5 });
-
-        // Drive both dot animations at ~25fps — render() returns false so only this controls repaint rate
-        setInterval(() => { if (map) map.triggerRepaint(); }, 40);
 
         // Create main container for all Points
         map.addSource('route-markers', {
@@ -413,6 +476,7 @@ async function applySerbiaMask() {
 let currentViewedRoute = null;
 let currentPhotoCoords = null; // for fly-to in gallery
 
+
 window.flyToRoute = function (routeId) {
     triggerRouteSelection(routeId);
 };
@@ -438,6 +502,9 @@ function triggerRouteSelection(routeId) {
 
     currentViewedRoute = routeInfo;
 
+    // Start EXIF loading in parallel with fly animation (lazy, only first time per route)
+    loadExifForRoute(routeInfo);
+
     // Hide carousel when viewing a route
     const carousel = document.getElementById('route-carousel-outer');
     if (carousel) carousel.style.display = 'none';
@@ -450,14 +517,16 @@ function triggerRouteSelection(routeId) {
         zoom: 13,
         pitch: 65,
         bearing: -20,
-        speed: 1.2
+        speed: 0.8,
+        curve: 1,
+        essential: true
     });
-
-    // We can draw line instantly
-    addRouteToMap(routeInfo.id, routeData.coordinates, routeInfo.color);
 
     map.once('moveend', () => {
         if (currentViewedRoute.id !== routeInfo.id) return;
+
+        // Draw route line only after camera lands — prevents GeoJSON upload stalling the animation
+        addRouteToMap(routeInfo.id, routeData.coordinates, routeInfo.color);
 
         // Update Panel
         const nameEl = document.getElementById('panel-name');
@@ -479,6 +548,15 @@ function triggerRouteSelection(routeId) {
 
         renderThumbnails(routeInfo);
         renderPhotoMapMarkers(routeInfo);
+
+        // Re-render once EXIF finishes (if not already done by the time moveend fires)
+        loadExifForRoute(routeInfo).then(() => {
+            if (currentViewedRoute && currentViewedRoute.id === routeInfo.id) {
+                renderThumbnails(routeInfo);
+                renderPhotoMapMarkers(routeInfo);
+            }
+        });
+
     });
 }
 
@@ -660,6 +738,39 @@ function renderPhotoMapMarkers(routeInfo) {
     }
 }
 
+// Lazy EXIF loader — runs only when the user actually opens a route
+const _exifPromises = {};
+function loadExifForRoute(routeInfo) {
+    if (_exifPromises[routeInfo.id]) return _exifPromises[routeInfo.id];
+
+    const routeData = parsedRouteDataCache[routeInfo.id];
+    if (!routeData || routeData._exifDone) return Promise.resolve();
+
+    _exifPromises[routeInfo.id] = (async () => {
+        routeData.photoGeoms = [];
+        if (routeInfo.videos && routeInfo.videos.length > 0) {
+            routeInfo.videos.forEach(v => {
+                routeData.photoGeoms.push({ src: v.src, coords: v.coords, isVideo: true });
+            });
+        }
+        if (routeInfo.photos && routeInfo.photos.length > 0) {
+            await Promise.all(routeInfo.photos.map(async (photoSrc) => {
+                try {
+                    const pResp = await fetch(photoSrc);
+                    const pBlob = await pResp.blob();
+                    const gps = await exifr.gps(pBlob);
+                    if (gps) {
+                        routeData.photoGeoms.push({ src: photoSrc, coords: [gps.longitude, gps.latitude] });
+                    }
+                } catch (e) { }
+            }));
+        }
+        routeData._exifDone = true;
+    })();
+
+    return _exifPromises[routeInfo.id];
+}
+
 window.openLightbox = function (src, coords, isVideo) {
     currentPhotoCoords = coords;
     const modal = document.getElementById('gallery-lightbox');
@@ -726,7 +837,7 @@ document.getElementById('btn-gallery-fly').addEventListener('click', () => {
             center: currentPhotoCoords,
             zoom: 16,
             pitch: 75,
-            bearing: map.getBearing() + 45, // cinematic turn
+            bearing: map.getBearing() + 45,
             speed: 1.5
         });
     }
@@ -910,40 +1021,16 @@ async function loadRouteData(routeInfo) {
         const gpxText = await response.text();
         const routeData = parseGPX(gpxText);
 
-        // Process Explicit Media (Videos/Manual overrides) and EXIF metadata aggressively
+        // Photo/EXIF data loaded lazily on first route selection (not at startup)
         routeData.photoGeoms = [];
-
-        // 1. Inject manual coordinates directly
-        if (routeInfo.videos && routeInfo.videos.length > 0) {
-            routeInfo.videos.forEach(v => {
-                routeData.photoGeoms.push({ src: v.src, coords: v.coords, isVideo: true });
-            });
-        }
-
-        // 2. Resolve dynamic EXIFs...
-        if (routeInfo.photos && routeInfo.photos.length > 0) {
-            Promise.all(routeInfo.photos.map(async (photoSrc) => {
-                try {
-                    const pResp = await fetch(photoSrc);
-                    const pBlob = await pResp.blob();
-                    const gps = await exifr.gps(pBlob);
-                    if (gps) {
-                        routeData.photoGeoms.push({
-                            src: photoSrc,
-                            coords: [gps.longitude, gps.latitude]
-                        });
-                    }
-                } catch (e) { console.error("Exif parsing error for " + photoSrc, e); }
-            })).then(() => {
-                // Bulk render ONLY AFTER ALL photos are parsed to eliminate UI freeze/latency
-                if (currentViewedRoute && currentViewedRoute.id === routeInfo.id) {
-                    renderThumbnails(routeInfo);
-                    renderPhotoMapMarkers(routeInfo);
-                }
-            });
-        }
+        routeData._exifDone = false;
 
         parsedRouteDataCache[routeInfo.id] = routeData;
+
+        // Add to total km counter (completed routes only)
+        if (!routeInfo.future) {
+            addToKmCounter(routeData.distance);
+        }
 
         // Queue GeoJSON Data for the Native Symbol Layer
         const feature = {
@@ -1020,8 +1107,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const completedRoutes = Object.values(routes).filter(r => !r.future);
     const futureRoutes = Object.values(routes).filter(r => r.future);
 
-    // Load all route data (non-blocking)
-    Object.values(routes).forEach(route => loadRouteData(route));
+    // Load route data in batches of 3 to avoid a CPU/network spike on startup
+    (async () => {
+        const routeValues = Object.values(routes);
+        for (let i = 0; i < routeValues.length; i += 3) {
+            await Promise.all(routeValues.slice(i, i + 3).map(r => loadRouteData(r)));
+        }
+    })();
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -1123,8 +1215,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // ── Carousel: wheel + drag scroll ─────────────────────────────────────
         let manualOffset = 0;
         let inManual = false;
+        let _cachedHalfWidth = 0;
 
-        function getHalfWidth() { return marqueeTrack.scrollWidth / 2; }
+        function getHalfWidth() {
+            if (!_cachedHalfWidth) _cachedHalfWidth = marqueeTrack.scrollWidth / 2;
+            return _cachedHalfWidth;
+        }
+        window.addEventListener('resize', () => { _cachedHalfWidth = 0; }, { passive: true });
 
         function enterManual() {
             if (inManual) return;
@@ -1169,7 +1266,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (Math.abs(dx) > 4) didDrag = true;
             manualOffset = dragBaseOffset + dx;
             applyOffset();
-        });
+        }, { passive: true });
 
         document.addEventListener('mouseup', () => {
             if (!isDragging) return;

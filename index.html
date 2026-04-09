@@ -14,8 +14,7 @@
     <link rel="stylesheet" href="style.css">
     <style>
         .custom-hover-popup .mapboxgl-popup-content {
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.92);
             border: 1px solid rgba(255, 77, 77, 0.4);
             border-radius: 12px;
             color: white;
@@ -50,9 +49,9 @@
             align-items: center;
             gap: 8px;
             align-self: flex-end;
-            background: rgba(0, 0, 0, 0.80);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            background: rgba(0, 0, 0, 0.90);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             border-top: 1px solid transparent;
             border-right: 1px solid transparent;
             border-bottom: 1px solid transparent;
@@ -96,10 +95,17 @@
         }
         .carousel-card {
             transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+            contain: layout style paint;
         }
         .carousel-card:hover {
             transform: scale(1.06) translateY(-4px);
             box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.2);
+        }
+        #route-carousel-outer {
+            contain: layout style;
+        }
+        #route-panel-group {
+            contain: layout style;
         }
     </style>
     <!-- EXIF extraction library -->
@@ -198,9 +204,17 @@
             <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent backdrop-blur-md -ml-8 -mr-16 rounded-r-full pointer-events-none"></div>
             <div class="absolute bottom-0 left-[-2rem] right-[-4rem] h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none"></div>
             
-            <p class="relative z-10 text-base lg:text-lg text-zinc-100 font-light leading-relaxed drop-shadow-md py-4 px-2">
+            <p class="relative z-10 text-base lg:text-lg text-zinc-100 font-light leading-relaxed drop-shadow-md pt-4 px-2">
                 Место, где начинается дикая природа. Гид на приключения в горах. Трекинг, экспедиции и дикие маршруты по Сербии.
             </p>
+            <div id="total-km-display" class="relative z-10 flex items-center gap-2 px-2 pb-4 pt-2 opacity-0 transition-opacity duration-1000">
+                <svg class="w-3.5 h-3.5 text-red-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                </svg>
+                <span class="text-zinc-400 text-[11px] uppercase tracking-widest font-light">Пройдено лично</span>
+                <span id="total-km-value" class="text-white font-semibold text-sm tabular-nums">0</span>
+                <span class="text-zinc-400 text-[11px] font-light">км</span>
+            </div>
         </div>
 
         <!-- Hero Text -->
@@ -252,10 +266,18 @@
         </nav>
 
         <div class="h-[1px] w-full bg-white/10 mb-5"></div>
-        <p class="text-zinc-300 text-sm font-light leading-relaxed">
+        <p class="text-zinc-300 text-sm font-light leading-relaxed mb-4">
             Место, где начинается дикая природа. Гид на приключения в горах. Трекинг, экспедиции и дикие маршруты по
             Сербии.
         </p>
+        <div class="flex items-center gap-2 opacity-0 transition-opacity duration-1000" id="total-km-display-mobile">
+            <svg class="w-3.5 h-3.5 text-red-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+            </svg>
+            <span class="text-zinc-500 text-[11px] uppercase tracking-widest font-light">Пройдено лично</span>
+            <span id="total-km-value-mobile" class="text-white font-semibold text-sm tabular-nums">0</span>
+            <span class="text-zinc-500 text-[11px] font-light">км</span>
+        </div>
     </div>
 
     <!-- Floating Route Tooltip / UI Panel -->
