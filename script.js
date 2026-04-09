@@ -22,11 +22,11 @@ const routesList = [
         ]
     },
     {
-        file: 'Samari - Magleš (Pali).gpx', overrideAscent: 805, overrideDescent: 805, overrideTime: '7h', photos: [
-            'photos/Samari - Magleš (Pali)/IMG_6278.JPG', 'photos/Samari - Magleš (Pali)/IMG_6312.JPG', 'photos/Samari - Magleš (Pali)/IMG_6317.JPG',
-            'photos/Samari - Magleš (Pali)/IMG_6360.JPG', 'photos/Samari - Magleš (Pali)/IMG_6408.JPG', 'photos/Samari - Magleš (Pali)/IMG_6427.JPG',
-            'photos/Samari - Magleš (Pali)/IMG_6435.JPG', 'photos/Samari - Magleš (Pali)/IMG_6448.JPG', 'photos/Samari - Magleš (Pali)/IMG_6451.JPG',
-            'photos/Samari - Magleš (Pali)/IMG_6495.JPG', 'photos/Samari - Magleš (Pali)/IMG_6502.JPG'
+        file: 'Samari - Magles - Pali.gpx', name: 'Samari - Magleš (Pali)', overrideAscent: 805, overrideDescent: 805, overrideTime: '7h', photos: [
+            'photos/Samari - Magles - Pali/IMG_6278.JPG', 'photos/Samari - Magles - Pali/IMG_6312.JPG', 'photos/Samari - Magles - Pali/IMG_6317.JPG',
+            'photos/Samari - Magles - Pali/IMG_6360.JPG', 'photos/Samari - Magles - Pali/IMG_6408.JPG', 'photos/Samari - Magles - Pali/IMG_6427.JPG',
+            'photos/Samari - Magles - Pali/IMG_6435.JPG', 'photos/Samari - Magles - Pali/IMG_6448.JPG', 'photos/Samari - Magles - Pali/IMG_6451.JPG',
+            'photos/Samari - Magles - Pali/IMG_6495.JPG', 'photos/Samari - Magles - Pali/IMG_6502.JPG'
         ]
     },
     {
@@ -38,7 +38,7 @@ const routesList = [
     },
     { file: 'Valjevo - Gradac River Canyon.gpx', overrideAscent: 301, overrideDescent: 382, overrideTime: '4h', overrideMinEle: 171 },
     {
-        file: 'Istoćni Maljen - Mokra Pecina.gpx', overrideAscent: 931, overrideDescent: 935, overrideTime: '7h 57m', photos: [
+        file: 'Istocni Maljen - Mokra Pecina.gpx', name: 'Istoćni Maljen - Mokra Pecina', overrideAscent: 931, overrideDescent: 935, overrideTime: '7h 57m', photos: [
             'photos/Maljen/IMG_5753.JPG', 'photos/Maljen/IMG_5819.JPG', 'photos/Maljen/IMG_5837.JPG', 'photos/Maljen/IMG_5852.JPG',
             'photos/Maljen/IMG_5888.JPG', 'photos/Maljen/IMG_5975.JPG', 'photos/Maljen/IMG_5999.JPG', 'photos/Maljen/IMG_6033.JPG'
         ]
@@ -50,12 +50,12 @@ const routesList = [
         ]
     },
     {
-        file: 'Lastra - Magleš - Kušakovići.gpx', overrideAscent: 987, overrideDescent: 986, overrideTime: '5h', overrideMinEle: 365, photos: [
-            'photos/Lastra - Magleš - Kušakovići/IMG_5170.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5216.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5238.JPG',
-            'photos/Lastra - Magleš - Kušakovići/IMG_5265.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5320.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5334.JPG',
-            'photos/Lastra - Magleš - Kušakovići/IMG_5339.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5358.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5396.JPG',
-            'photos/Lastra - Magleš - Kušakovići/IMG_5408.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5441.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5478.JPG',
-            'photos/Lastra - Magleš - Kušakovići/IMG_5489.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5498.JPG', 'photos/Lastra - Magleš - Kušakovići/IMG_5506.JPG'
+        file: 'Lastra - Magles - Kusakovici.gpx', name: 'Lastra - Magleš - Kušakovići', overrideAscent: 987, overrideDescent: 986, overrideTime: '5h', overrideMinEle: 365, photos: [
+            'photos/Lastra - Magles - Kusakovici/IMG_5170.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5216.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5238.JPG',
+            'photos/Lastra - Magles - Kusakovici/IMG_5265.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5320.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5334.JPG',
+            'photos/Lastra - Magles - Kusakovici/IMG_5339.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5358.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5396.JPG',
+            'photos/Lastra - Magles - Kusakovici/IMG_5408.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5441.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5478.JPG',
+            'photos/Lastra - Magles - Kusakovici/IMG_5489.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5498.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5506.JPG'
         ]
     }
 ];
@@ -65,7 +65,7 @@ routesList.forEach((data, index) => {
     routes[`route_${index}`] = {
         id: `route_${index}`,
         file: data.file,
-        name: data.file.replace('.gpx', ''),
+        name: data.name || data.file.replace('.gpx', ''),
         color: '#ff4d4d',
         future: false,
         overrideAscent: data.overrideAscent,
