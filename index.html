@@ -60,7 +60,7 @@
             text-transform: uppercase;
             border-radius: 999px;
             transition: background .2s, color .2s;
-            color: rgba(255,255,255,.4);
+            color: rgba(255,255,255,.62);
         }
         .filter-tab-btn.active {
             background: rgba(255,255,255,.18);
@@ -116,6 +116,83 @@
         /* hide hero when sidebar is open */
         #hero-text { transition: opacity .4s ease, transform .4s ease; }
         #hero-text.hero-hidden { opacity: 0; pointer-events: none; transform: translateY(8px); }
+        /* All children of hero-text must also be non-interactive when hidden,
+           otherwise invisible h1 (pointer-events:auto) captures touch events
+           over the map on mobile and triggers browser scroll instead of map pan. */
+        #hero-text.hero-hidden * { pointer-events: none !important; }
+        #hero-desc { transition: opacity .4s ease, transform .4s ease; }
+        #hero-desc.hero-hidden { opacity: 0; pointer-events: none !important; transform: translateY(8px); }
+        #hero-desc.hero-hidden * { pointer-events: none !important; }
+
+        /* ── Panel loading blur (applied while camera flies to route) ─ */
+        /* Target every direct section except the header (first child)  */
+        #route-panel > div:not(:first-child) {
+            transition: filter .5s ease, opacity .5s ease;
+        }
+        #route-panel.panel-loading > div:not(:first-child) {
+            filter: blur(8px);
+            opacity: 0.28;
+            pointer-events: none;
+        }
+
+        /* ── Panel collapse / expand tab button ──────────────────── */
+        #panel-toggle-btn {
+            display: none; /* hidden until panel opens */
+            position: absolute;
+            /* Desktop: vertical pill on the right edge, sticking into the map */
+            top: 50%;
+            right: -20px;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 56px;
+            background: rgba(12,12,14,0.96);
+            border: 1px solid rgba(63,63,70,0.55);
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: rgba(255,255,255,0.55);
+            transition: color .2s, background .2s;
+            pointer-events: auto;
+            z-index: 2;
+            padding: 0;
+            outline: none;
+        }
+        #panel-toggle-btn:hover { background: rgba(25,25,28,.98); color: rgba(255,255,255,.9); }
+        #route-panel-group.sidebar-open #panel-toggle-btn { display: flex; }
+
+        /* Arrow SVG rotates to indicate direction.
+           Desktop: 0° = ‹ left (collapse), 180° = › right (expand)
+           Mobile : 90° = ˅ down (collapse), 270° = ˄ up (expand)  */
+        #panel-toggle-btn svg {
+            transition: transform .35s ease;
+            transform: rotate(0deg);
+            flex-shrink: 0;
+        }
+        #route-panel-group.panel-collapsed #panel-toggle-btn svg { transform: rotate(180deg); }
+
+        /* Collapsed desktop: show only the 20px button tab */
+        #route-panel-group.sidebar-open.panel-collapsed { transform: translateX(-100%); }
+
+        @media (max-width: 767px) {
+            #panel-toggle-btn {
+                /* Mobile: horizontal pill on the top edge, sticking above the drawer */
+                top: -20px;
+                right: auto;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 56px;
+                height: 20px;
+                border-radius: 8px 8px 0 0;
+                border: 1px solid rgba(63,63,70,0.55);
+                border-bottom: none;
+            }
+            #panel-toggle-btn svg { transform: rotate(90deg); }  /* ˅ down = collapse */
+            #route-panel-group.panel-collapsed #panel-toggle-btn svg { transform: rotate(270deg); } /* ˄ up = expand */
+            /* Collapsed mobile: panel off-screen, only 20px button tab visible */
+            #route-panel-group.sidebar-open.panel-collapsed { transform: translateY(100%); }
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js"></script>
 </head>
@@ -198,7 +275,7 @@
         </header>
 
         <!-- Desktop Description Box -->
-        <div class="hidden md:block relative pointer-events-auto max-w-lg mt-6 ml-4">
+        <div id="hero-desc" class="hidden md:block relative pointer-events-auto max-w-lg mt-6 ml-4">
             <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent backdrop-blur-md -ml-8 -mr-16 rounded-r-full pointer-events-none"></div>
             <div class="absolute bottom-0 left-[-2rem] right-[-4rem] h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none"></div>
             <p class="relative z-10 text-base lg:text-lg text-zinc-100 font-light leading-relaxed drop-shadow-md pt-4 px-2">
@@ -235,11 +312,11 @@
 
         <nav class="flex flex-col mb-4 text-sm uppercase tracking-widest text-white font-semibold">
             <div class="mb-4">
-                <div class="text-[10px] text-zinc-500 mb-3 tracking-widest border-b border-white/10 pb-2">All Tours</div>
+                <div class="text-[10px] text-zinc-400 mb-3 tracking-widest border-b border-white/10 pb-2">All Tours</div>
                 <div id="mobile-tours-list" class="flex flex-col space-y-4 pl-2"></div>
             </div>
             <div>
-                <div class="text-[10px] text-zinc-500 mb-3 tracking-widest border-b border-white/10 pb-2">Contact</div>
+                <div class="text-[10px] text-zinc-400 mb-3 tracking-widest border-b border-white/10 pb-2">Contact</div>
                 <div class="flex flex-col space-y-4 pl-2">
                     <a href="mailto:toczkijg@gmail.com" class="flex items-center text-zinc-300 hover:text-white normal-case tracking-normal transition-colors">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -263,14 +340,22 @@
             <svg class="w-3.5 h-3.5 text-red-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
             </svg>
-            <span class="text-zinc-500 text-[11px] uppercase tracking-widest font-light">Пройдено лично</span>
+            <span class="text-zinc-400 text-[11px] uppercase tracking-widest font-light">Пройдено лично</span>
             <span id="total-km-value-mobile" class="text-white font-semibold text-sm tabular-nums">0</span>
-            <span class="text-zinc-500 text-[11px] font-light">км</span>
+            <span class="text-zinc-400 text-[11px] font-light">км</span>
         </div>
     </div>
 
     <!-- ── Route Sidebar ────────────────────────────────────────── -->
     <div id="route-panel-group">
+
+        <!-- Collapse/expand tab — single left-chevron SVG, CSS rotates it for each state/device -->
+        <button id="panel-toggle-btn" aria-label="Свернуть / развернуть панель">
+            <svg width="8" height="13" viewBox="0 0 8 13" fill="none">
+                <path d="M6 11L2 6.5L6 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+
         <div id="route-panel" class="route-panel-inner scrollbar-hide">
 
             <!-- Header: name + status + date + close -->
@@ -278,7 +363,7 @@
                 <div class="flex-1 min-w-0 pr-3">
                     <div id="panel-status-badge" class="hidden mb-2"></div>
                     <h2 id="panel-name" class="text-lg font-medium tracking-tight text-white leading-snug break-words">Route Name</h2>
-                    <div id="panel-date" class="hidden text-zinc-500 text-xs mt-1.5 tracking-wide font-light"></div>
+                    <div id="panel-date" class="hidden text-zinc-400 text-xs mt-1.5 tracking-wide font-light"></div>
                 </div>
                 <button id="btn-back" class="shrink-0 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors mt-0.5">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,35 +375,35 @@
             <!-- Stats grid -->
             <div class="grid grid-cols-3 gap-x-4 gap-y-4 p-5 border-b border-zinc-800/60 shrink-0">
                 <div>
-                    <div class="text-zinc-500 text-[9px] uppercase tracking-widest mb-1">Distance</div>
+                    <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-1">Distance</div>
                     <div id="panel-dist" class="text-base font-light text-white">—</div>
                 </div>
                 <div>
-                    <div class="text-zinc-500 text-[9px] uppercase tracking-widest mb-1">Ascent</div>
+                    <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-1">Ascent</div>
                     <div id="panel-ascent" class="text-base font-light text-white">—</div>
                 </div>
                 <div>
-                    <div class="text-zinc-500 text-[9px] uppercase tracking-widest mb-1">Descent</div>
+                    <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-1">Descent</div>
                     <div id="panel-descent" class="text-base font-light text-white">—</div>
                 </div>
                 <div>
-                    <div class="text-zinc-500 text-[9px] uppercase tracking-widest mb-1">Est. Time</div>
+                    <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-1">Est. Time</div>
                     <div id="panel-time" class="text-base font-light text-white">—</div>
                 </div>
                 <div>
-                    <div class="text-zinc-500 text-[9px] uppercase tracking-widest mb-1">Min. Elev</div>
+                    <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-1">Min. Elev</div>
                     <div id="panel-min-ele" class="text-base font-light text-white">—</div>
                 </div>
                 <div>
-                    <div class="text-zinc-500 text-[9px] uppercase tracking-widest mb-1">Max. Elev</div>
+                    <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-1">Max. Elev</div>
                     <div id="panel-max-ele" class="text-base font-light text-white">—</div>
                 </div>
             </div>
 
             <!-- Elevation Profile -->
             <div id="panel-elevation-wrapper" class="hidden px-5 pt-4 pb-3 border-b border-zinc-800/60 shrink-0">
-                <div class="text-zinc-500 text-[9px] uppercase tracking-widest mb-2">Профиль высот</div>
-                <div style="position:relative;height:72px;">
+                <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-2">Профиль высот</div>
+                <div style="position:relative;height:90px;">
                     <canvas id="elevation-chart"></canvas>
                 </div>
             </div>
@@ -330,7 +415,7 @@
 
             <!-- Photos -->
             <div id="panel-photos-section" class="hidden p-5 border-b border-zinc-800/60 shrink-0">
-                <div class="text-zinc-500 text-[9px] uppercase tracking-widest mb-3">Фотографии</div>
+                <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-3">Фотографии</div>
                 <!-- Current photo viewer -->
                 <div class="relative rounded-xl overflow-hidden bg-zinc-900 mb-3" style="aspect-ratio:4/3">
                     <img id="panel-photo-img" src="" class="w-full h-full object-cover" alt="">

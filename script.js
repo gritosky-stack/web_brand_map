@@ -137,6 +137,24 @@ futureRoutesList.forEach((data, index) => {
 // ── Caches ─────────────────────────────────────────────────────────────────────
 const parsedRouteDataCache = {};
 const routeFeatures = [];
+let _carouselHW = 0;          // shared carousel half-width cache
+let _peakMapMarker = null;    // active peak-summit marker on the map
+let _selectedRouteId = null;  // route whose pulsing dot is currently hidden
+let _activeFilterType = 'all'; // current Все/Отчёты/Планы filter
+
+// Combined marker filter: applies type filter + always hides the selected route dot
+function _applyMarkerFilter() {
+    if (!map || !map.getLayer('route-markers-layer')) return;
+    let f = null;
+    if (_activeFilterType === 'completed') f = ['==', ['get', 'future'], false];
+    else if (_activeFilterType === 'planned') f = ['==', ['get', 'future'], true];
+    if (_selectedRouteId) {
+        const ex = ['!=', ['get', 'id'], _selectedRouteId];
+        f = f ? ['all', f, ex] : ex;
+    }
+    map.setFilter('route-markers-layer', f);
+    map.setFilter('route-hitboxes-layer', f);
+}
 
 // ── Total km counter ──────────────────────────────────────────────────────────
 let _totalKm = 0;
@@ -380,6 +398,9 @@ function triggerRouteSelection(routeId) {
 
     if (window.hoverPopup) window.hoverPopup.remove();
 
+    // Remove previous peak marker whenever we switch routes
+    if (_peakMapMarker) { _peakMapMarker.remove(); _peakMapMarker = null; }
+
     if (currentViewedRoute && currentViewedRoute.id !== routeInfo.id) {
         if (map.getLayer(`layer-${currentViewedRoute.id}`)) {
             map.setPaintProperty(`layer-${currentViewedRoute.id}`, 'line-opacity', 0);
@@ -388,28 +409,78 @@ function triggerRouteSelection(routeId) {
             map.setFilter('photo-markers-glow', ['==', 'routeId', 'none']);
             map.setFilter('photo-markers-hitbox', ['==', 'routeId', 'none']);
         }
+        if (map.getSource('photo-active-source')) {
+            map.getSource('photo-active-source').setData({ type: 'FeatureCollection', features: [] });
+        }
     }
 
     currentViewedRoute = routeInfo;
+    _selectedRouteId = routeInfo.id;
+    _applyMarkerFilter(); // immediately hide pulsing dot; peak marker added after moveend
     loadExifForRoute(routeInfo);
 
-    // Show sidebar, hide hero
-    document.getElementById('route-panel-group').classList.add('sidebar-open');
+    // Force-expand and show sidebar, hide hero + description block
+    const _pg = document.getElementById('route-panel-group');
+    _pg.classList.remove('panel-collapsed');
+    _pg.classList.add('sidebar-open');
+    document.getElementById('route-panel').classList.add('panel-loading');
     document.getElementById('hero-text').classList.add('hero-hidden');
+    const _heroDesc = document.getElementById('hero-desc');
+    if (_heroDesc) _heroDesc.classList.add('hero-hidden');
 
     // Hide carousel
     const carousel = document.getElementById('route-carousel-outer');
     if (carousel) carousel.style.display = 'none';
 
-    map.flyTo({
-        center: routeData.center, zoom: 13, pitch: 65, bearing: -20,
-        speed: 0.8, curve: 1, essential: true
+    // fitBounds auto-calculates zoom so the full route is visible.
+    // Padding compensates for the sidebar (desktop left) or bottom drawer (mobile).
+    const _mob = window.innerWidth < 768;
+    const _fitPad = _mob
+        ? { top: 40, bottom: Math.round(window.innerHeight * 0.58) + 50, left: 20, right: 20 }
+        : { top: 80, bottom: 80, left: 400, right: 80 }; // 400px left = sidebar width + margin
+
+    map.fitBounds(routeData.bounds, {
+        padding: _fitPad,
+        pitch: 45,
+        bearing: -20,
+        speed: 0.8,
+        essential: true,
+        maxZoom: 14
     });
 
     map.once('moveend', () => {
         if (currentViewedRoute.id !== routeInfo.id) return;
 
         addRouteToMap(routeInfo.id, routeData.coordinates, routeInfo.color);
+
+        // ── Peak summit marker on the map ─────────────────────
+        if (routeData.peakCoords) {
+            const peakEl = document.createElement('div');
+            peakEl.style.cssText = 'display:flex;flex-direction:column;align-items:center;pointer-events:none;';
+            peakEl.innerHTML =
+                '<div id="peak-badge" style="background:rgba(9,9,11,0.88);border:1px solid rgba(255,140,0,0.65);border-radius:7px;padding:5px 7px;display:flex;flex-direction:column;align-items:center;gap:2px;box-shadow:0 2px 18px rgba(0,0,0,0.9);pointer-events:auto;cursor:pointer;">' +
+                '<svg width="16" height="13" viewBox="0 0 16 13" fill="none">' +
+                '<path d="M8 1.5L14.5 12H1.5Z" stroke="#FF8C00" stroke-width="1.5" stroke-linejoin="round" fill="rgba(255,140,0,0.15)"/>' +
+                '<path d="M5.5 7.5L8 5L10.5 7.5" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+                '</svg>' +
+                '<span style="color:#FF8C00;font-size:7px;font-weight:700;letter-spacing:.12em;font-family:system-ui,sans-serif;line-height:1;text-transform:uppercase;">MAX</span>' +
+                '</div>' +
+                '<div style="width:1.5px;height:26px;background:linear-gradient(to bottom,rgba(255,140,0,0.7),rgba(255,140,0,0.04));"></div>' +
+                '<div style="width:10px;height:10px;border-radius:50%;background:#FF8C00;border:2px solid rgba(255,255,255,0.95);box-shadow:0 0 14px rgba(255,140,0,0.9),0 0 5px rgba(255,140,0,0.6);margin-top:-1px;"></div>';
+            _peakMapMarker = new mapboxgl.Marker({ element: peakEl, anchor: 'bottom' })
+                .setLngLat(routeData.peakCoords)
+                .addTo(map);
+            // Fly to peak on badge click / tap
+            const _badge = peakEl.querySelector('#peak-badge');
+            const _flyToPeak = () => map.flyTo({ center: routeData.peakCoords, zoom: 15, pitch: 70, bearing: -20, speed: 1.2, essential: true });
+            _badge.addEventListener('click', _flyToPeak);
+            let _bTapSX = 0, _bTapSY = 0, _bTapST = 0;
+            _badge.addEventListener('touchstart', (e) => { _bTapSX = e.touches[0].clientX; _bTapSY = e.touches[0].clientY; _bTapST = Date.now(); }, { passive: true });
+            _badge.addEventListener('touchend', (e) => {
+                const t = e.changedTouches[0];
+                if (Math.abs(t.clientX - _bTapSX) < 12 && Math.abs(t.clientY - _bTapSY) < 12 && Date.now() - _bTapST < 450) _flyToPeak();
+            }, { passive: true });
+        }
 
         // ── Fill panel ────────────────────────────────────────
         // Status badge
@@ -472,6 +543,9 @@ function triggerRouteSelection(routeId) {
         renderPhotosInPanel(routeInfo);
         renderPhotoMapMarkers(routeInfo);
 
+        // Remove loading blur now that panel is fully populated
+        document.getElementById('route-panel').classList.remove('panel-loading');
+
         // Re-render photos once EXIF finishes
         loadExifForRoute(routeInfo).then(() => {
             if (currentViewedRoute && currentViewedRoute.id === routeInfo.id) {
@@ -510,6 +584,14 @@ function showPanelPhoto(idx) {
     }
 
     if (counter) counter.textContent = `${_panelPhotoIdx + 1} / ${_panelPhotos.length}`;
+
+    // Highlight active photo point on map
+    if (p.coords && map.getSource('photo-active-source')) {
+        map.getSource('photo-active-source').setData({
+            type: 'FeatureCollection',
+            features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: p.coords }, properties: {} }]
+        });
+    }
 
     document.querySelectorAll('#panel-photos-container .photo-thumb').forEach((t, i) => {
         const active = i === _panelPhotoIdx;
@@ -561,6 +643,116 @@ function renderElevationChart(elevationProfile, minEle, maxEle) {
 
     if (wrapper) wrapper.classList.remove('hidden');
 
+    const yMin = Math.max(0, (minEle || 0) - 60);
+    const yMax = (maxEle || 2000) + 90;
+    const range = yMax - yMin;
+
+    // Adaptive band step: every 50 / 100 / 200 m depending on elevation range
+    const bandStep = range > 800 ? 200 : range > 400 ? 100 : 50;
+
+    // Peak position in the profile array
+    const peakEle  = maxEle || 0;
+    const peakIdx  = elevationProfile.reduce((best, v, i) => v > elevationProfile[best] ? i : best, 0);
+
+    // ── Inline Chart.js plugins ───────────────────────────────────────────────
+    const altitudeBandsPlugin = {
+        id: 'altitudeBands',
+        beforeDraw(chart) {
+            const { ctx, scales, chartArea } = chart;
+            if (!chartArea) return;
+            const { top, bottom, left, right } = chartArea;
+            const yScale = scales.y;
+            ctx.save();
+            ctx.font = 'bold 8px system-ui,sans-serif';
+            const firstBand = Math.ceil(yMin / bandStep) * bandStep;
+            for (let alt = firstBand; alt <= yMax; alt += bandStep) {
+                const y = yScale.getPixelForValue(alt);
+                if (y < top - 2 || y > bottom + 2) continue;
+                // Horizontal reference line
+                ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(left, y);
+                ctx.lineTo(right, y);
+                ctx.stroke();
+                // Label pill background
+                const labelText = `${alt}м`;
+                const tw = ctx.measureText(labelText).width;
+                const px2 = left + 4, py2 = y - 11, pw = tw + 8, ph = 12, pr = 3;
+                ctx.fillStyle = 'rgba(9,9,11,0.72)';
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(px2, py2, pw, ph, pr);
+                } else {
+                    ctx.rect(px2, py2, pw, ph);
+                }
+                ctx.fill();
+                // Label text
+                ctx.fillStyle = 'rgba(255,255,255,0.72)';
+                ctx.textAlign = 'left';
+                ctx.fillText(labelText, px2 + 4, py2 + ph - 2);
+            }
+            ctx.restore();
+        }
+    };
+
+    const peakMarkerPlugin = {
+        id: 'peakMarker',
+        afterDraw(chart) {
+            if (!peakEle) return;
+            const { ctx, scales, chartArea } = chart;
+            if (!chartArea) return;
+            const px = scales.x.getPixelForValue(peakIdx);
+            const py = scales.y.getPixelForValue(peakEle);
+
+            ctx.save();
+            // Dashed vertical line from peak down to base
+            ctx.strokeStyle = 'rgba(255,215,0,0.25)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 3]);
+            ctx.beginPath();
+            ctx.moveTo(px, chartArea.bottom);
+            ctx.lineTo(px, py + 7);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Orange dot (same colour as the map peak pin)
+            ctx.beginPath();
+            ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#FF8C00';
+            ctx.shadowColor = 'rgba(255,140,0,0.8)';
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Label: flip below the dot if near the top edge, keep within left/right bounds
+            ctx.font = 'bold 9px system-ui,sans-serif';
+            const labelText = `${peakEle}м`;
+            const tw = ctx.measureText(labelText).width;
+            const clampedX = Math.max(chartArea.left + tw / 2 + 4, Math.min(chartArea.right - tw / 2 - 4, px));
+            // If dot is within 18px of chart top, put label below; else above
+            const labelY = py - 10 < chartArea.top + 14 ? py + 18 : py - 10;
+
+            // Dark pill behind label
+            ctx.fillStyle = 'rgba(9,9,11,0.85)';
+            const pillW = tw + 10, pillH = 14, pillX = clampedX - pillW / 2, pillY = labelY - 11;
+            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, 4); ctx.fill(); }
+            else { ctx.fillRect(pillX, pillY, pillW, pillH); }
+
+            // Label text
+            ctx.fillStyle = '#FF8C00';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'rgba(0,0,0,0.9)';
+            ctx.shadowBlur = 3;
+            ctx.fillText(labelText, clampedX, labelY);
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        }
+    };
+
     window._elevChart = new Chart(canvas, {
         type: 'line',
         data: {
@@ -582,11 +774,58 @@ function renderElevationChart(elevationProfile, minEle, maxEle) {
             plugins: { legend: { display: false }, tooltip: { enabled: false } },
             scales: {
                 x: { display: false },
-                y: { display: false, min: Math.max(0, (minEle || 0) - 80), max: (maxEle || 2000) + 80 }
+                y: { display: false, min: yMin, max: yMax }
             },
             animation: { duration: 500 }
-        }
+        },
+        plugins: [altitudeBandsPlugin, peakMarkerPlugin]
     });
+
+    // ── Canvas interaction: hover + click/tap near peak dot → fly to peak ──
+    // Property assignment (not addEventListener) so re-renders overwrite cleanly.
+    const PEAK_HIT_PX = 28; // generous hit radius for touch
+
+    function _peakScreenX() {
+        if (!window._elevChart) return -9999;
+        const data = window._elevChart.data.datasets[0].data;
+        const idx = data.reduce((b, v, i) => v > data[b] ? i : b, 0);
+        return window._elevChart.scales.x.getPixelForValue(idx);
+    }
+    function _clientXToCanvas(clientX) {
+        const r = canvas.getBoundingClientRect();
+        return (clientX - r.left) * (canvas.width / r.width);
+    }
+    function _flyToPeakFromChart() {
+        if (!map || !currentViewedRoute) return;
+        const rd = parsedRouteDataCache[currentViewedRoute.id];
+        if (rd && rd.peakCoords) {
+            map.flyTo({ center: rd.peakCoords, zoom: 15, pitch: 70, bearing: map.getBearing() + 25, speed: 1.4 });
+        }
+    }
+
+    canvas.onmousemove = (e) => {
+        canvas.style.cursor = Math.abs(_clientXToCanvas(e.clientX) - _peakScreenX()) < PEAK_HIT_PX ? 'pointer' : 'default';
+    };
+    canvas.onmouseleave = () => { canvas.style.cursor = 'default'; };
+    canvas.onclick = (e) => {
+        if (Math.abs(_clientXToCanvas(e.clientX) - _peakScreenX()) < PEAK_HIT_PX) _flyToPeakFromChart();
+    };
+    // Mobile tap detection: record touchstart, check on touchend.
+    // No preventDefault anywhere so the parent panel scroll is never blocked.
+    // Distinguish tap from scroll via movement + duration thresholds.
+    let _tapSX = 0, _tapSY = 0, _tapST = 0;
+    canvas.ontouchstart = (e) => {
+        if (!e.touches.length) return;
+        _tapSX = e.touches[0].clientX;
+        _tapSY = e.touches[0].clientY;
+        _tapST = Date.now();
+    };
+    canvas.ontouchend = (e) => {
+        if (!e.changedTouches.length) return;
+        const t = e.changedTouches[0];
+        if (Math.abs(t.clientX - _tapSX) > 12 || Math.abs(t.clientY - _tapSY) > 12 || Date.now() - _tapST > 450) return;
+        if (Math.abs(_clientXToCanvas(t.clientX) - _peakScreenX()) < PEAK_HIT_PX) _flyToPeakFromChart();
+    };
 }
 
 // ── Photo map markers ──────────────────────────────────────────────────────────
@@ -602,11 +841,16 @@ function renderPhotoMapMarkers(routeInfo) {
 
     if (!map.getSource('photo-markers-source')) {
         map.addSource('photo-markers-source', { type: 'geojson', data: { type: 'FeatureCollection', features } });
+        map.addSource('photo-active-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 
         map.addLayer({
             id: 'photo-markers-glow', type: 'circle', source: 'photo-markers-source',
             paint: { 'circle-radius': 6, 'circle-color': '#fff', 'circle-opacity': 0.9, 'circle-stroke-width': 2, 'circle-stroke-color': '#34AADF' },
             filter: ['==', 'routeId', routeInfo.id]
+        });
+        map.addLayer({
+            id: 'photo-active-layer', type: 'circle', source: 'photo-active-source',
+            paint: { 'circle-radius': 9, 'circle-color': '#fff', 'circle-opacity': 1, 'circle-stroke-width': 3, 'circle-stroke-color': '#00E5FF' }
         });
         map.addLayer({
             id: 'photo-markers-hitbox', type: 'circle', source: 'photo-markers-source',
@@ -715,18 +959,31 @@ document.getElementById('btn-gallery-fly').addEventListener('click', () => {
 document.getElementById('btn-back').addEventListener('click', () => {
     if (!currentViewedRoute) return;
 
-    document.getElementById('route-panel-group').classList.remove('sidebar-open');
+    const _panelGroup = document.getElementById('route-panel-group');
+    _panelGroup.classList.remove('sidebar-open', 'panel-collapsed');
     document.getElementById('hero-text').classList.remove('hero-hidden');
+    const _heroDescBack = document.getElementById('hero-desc');
+    if (_heroDescBack) _heroDescBack.classList.remove('hero-hidden');
+
+    if (_peakMapMarker) { _peakMapMarker.remove(); _peakMapMarker = null; }
+    _selectedRouteId = null;
+    _applyMarkerFilter(); // restore pulsing dot
 
     if (map.getLayer('photo-markers-glow')) {
         map.setFilter('photo-markers-glow', ['==', 'routeId', 'none']);
         map.setFilter('photo-markers-hitbox', ['==', 'routeId', 'none']);
     }
+    if (map.getSource('photo-active-source')) {
+        map.getSource('photo-active-source').setData({ type: 'FeatureCollection', features: [] });
+    }
     if (map.getLayer(`layer-${currentViewedRoute.id}`)) {
         map.setPaintProperty(`layer-${currentViewedRoute.id}`, 'line-opacity', 0);
     }
 
-    map.flyTo({ center: [20.9029, 44.2107], zoom: 6.5, pitch: 0, bearing: 0, speed: 1.2 });
+    map.flyTo({
+        center: [20.9029, 44.2107], zoom: 6.5, pitch: 0, bearing: 0, speed: 1.2,
+        padding: { top: 0, bottom: 0, left: 0, right: 0 }
+    });
     currentViewedRoute = null;
 
     const carousel = document.getElementById('route-carousel-outer');
@@ -737,22 +994,13 @@ document.getElementById('btn-back').addEventListener('click', () => {
 
 // ── Filter ────────────────────────────────────────────────────────────────────
 window.setFilter = function(type) {
+    _activeFilterType = type;
     ['all', 'completed', 'planned'].forEach(t => {
         [document.getElementById(`filter-${t}`), document.getElementById(`filter-${t}-mob`)].forEach(el => {
             if (el) el.classList.toggle('active', t === type);
         });
     });
-
-    if (map && map.getLayer('route-markers-layer')) {
-        if (type === 'all') {
-            map.setFilter('route-markers-layer', null);
-            map.setFilter('route-hitboxes-layer', null);
-        } else {
-            const isFuture = type === 'planned';
-            map.setFilter('route-markers-layer', ['==', ['get', 'future'], isFuture]);
-            map.setFilter('route-hitboxes-layer', ['==', ['get', 'future'], isFuture]);
-        }
-    }
+    _applyMarkerFilter();
 
     document.querySelectorAll('.carousel-card').forEach(card => {
         const route = routes[card.dataset.routeId];
@@ -760,6 +1008,7 @@ window.setFilter = function(type) {
         const show = type === 'all' || (type === 'completed' && !route.future) || (type === 'planned' && route.future);
         card.style.display = show ? '' : 'none';
     });
+    _carouselHW = 0; // invalidate cached scrollWidth after card visibility changes
 };
 
 // ── GPX helpers ───────────────────────────────────────────────────────────────
@@ -811,6 +1060,17 @@ function parseGPX(gpxString) {
         raw.push({ lon, lat, ele, time });
     }
     if (!raw.length) return null;
+
+    // ── Multi-pass spike filter (removes GPS altitude artifacts before smoothing)
+    // Runs 3 passes: each pass replaces any point that deviates >80 m from its
+    // 4-neighbor average — handles single-point AND consecutive bad points at
+    // track start/end (e.g. GPS lock artefacts, car travel after hiking).
+    for (let pass = 0; pass < 3; pass++) {
+        for (let i = 2; i < raw.length - 2; i++) {
+            const ref = (raw[i-2].ele + raw[i-1].ele + raw[i+1].ele + raw[i+2].ele) / 4;
+            if (Math.abs(raw[i].ele - ref) > 80) raw[i].ele = ref;
+        }
+    }
 
     // Smooth elevations (15-pt moving average)
     const W = 15, half = Math.floor(W/2);
@@ -865,6 +1125,7 @@ function parseGPX(gpxString) {
         coordinates: simplified,
         peakCoords,
         center: [(minLon+maxLon)/2, (minLat+maxLat)/2],
+        bounds: [[minLon, minLat], [maxLon, maxLat]],
         distance: Number(totalDist.toFixed(2)),
         ascent: Math.round(totalAscent),
         descent: Math.round(totalDescent),
@@ -1004,9 +1265,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Wheel + drag scroll
-        let manualOffset = 0, inManual = false, _cachedHW = 0;
-        const getHW = () => { if (!_cachedHW) _cachedHW = marqueeTrack.scrollWidth / 2; return _cachedHW; };
-        window.addEventListener('resize', () => { _cachedHW = 0; }, { passive: true });
+        let manualOffset = 0, inManual = false;
+        const getHW = () => { if (!_carouselHW) _carouselHW = marqueeTrack.scrollWidth / 2; return _carouselHW; };
+        window.addEventListener('resize', () => { _carouselHW = 0; }, { passive: true });
 
         function enterManual() {
             if (inManual) return;
@@ -1039,12 +1300,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isDragging) return;
             const dx = e.clientX - dragStartX;
             if (Math.abs(dx) > 4) didDrag = true;
-            manualOffset = dragBase + dx; applyOffset();
+            manualOffset = dragBase + dx;
+            // Apply raw offset during drag — no wrapping to prevent mid-drag snap
+            marqueeTrack.style.transform = `translateX(${manualOffset}px)`;
         }, { passive: true });
         document.addEventListener('mouseup', () => {
-            if (!isDragging) return; isDragging = false; marqueeTrack.style.cursor = '';
+            if (!isDragging) return;
+            isDragging = false;
+            marqueeTrack.style.cursor = '';
+            applyOffset(); // normalize offset (wrap) only after drag ends
         });
     }
+
+    // ── Panel collapse/expand toggle
+    document.getElementById('panel-toggle-btn').addEventListener('click', () => {
+        document.getElementById('route-panel-group').classList.toggle('panel-collapsed');
+    });
 
     // ── Sidebar photo buttons setup
     document.getElementById('panel-photo-prev').addEventListener('click', () => showPanelPhoto(_panelPhotoIdx - 1));
