@@ -37,13 +37,17 @@ const routesList = [
     {
         file: 'Samari - Lastra.gpx',
         overrideAscent: 718, overrideDescent: 829, overrideTime: '6h 24m',
-        date: '', description: '', instagramUrl: null,
+        date: '2026-03-01',
+        description: 'Мы проделали еще один классный маршрут - от Самари до Ластры и вышло офигенно!)🔥\nПогода была просто супер: чистое небо и солнышко, снег почти весь растаял, только выше 1000 метров еще лежит.\nБыло очень красиво, видели четырех оленей 🦌, горы на горизонте - оба Повлена и много других.\nПо итогу:\n• Прошли 22.6 км вместо 21.5 (погрешность на красивые места и пару ошибок с тропой)\n• Общее время с паузами: 6:27 ⏱️\n• Чистой ходьбы: 5:18 🥾\nВсе держались просто супер, темп был классный! Спасибо за ваш позитив) Немного волновался, что идем впритык к поезду, но все оказалось не так страшно - добрались до станции за 30-35 минут до отправления. 🚂\n Спасибо за доверие и что присоединились!! ❤️',
+        instagramUrl: null,
         photos: ['photos/Samari - Lastra/IMG_6806.JPG', 'photos/Samari - Lastra/IMG_6817.JPG']
     },
     {
         file: 'Gvozdacke Stene.gpx',
         overrideAscent: 726, overrideDescent: 730, overrideTime: '6h 07m',
-        date: '', description: '', instagramUrl: null,
+        date: '2026-03-08',
+        description: 'Классно сходили, виды со скал были просто нереальные!!',
+        instagramUrl: null,
         photos: [
             'photos/Gvozdacke Stene/IMG_7332.JPG', 'photos/Gvozdacke Stene/IMG_7382.JPG',
             'photos/Gvozdacke Stene/IMG_7387.JPG', 'photos/Gvozdacke Stene/IMG_7425.JPG',
@@ -53,7 +57,9 @@ const routesList = [
     {
         file: 'Lastra - Divcibare.gpx',
         overrideAscent: 604, overrideDescent: 587, overrideTime: '5h 43m',
-        date: '', description: '', instagramUrl: null,
+        date: '2026-03-15',
+        description: 'Маршрут от ЖД станции Ластра с резким набором и хвойными лесами Дивчибаре. \n Было классно 🔥',
+        instagramUrl: null,
         photos: [
             'photos/Lastra - Divcibare/IMG_7564.JPG', 'photos/Lastra - Divcibare/IMG_7572.JPG',
             'photos/Lastra - Divcibare/IMG_7580.JPG'
@@ -62,7 +68,9 @@ const routesList = [
     {
         file: 'Samari - Magles - Pali.gpx', name: 'Samari - Magleš (Pali)',
         overrideAscent: 805, overrideDescent: 805, overrideTime: '7h',
-        date: '', description: '', instagramUrl: null,
+        date: '2026-02-14',
+        description: '🏔️ Маглеш (1036м): 21 км снежного безумия! ❄️ Мы не ожидали такой глубины — снег \n таял прямо в ботинках, но темп задали такой, что горы горели! 🔥 Главным героем \n дня стал 69-летний Зоран: легенда хайкинга, который знает каждую \nтропу и заброшенную хижину в районе Вальево как свои пять пальцев. 👴🥾 \nВместе форсировали полноводную реку Забаву и пробирались через сказочные\n заснеженные леса. На пути встретили местную жительницу: она пугала\n нас медведями 🐻 и настойчиво пыталась напоить ракией 🥃 \n(сербское гостеприимство — оно такое!). В итоге спускались в густом тумане 🌫️,\nно совершили невозможное и успели запрыгнуть в уходящий поезд. 🚂💨\n Настоящее приключение, где ноги промокли насквозь, \nно сердце согрето историями и горами! ❤️🏔️',
+        instagramUrl: 'https://www.instagram.com/reel/DVZryC5CLZp/',
         photos: [
             'photos/Samari - Magles - Pali/IMG_6278.JPG', 'photos/Samari - Magles - Pali/IMG_6312.JPG',
             'photos/Samari - Magles - Pali/IMG_6317.JPG', 'photos/Samari - Magles - Pali/IMG_6360.JPG',
@@ -75,7 +83,9 @@ const routesList = [
     {
         file: 'Medednik - Bucurska pecina.gpx',
         overrideAscent: 1267, overrideDescent: 1272, overrideTime: '8h 25m',
-        date: '', description: '', instagramUrl: null,
+        date: '2026-03-07',
+        description: 'Живописный маршрут, посетили пещеру, залезли на крутой склон Медведника, \nнаделали кучу фоток, прошли по гребню и спустились \n через красивый лес. Увидели закат, в конце спускались \n в темноте с фонариками',
+        instagramUrl: null,
         photos: [
             'photos/Medednik - Bucurska pecina/IMG_7045.JPG', 'photos/Medednik - Bucurska pecina/IMG_7146.JPG',
             'photos/Medednik - Bucurska pecina/IMG_7257.JPG', 'photos/Medednik - Bucurska pecina/IMG_7281.JPG',
@@ -86,12 +96,14 @@ const routesList = [
     {
         file: 'Valjevo - Gradac River Canyon.gpx',
         overrideAscent: 301, overrideDescent: 382, overrideTime: '4h', overrideMinEle: 171,
-        date: '', description: '', instagramUrl: null
+        date: '', description: 'Один из первых маршрутов, поезд до Вальево, \n прошли через город к реке Градац. Шли вдоль реки, \n видели оленя, зашли на тропу со значком опасности \n По итогу путь оказался узким с крутым склоном справа. \n Успешно его пройдя оказались рядом с этно - деревней. Пройдя дальше мы повернули \n и опошли в обратную сторону. Встретили очень красивый монастырь Челие. Прошли \n уже легким путем обратно в Вальево.', instagramUrl: 'https://www.instagram.com/reel/DUUDzPiCBbM/'
     },
     {
         file: 'Istocni Maljen - Mokra Pecina.gpx', name: 'Istoćni Maljen - Mokra Pecina',
         overrideAscent: 931, overrideDescent: 935, overrideTime: '7h 57m',
-        date: '', description: '', instagramUrl: null,
+        date: '2026-02-15',
+        description: '🏔 Массив Мальен: 24 км дикой Сербии, олени и ночной финиш - небольшой отчет\nВ эти выходные зафиналили мощнейший круговой маршрут вокруг горного массива Мальен. Если кратко: это было эпично, мокро и местами очень загадочно.\n📊 Цифры для статистики:\n• Дистанция: 24 км\n• Набор высоты: 931 м (столько же спуска — настоящие «качели»)\n• Время в пути: 8 часов (из них 6.5 ч чистого движения)\n• Средняя скорость: 3.4 км/ч\n• Локация: Равна Гора, старт от церкви Св. Георгия.\nЧто было на маршруте:\n1. Дикая природа: Сразу на старте из-под носа у собаки Тиши сорвались два оленя. Чуть позже на склонах удалось заснять убегающую лисицу. Живности тут полно.\n2. Пещера Мокра Печина: Невероятное место! Из неё вытекает ледяной ручей, а внутри слышен гул водопадов. Пройти до конца не дали глубина воды и отсутствие подходящей обуви и снаряжения, но атмосфера — 10/10.\n3. Виды на 100+ км: С хребта при ясной погоде разглядели даже Авалу (Белград) и Космай. Пейзажи наверху пустынные: сухая трава, редкие хвойные и абсолютный простор.\n4. Загадочные воронки: Наткнулись на целые ряды странных кратеров в земле (по 5-10 м в диаметре). Похоже на карстовые воронки, но выглядят как следы от бомбардировки.\n5. Сербский колорит: В лесу встретили молодых охотников на «Ниве» с мигалками. Поспрашивали, как дела, и предупредили, что в этих краях водятся волки (но они нас боятся больше, чем мы их).\n🔦 Финиш в темноте:\nПоследние километры дорезали уже в сумерках и полной темноте под свет фонариков. Был крутой финальный подъем на 100 метров, который окончательно «добил» ноги.\n🏆 Главный герой:\nСобака Тиша. Пока мы прошли 24 км, её GPS-ошейник насчитал 39.4 км. К концу дня в машине спали все: и девчонки, и собака.\nБыло офигенно) спасибо Наде, Хавин и Оле что присоединились и за доверие 🤞',
+        instagramUrl: 'https://www.instagram.com/reel/DUy8LHWiO0d/?igsh=ODAzczY4ZngyMjV1',
         photos: [
             'photos/Maljen/IMG_5753.JPG', 'photos/Maljen/IMG_5819.JPG', 'photos/Maljen/IMG_5837.JPG',
             'photos/Maljen/IMG_5852.JPG', 'photos/Maljen/IMG_5888.JPG', 'photos/Maljen/IMG_5975.JPG',
@@ -101,7 +113,9 @@ const routesList = [
     {
         file: 'Бељаница - Богојављенски успон.gpx',
         overrideAscent: 1105, overrideDescent: 1119, overrideTime: '5h 51m',
-        date: '', description: '', instagramUrl: null,
+        date: '2026-03-22',
+        description: 'Очень красивый и одновременно сложный маршрут. Оставили машину недалеко от реки, \nпрошли до деревни к водопаду Велики Бук, а затем начали подьем. \n Подъем средней сложности, прошли по лесистой местности, постоянно набирая высоту. \nНаверху было холодно и дул сильный ветер, кусты и ветки деревьев были в \nгоризонтальных сосульках от ветра. Мы быстро прошли до вершины, оказались выше \nнекоторых облаков, наделали фоток и сразу начали спуск в тепло по весеннему лесу. \nСпуск был очень крутой, но красивый. Почти в самом конце мы зашли на видиковац\n невероятной красоты, с видом на каньон. \n ',
+        instagramUrl: null,
         photos: [
             'photos/Бељаница - Богојављенски успон/IMG_7799.JPG', 'photos/Бељаница - Богојављенски успон/IMG_7805.JPG',
             'photos/Бељаница - Богојављенски успон/IMG_7828.JPG', 'photos/Бељаница - Богојављенски успон/IMG_7891.JPG'
@@ -110,7 +124,7 @@ const routesList = [
     {
         file: 'Lastra - Magles - Kusakovici.gpx', name: 'Lastra - Magleš - Kušakovići',
         overrideAscent: 987, overrideDescent: 986, overrideTime: '5h', overrideMinEle: 365,
-        date: '', description: '', instagramUrl: null,
+        date: '', description: 'Один из первых походов, доехал до ЖД станции Ластра, прошел чуть вдоль реки \n и начал подъем в гору. Моментами тропа терялась и приходилось проходить через ветки \n и кустарник. Встречалось много заброшенных хижин. На последних 200 метрах набора высоты \n тропа совсем потерялась и я шел по дикому по заросшим мхом камням. \nПосле вершины вышел на открытый участок с классным видос, начал спуск \n обратно, к станции ластра и по пути наткнулся на деревню Кушаковичи\n', instagramUrl: 'https://www.instagram.com/reel/DUjkxYiiBu-/',
         photos: [
             'photos/Lastra - Magles - Kusakovici/IMG_5170.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5216.JPG',
             'photos/Lastra - Magles - Kusakovici/IMG_5238.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5265.JPG',
@@ -574,12 +588,33 @@ function triggerRouteSelection(routeId) {
         document.getElementById('panel-max-ele').textContent = `${routeData.maxEle} m`;
         document.getElementById('panel-time').textContent    = routeInfo.overrideTime ?? routeData.formattedTime;
 
-        // Description
+        // Description with collapse
         const descWrap = document.getElementById('panel-description-wrapper');
         const descEl   = document.getElementById('panel-description');
+        const descBody = document.getElementById('panel-desc-body');
+        const descFade = document.getElementById('panel-desc-fade');
+        const descBtn  = document.getElementById('panel-desc-toggle');
         if (routeInfo.description) {
             descEl.textContent = routeInfo.description;
             descWrap.classList.remove('hidden');
+            // Start collapsed; show expand button only if text is actually long
+            descBody.classList.remove('expanded');
+            descBody.classList.add('collapsed');
+            descFade.style.display = '';
+            document.getElementById('panel-desc-toggle-label').textContent = 'Развернуть';
+            document.getElementById('panel-desc-toggle-icon').style.transform = 'rotate(0deg)';
+            // Check after render if text actually overflows
+            requestAnimationFrame(() => {
+                if (descEl.scrollHeight <= 66) {
+                    // Short enough — no need for collapse UI
+                    descBody.classList.remove('collapsed');
+                    descBody.classList.add('expanded');
+                    descFade.style.display = 'none';
+                    descBtn.style.display  = 'none';
+                } else {
+                    descBtn.style.display = '';
+                }
+            });
         } else {
             descWrap.classList.add('hidden');
         }
@@ -1589,6 +1624,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Panel collapse/expand toggle
     document.getElementById('panel-toggle-btn').addEventListener('click', () => {
         document.getElementById('route-panel-group').classList.toggle('panel-collapsed');
+    });
+
+    // ── Description expand/collapse
+    document.getElementById('panel-desc-toggle').addEventListener('click', () => {
+        const body  = document.getElementById('panel-desc-body');
+        const fade  = document.getElementById('panel-desc-fade');
+        const label = document.getElementById('panel-desc-toggle-label');
+        const icon  = document.getElementById('panel-desc-toggle-icon');
+        const isCollapsed = body.classList.contains('collapsed');
+        body.classList.toggle('collapsed', !isCollapsed);
+        body.classList.toggle('expanded',   isCollapsed);
+        fade.style.display  = isCollapsed ? 'none' : '';
+        label.textContent   = isCollapsed ? 'Свернуть' : 'Развернуть';
+        icon.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
     });
 
     // ── Thumbnail strip horizontal scroll via mouse wheel (desktop)

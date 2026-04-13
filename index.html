@@ -193,6 +193,11 @@
             /* Collapsed mobile: panel off-screen, only 20px button tab visible */
             #route-panel-group.sidebar-open.panel-collapsed { transform: translateY(100%); }
         }
+        /* ── Collapsible description ──────────────────────────────── */
+        #panel-desc-body.collapsed { max-height: 62px; } /* ~3 lines at 1.5 line-height × 14px */
+        #panel-desc-body.expanded  { max-height: none; }
+        #panel-desc-body { transition: max-height .35s ease; overflow: hidden; }
+
         /* ── Panel tabs ───────────────────────────────────────────── */
         .panel-tab-btn {
             flex: 1; padding: 11px 4px; font-size: 10px; text-transform: uppercase;
@@ -584,7 +589,15 @@
 
                 <!-- Description -->
                 <div id="panel-description-wrapper" class="hidden p-5 border-b border-zinc-800/60 shrink-0">
-                    <p id="panel-description" class="text-zinc-300 text-sm leading-relaxed"></p>
+                    <div id="panel-desc-body" style="position:relative;overflow:hidden;">
+                        <p id="panel-description" class="text-zinc-300 text-sm leading-relaxed" style="white-space:pre-line"></p>
+                        <!-- fade-out gradient shown when collapsed -->
+                        <div id="panel-desc-fade" style="position:absolute;bottom:0;left:0;right:0;height:52px;background:linear-gradient(to bottom,transparent,rgba(9,9,11,.94));pointer-events:none;"></div>
+                    </div>
+                    <button id="panel-desc-toggle" class="mt-2 text-zinc-400 hover:text-white text-[11px] uppercase tracking-widest transition-colors flex items-center gap-1.5">
+                        <span id="panel-desc-toggle-label">Развернуть</span>
+                        <svg id="panel-desc-toggle-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .25s"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
                 </div>
 
                 <!-- Photos -->
