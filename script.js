@@ -1194,9 +1194,8 @@ function loadExifForRoute(routeInfo) {
 }
 
 // ── Lightbox ───────────────────────────────────────────────────────────────────
-window.openLightbox = function(src, coords, isVideo) {
+function _lightboxShowPhoto(src, coords, isVideo) {
     currentPhotoCoords = coords;
-    const modal    = document.getElementById('gallery-lightbox');
     const img      = document.getElementById('gallery-image');
     const vid      = document.getElementById('gallery-video');
     const coordTxt = document.getElementById('gallery-coord-text');
@@ -1211,13 +1210,53 @@ window.openLightbox = function(src, coords, isVideo) {
         vid.classList.add('hidden'); vid.pause(); vid.src = '';
         img.classList.remove('hidden'); img.src = src;
     }
-
     btnFly.classList.toggle('hidden', !coords);
+
+    // Sync panel index + highlight active strip thumb
+    const idx = _panelPhotos.findIndex(p => p.src === src);
+    if (idx !== -1) { _panelPhotoIdx = idx; showPanelPhoto(idx); }
+    _lightboxHighlightThumb(idx);
+}
+
+function _lightboxHighlightThumb(activeIdx) {
+    document.getElementById('gallery-strip').querySelectorAll('.lb-thumb').forEach((el, i) => {
+        const on = i === activeIdx;
+        el.style.opacity      = on ? '1' : '0.4';
+        el.style.outlineColor = on ? 'rgba(255,77,77,.9)' : 'transparent';
+        if (on) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    });
+}
+
+window.openLightbox = function(src, coords, isVideo) {
+    const modal      = document.getElementById('gallery-lightbox');
+    const strip      = document.getElementById('gallery-strip');
+    const stripWrap  = document.getElementById('gallery-strip-wrap');
+
+    // Build strip from current panel photos
+    strip.innerHTML = '';
+    if (_panelPhotos.length > 1) {
+        _panelPhotos.forEach((p, i) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'lb-thumb shrink-0 rounded-lg overflow-hidden cursor-pointer';
+            thumb.style.cssText = 'width:56px;height:56px;outline:2px solid transparent;outline-offset:2px;border-radius:8px;transition:opacity .15s,outline-color .15s;';
+            thumb.innerHTML = p.isVideo
+                ? `<video src="${p.src}#t=0.001" class="w-full h-full object-cover" muted playsinline></video>`
+                : `<img src="${p.src}" class="w-full h-full object-cover" loading="lazy" alt="">`;
+            thumb.addEventListener('click', () => _lightboxShowPhoto(p.src, p.coords || null, p.isVideo || false));
+            strip.appendChild(thumb);
+        });
+        stripWrap.style.display = '';
+    } else {
+        stripWrap.style.display = 'none';
+    }
+
+    _lightboxShowPhoto(src, coords, isVideo);
+
     modal.classList.remove('opacity-0', 'pointer-events-none');
     modal.classList.add('opacity-100', 'pointer-events-auto');
     setTimeout(() => {
-        (isVideo ? vid : img).classList.remove('scale-95');
-        (isVideo ? vid : img).classList.add('scale-100');
+        const el = document.getElementById(isVideo ? 'gallery-video' : 'gallery-image');
+        el.classList.remove('scale-95'); el.classList.add('scale-100');
     }, 50);
 };
 
