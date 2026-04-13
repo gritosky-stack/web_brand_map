@@ -1317,6 +1317,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('route-panel-group').classList.toggle('panel-collapsed');
     });
 
+    // ── Thumbnail strip horizontal scroll via mouse wheel (desktop)
+    const _thumbStrip = document.getElementById('panel-photos-container');
+    _thumbStrip.addEventListener('wheel', (e) => {
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // already horizontal (trackpad)
+        e.preventDefault();
+        _thumbStrip.scrollLeft += e.deltaY;
+    }, { passive: false });
+
     // ── Sidebar photo buttons setup
     document.getElementById('panel-photo-prev').addEventListener('click', () => showPanelPhoto(_panelPhotoIdx - 1));
     document.getElementById('panel-photo-next').addEventListener('click', () => showPanelPhoto(_panelPhotoIdx + 1));
