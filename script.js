@@ -1,3 +1,32 @@
+// ── Firebase config ────────────────────────────────────────────────────────────
+// 1. Create a project at console.firebase.google.com
+// 2. Add a Web App, copy the config object here
+// 3. In Firestore → Rules, set:
+//      allow read: if true;
+//      allow create: if request.auth != null;
+//      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+// 4. Enable Anonymous Authentication in Firebase Console → Auth → Sign-in providers
+const FIREBASE_CONFIG = {
+    apiKey:            "YOUR_API_KEY",
+    authDomain:        "YOUR_PROJECT.firebaseapp.com",
+    projectId:         "YOUR_PROJECT_ID",
+    storageBucket:     "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId:             "YOUR_APP_ID"
+};
+
+let _db = null, _auth = null, _fbUser = null;
+
+function _initFirebase() {
+    if (FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') return; // not yet configured
+    try {
+        if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+        _db   = firebase.firestore();
+        _auth = firebase.auth();
+        _auth.signInAnonymously().then(c => { _fbUser = c.user; }).catch(() => {});
+    } catch(e) { console.warn('Firebase init failed:', e); }
+}
+
 // ── Configuration ─────────────────────────────────────────────────────────────
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidG9jemtpamciLCJhIjoiY21uYWE1dnY0MGdjMTJwcDYwMW9hN3IzbyJ9.z8vVKr9lNliGDfC5Kd8Ttg';
 mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -137,9 +166,11 @@ futureRoutesList.forEach((data, index) => {
 // ── Caches ─────────────────────────────────────────────────────────────────────
 const parsedRouteDataCache = {};
 const routeFeatures = [];
-let _carouselHW = 0;          // shared carousel half-width cache
-let _peakMapMarker = null;    // active peak-summit marker on the map
-let _selectedRouteId = null;  // route whose pulsing dot is currently hidden
+const _overviewFeatures = [];  // for background route lines
+let _showLines = false;        // lines toggle state
+let _carouselHW = 0;           // shared carousel half-width cache
+let _peakMapMarker = null;     // active peak-summit marker on the map
+let _selectedRouteId = null;   // route whose pulsing dot is currently hidden
 let _activeFilterType = 'all'; // current Все/Отчёты/Планы filter
 
 // Combined marker filter: applies type filter + always hides the selected route dot
@@ -154,6 +185,14 @@ function _applyMarkerFilter() {
     }
     map.setFilter('route-markers-layer', f);
     map.setFilter('route-hitboxes-layer', f);
+
+    // Mirror filter to overview lines (only relevant when lines are visible)
+    if (map.getLayer('overview-lines-completed')) {
+        const showCompleted = _showLines && _activeFilterType !== 'planned';
+        const showPlanned   = _showLines && _activeFilterType !== 'completed';
+        map.setLayoutProperty('overview-lines-completed', 'visibility', showCompleted ? 'visible' : 'none');
+        map.setLayoutProperty('overview-lines-planned',   'visibility', showPlanned   ? 'visible' : 'none');
+    }
 }
 
 // ── Total km counter ──────────────────────────────────────────────────────────
@@ -291,6 +330,22 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
 
         map.addImage('pulsing-dot', pulsingDot, { pixelRatio: 1.5 });
         map.addImage('future-pulsing-dot', futurePulsingDot, { pixelRatio: 1.5 });
+
+        // ── Overview lines (toggleable background, added below markers) ──
+        // Initialise with whatever routes have already finished loading (race-safe)
+        map.addSource('overview-lines', { type: 'geojson', data: { type: 'FeatureCollection', features: _overviewFeatures } });
+        map.addLayer({
+            id: 'overview-lines-completed', type: 'line', source: 'overview-lines',
+            filter: ['==', ['get', 'future'], false],
+            layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+            paint: { 'line-color': '#ff4d4d', 'line-width': 3, 'line-opacity': 0.85 }
+        });
+        map.addLayer({
+            id: 'overview-lines-planned', type: 'line', source: 'overview-lines',
+            filter: ['==', ['get', 'future'], true],
+            layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+            paint: { 'line-color': '#FF8C00', 'line-width': 3, 'line-opacity': 0.85, 'line-dasharray': [2, 2.5] }
+        });
 
         map.addSource('route-markers', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 
@@ -472,7 +527,10 @@ function triggerRouteSelection(routeId) {
                 .addTo(map);
             // Fly to peak on badge click / tap
             const _badge = peakEl.querySelector('#peak-badge');
-            const _flyToPeak = () => map.flyTo({ center: routeData.peakCoords, zoom: 15, pitch: 70, bearing: -20, speed: 1.2, essential: true });
+            const _flyToPeak = () => {
+                map.flyTo({ center: routeData.peakCoords, zoom: 16, pitch: 75,
+                    bearing: map.getBearing() + 45, speed: 1.5 });
+            };
             _badge.addEventListener('click', _flyToPeak);
             let _bTapSX = 0, _bTapSY = 0, _bTapST = 0;
             _badge.addEventListener('touchstart', (e) => { _bTapSX = e.touches[0].clientX; _bTapSY = e.touches[0].clientY; _bTapST = Date.now(); }, { passive: true });
@@ -542,6 +600,27 @@ function triggerRouteSelection(routeId) {
         // Photos
         renderPhotosInPanel(routeInfo);
         renderPhotoMapMarkers(routeInfo);
+
+        // Difficulty bar
+        const _diff = calcDifficulty(
+            routeData.distance,
+            routeInfo.overrideAscent  ?? routeData.ascent,
+            routeInfo.overrideDescent ?? routeData.descent
+        );
+        const _diffEl = document.getElementById('panel-difficulty');
+        _diffEl.classList.remove('hidden');
+        document.getElementById('panel-difficulty-label').textContent = _diff.label;
+        document.getElementById('panel-difficulty-label').style.color = _diff.color;
+        document.getElementById('panel-difficulty-fill').style.width  = _diff.pct + '%';
+        document.getElementById('panel-difficulty-fill').style.background = _diff.color;
+
+        // Rating bar — reset for new route; reviews load lazily when tab opened
+        _reviewsRouteId = null;
+        document.getElementById('panel-rating-bar').style.display = 'none';
+        document.getElementById('tab-reviews-count').classList.add('hidden');
+
+        // Reset to info tab
+        _switchPanelTab('info');
 
         // Remove loading blur now that panel is fully populated
         document.getElementById('route-panel').classList.remove('panel-loading');
@@ -799,7 +878,9 @@ function renderElevationChart(elevationProfile, minEle, maxEle) {
         if (!map || !currentViewedRoute) return;
         const rd = parsedRouteDataCache[currentViewedRoute.id];
         if (rd && rd.peakCoords) {
-            map.flyTo({ center: rd.peakCoords, zoom: 15, pitch: 70, bearing: map.getBearing() + 25, speed: 1.4 });
+            const _mob = window.innerWidth < 768;
+            map.flyTo({ center: rd.peakCoords, zoom: 16, pitch: 75,
+                bearing: map.getBearing() + 45, speed: 1.5 });
         }
     }
 
@@ -826,6 +907,173 @@ function renderElevationChart(elevationProfile, minEle, maxEle) {
         if (Math.abs(t.clientX - _tapSX) > 12 || Math.abs(t.clientY - _tapSY) > 12 || Date.now() - _tapST > 450) return;
         if (Math.abs(_clientXToCanvas(t.clientX) - _peakScreenX()) < PEAK_HIT_PX) _flyToPeakFromChart();
     };
+}
+
+// ── Difficulty ────────────────────────────────────────────────────────────────
+function calcDifficulty(distance, ascent, descent) {
+    const score = distance + ascent / 100 + descent / 200;
+    if (score < 15) return { score, label: 'Лёгкий',     color: '#22c55e', pct: Math.round(score / 15 * 22) };
+    if (score < 25) return { score, label: 'Средний',    color: '#eab308', pct: Math.round(22 + (score - 15) / 10 * 26) };
+    if (score < 35) return { score, label: 'Сложный',    color: '#f97316', pct: Math.round(48 + (score - 25) / 10 * 26) };
+    return             { score, label: 'Экспертный', color: '#ef4444', pct: Math.min(100, Math.round(74 + (score - 35) / 25 * 26)) };
+}
+
+// ── Stars renderer ────────────────────────────────────────────────────────────
+function renderStars(rating, sizePx = 12) {
+    let html = '';
+    const s = sizePx;
+    for (let i = 1; i <= 5; i++) {
+        const id = `sg${Math.random().toString(36).slice(2,6)}`;
+        if (rating >= i) {
+            html += `<svg class="star-svg" width="${s}" height="${s}" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#FF8C00"/></svg>`;
+        } else if (rating >= i - 0.5) {
+            html += `<svg class="star-svg" width="${s}" height="${s}" viewBox="0 0 24 24"><defs><linearGradient id="${id}"><stop offset="50%" stop-color="#FF8C00"/><stop offset="50%" stop-color="rgba(255,255,255,.12)"/></linearGradient></defs><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="url(#${id})"/></svg>`;
+        } else {
+            html += `<svg class="star-svg" width="${s}" height="${s}" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="rgba(255,255,255,.12)"/></svg>`;
+        }
+    }
+    return html;
+}
+
+// ── Avatar color ──────────────────────────────────────────────────────────────
+const _AVATAR_COLORS = ['#e74c3c','#e67e22','#f39c12','#27ae60','#16a085','#2980b9','#8e44ad','#d35400'];
+function _avatarColor(uid) {
+    let s = 0; for (const c of uid) s += c.charCodeAt(0);
+    return _AVATAR_COLORS[s % _AVATAR_COLORS.length];
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+window._switchPanelTab = function(tab) {
+    const isInfo = tab === 'info';
+    document.getElementById('panel-tab-info').style.display   = isInfo ? '' : 'none';
+    document.getElementById('panel-tab-reviews').style.display = isInfo ? 'none' : '';
+    document.getElementById('tab-btn-info').classList.toggle('active', isInfo);
+    document.getElementById('tab-btn-reviews').classList.toggle('active', !isInfo);
+    if (!isInfo && currentViewedRoute) _loadAndRenderReviews(currentViewedRoute.id);
+};
+
+// ── Firebase reviews ──────────────────────────────────────────────────────────
+let _reviewsRouteId = null; // which route's reviews are currently loaded
+
+async function _loadAndRenderReviews(routeId) {
+    if (_reviewsRouteId === routeId) return; // already loaded
+    _reviewsRouteId = routeId;
+
+    const list   = document.getElementById('reviews-list');
+    const empty  = document.getElementById('reviews-empty');
+    const avgBig = document.getElementById('reviews-avg-big');
+    const hStars = document.getElementById('reviews-header-stars');
+    const hCount = document.getElementById('reviews-header-count');
+
+    list.innerHTML = '<div id="reviews-empty" class="text-zinc-500 text-xs text-center py-8">Загрузка...</div>';
+
+    if (!_db) {
+        list.innerHTML = '<div class="text-zinc-600 text-xs text-center py-8">Firebase не настроен.<br>Заполните FIREBASE_CONFIG в script.js</div>';
+        return;
+    }
+
+    try {
+        const snap = await _db.collection('reviews')
+            .where('routeId', '==', routeId)
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        const reviews = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Update header stats
+        if (reviews.length) {
+            const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
+            const rounded = Math.round(avg * 10) / 10;
+            avgBig.textContent = rounded.toFixed(1);
+            hStars.innerHTML   = renderStars(avg, 13);
+            hCount.textContent = `${reviews.length} ${_pluralReview(reviews.length)}`;
+            _updateRatingBar(avg, reviews.length);
+        } else {
+            avgBig.textContent = '—';
+            hStars.innerHTML   = '';
+            hCount.textContent = 'Ещё нет отзывов';
+            _updateRatingBar(null, 0);
+        }
+
+        // Update tab badge
+        const badge = document.getElementById('tab-reviews-count');
+        if (reviews.length) { badge.textContent = reviews.length; badge.classList.remove('hidden'); }
+        else badge.classList.add('hidden');
+
+        // Render list
+        if (!reviews.length) {
+            list.innerHTML = '<div id="reviews-empty" class="text-zinc-500 text-xs text-center py-8">Будьте первым! Поделитесь впечатлениями.</div>';
+            return;
+        }
+        list.innerHTML = reviews.map(r => _reviewCardHTML(r)).join('');
+
+    } catch(e) {
+        list.innerHTML = '<div class="text-zinc-600 text-xs text-center py-8">Ошибка загрузки отзывов.</div>';
+        console.error(e);
+    }
+}
+
+function _reviewCardHTML(r) {
+    const color  = _avatarColor(r.userId || r.name || 'x');
+    const initials = (r.name || '?').trim().split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
+    const date   = r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ru-RU', { day:'numeric', month:'short', year:'numeric' }) : '';
+    return `<div class="review-card">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:${r.text ? '10px' : '0'}">
+            <div class="review-avatar" style="background:${color}">${initials}</div>
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">
+                    <span style="color:#fff;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(r.name)}</span>
+                    <span style="color:rgba(255,255,255,.25);font-size:9px;white-space:nowrap">${date}</span>
+                </div>
+                <div style="display:flex;gap:2px">${renderStars(r.rating, 11)}</div>
+            </div>
+        </div>
+        ${r.text ? `<p style="color:rgba(255,255,255,.65);font-size:12px;line-height:1.55;margin:0">${_esc(r.text)}</p>` : ''}
+    </div>`;
+}
+
+function _esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function _pluralReview(n) {
+    if (n % 10 === 1 && n % 100 !== 11) return 'отзыв';
+    if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'отзыва';
+    return 'отзывов';
+}
+
+function _updateRatingBar(avg, count) {
+    const bar = document.getElementById('panel-rating-bar');
+    if (!bar) return;
+    if (!count) {
+        bar.style.display = 'none'; return;
+    }
+    bar.style.display = '';
+    document.getElementById('panel-rating-score').textContent = (Math.round(avg * 10) / 10).toFixed(1);
+    document.getElementById('panel-rating-stars').innerHTML   = renderStars(avg, 11);
+    document.getElementById('panel-rating-count').textContent = `${count} ${_pluralReview(count)}`;
+}
+
+// ── Review form star picker ───────────────────────────────────────────────────
+let _pickedRating = 0;
+
+function _initStarPicker() {
+    const picker = document.getElementById('star-picker');
+    if (!picker || picker.dataset.init) return;
+    picker.dataset.init = '1';
+    picker.innerHTML = '';
+    for (let i = 1; i <= 5; i++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'star-pick-btn';
+        btn.dataset.v = i;
+        btn.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/></svg>`;
+        btn.addEventListener('click', () => {
+            _pickedRating = i;
+            picker.querySelectorAll('.star-pick-btn').forEach(b => b.classList.toggle('lit', +b.dataset.v <= i));
+        });
+        picker.appendChild(btn);
+    }
 }
 
 // ── Photo map markers ──────────────────────────────────────────────────────────
@@ -967,6 +1215,8 @@ document.getElementById('btn-back').addEventListener('click', () => {
 
     if (_peakMapMarker) { _peakMapMarker.remove(); _peakMapMarker = null; }
     _selectedRouteId = null;
+    _reviewsRouteId  = null;
+    _switchPanelTab('info');
     _applyMarkerFilter(); // restore pulsing dot
 
     if (map.getLayer('photo-markers-glow')) {
@@ -1156,6 +1406,19 @@ async function loadRouteData(routeInfo) {
         };
         routeFeatures.push(feature);
 
+        // Add to overview lines source (same retry pattern as route-markers)
+        _overviewFeatures.push({
+            type: 'Feature',
+            properties: { id: routeInfo.id, future: routeInfo.future || false },
+            geometry: { type: 'LineString', coordinates: routeData.coordinates }
+        });
+        const _updateOverview = () => {
+            const src = map.getSource('overview-lines');
+            if (src) src.setData({ type: 'FeatureCollection', features: _overviewFeatures });
+            else setTimeout(_updateOverview, 50);
+        };
+        _updateOverview();
+
         const update = () => {
             const src = map.getSource('route-markers');
             if (src) src.setData({ type: 'FeatureCollection', features: routeFeatures });
@@ -1312,6 +1575,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ── Firebase init
+    _initFirebase();
+
+    // ── Layers toggle button
+    document.getElementById('btn-layers-toggle').addEventListener('click', () => {
+        _showLines = !_showLines;
+        _applyMarkerFilter(); // applies lines visibility respecting active filter
+        document.getElementById('btn-layers-toggle').classList.toggle('lines-active', _showLines);
+        document.getElementById('lines-legend').classList.toggle('visible', _showLines);
+    });
+
     // ── Panel collapse/expand toggle
     document.getElementById('panel-toggle-btn').addEventListener('click', () => {
         document.getElementById('route-panel-group').classList.toggle('panel-collapsed');
@@ -1337,5 +1611,73 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!_panelPhotos.length) return;
         const p = _panelPhotos[_panelPhotoIdx];
         openLightbox(p.src, p.coords || null, p.isVideo);
+    });
+
+    // ── Review form open/close
+    const _reviewModal = document.getElementById('review-form-modal');
+
+    document.getElementById('btn-open-review-form').addEventListener('click', () => {
+        _pickedRating = 0;
+        _initStarPicker();
+        document.getElementById('review-name-input').value  = '';
+        document.getElementById('review-text-input').value  = '';
+        document.getElementById('review-form-error').classList.add('hidden');
+        _reviewModal.classList.add('open');
+    });
+
+    document.getElementById('btn-close-review-form').addEventListener('click', () => {
+        _reviewModal.classList.remove('open');
+    });
+
+    _reviewModal.addEventListener('click', (e) => {
+        if (e.target === _reviewModal) _reviewModal.classList.remove('open');
+    });
+
+    // ── Review form submit
+    document.getElementById('btn-submit-review').addEventListener('click', async () => {
+        const errEl  = document.getElementById('review-form-error');
+        const submitBtn = document.getElementById('btn-submit-review');
+        const name   = document.getElementById('review-name-input').value.trim();
+        const text   = document.getElementById('review-text-input').value.trim();
+
+        errEl.classList.add('hidden');
+
+        if (!name)           { errEl.textContent = 'Введите ваше имя.'; errEl.classList.remove('hidden'); return; }
+        if (!_pickedRating)  { errEl.textContent = 'Выберите оценку.';  errEl.classList.remove('hidden'); return; }
+        if (!_db)            { errEl.textContent = 'Firebase не настроен.'; errEl.classList.remove('hidden'); return; }
+        if (!currentViewedRoute) return;
+
+        // Wait for anonymous auth if not yet ready
+        if (!_fbUser) {
+            try { const c = await _auth.signInAnonymously(); _fbUser = c.user; } catch(e) {
+                errEl.textContent = 'Ошибка авторизации.'; errEl.classList.remove('hidden'); return;
+            }
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Отправка...';
+
+        try {
+            await _db.collection('reviews').add({
+                routeId:   currentViewedRoute.id,
+                userId:    _fbUser.uid,
+                name,
+                rating:    _pickedRating,
+                text,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                avatarColor: _avatarColor(_fbUser.uid)
+            });
+            _reviewModal.classList.remove('open');
+            // Force reload reviews
+            _reviewsRouteId = null;
+            _loadAndRenderReviews(currentViewedRoute.id);
+        } catch(e) {
+            errEl.textContent = 'Ошибка отправки. Попробуйте позже.';
+            errEl.classList.remove('hidden');
+            console.error(e);
+        }
+
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Отправить отзыв';
     });
 });
