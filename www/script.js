@@ -1677,14 +1677,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const all = Object.values(routes);
         for (let i = 0; i < all.length; i += 3) await Promise.all(all.slice(i, i+3).map(loadRouteData));
 
-        const hashId = location.hash.slice(1); // e.g. '#route_2' → 'route_2'
+        const hashId = location.hash.slice(1);
         if (hashId && routes[hashId]) {
-            // Wait for map style to be ready before selecting
             const doSelect = () => triggerRouteSelection(hashId);
             if (map.isStyleLoaded()) doSelect();
             else map.once('load', doSelect);
         }
     })();
+
+    // React to hash changes while the page is open (e.g. sharing a link or browser back/forward)
+    window.addEventListener('hashchange', () => {
+        const hashId = location.hash.slice(1);
+        if (hashId && routes[hashId] && parsedRouteDataCache[hashId]) {
+            triggerRouteSelection(hashId);
+        }
+    });
 
     // ── Menu helpers
     function menuBtn(route, isMobile) {
