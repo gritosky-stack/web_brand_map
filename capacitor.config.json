@@ -1,0 +1,18 @@
+{
+  "appId": "com.totskii.wild",
+  "appName": "TOTSKII Wild",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "server": {
+    "allowNavigation": [
+      "*.mapbox.com",
+      "*.googleapis.com",
+      "*.gstatic.com",
+      "*.firebaseio.com",
+      "*.firebaseapp.com",
+      "*.instagram.com"
+    ]
+  }
+}

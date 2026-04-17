@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Capacitor - auto-generated, не нужно в git
+ios/App/App/public/
+ios/App/Pods/
+ios/App/App/build/
+ios/.DS_Store
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
