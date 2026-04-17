@@ -168,27 +168,30 @@ const futureRoutesList = [
         file: 'future_trips/Veliki Krs.gpx',
         name: 'Велики Крш',
         description: 'Велики Крш — легендарный карстовый хребет на востоке Сербии, известный как "Альпы восточной Сербии". Известняковые скалы хребта сформировались 277 миллионов лет назад как доисторический морской риф. С гребня открываются панорамы на горы Стол, Дели Йован, Хомольские горы и Борское озеро. Хребет известен непредсказуемыми ветрами и капризной погодой — пилоты предпочитают его облетать. Маршрут: 24.2 км, набор высоты 978 м, вершина 1135 м.',
+        photos: ['future_trips/photos/20210214_143517.jpg', 'future_trips/photos/Veliki-krs-2-scaled.jpg', 'future_trips/photos/Veliki-krs-1148-Goran-Stamenkovic-scaled.jpg'],
     },
     {
         file: 'future_trips/Велики Вукан.gpx',
         name: 'Велики Вукан',
         description: 'Велики Вукан — самая популярная вершина Хомольских гор на востоке Сербии. Круговой маршрут через буковые и сосновые леса выводит на вершину с панорамным видом 360° на окружающие горы. Маршрут несложный и подходит даже для начинающих. После похода можно расслабиться в термальном источнике в деревне Ждрело (вода 40°C) в 150 км от Белграда. Маршрут: 19.5 км, набор высоты 1272 м, вершина 743 м.',
+        photos: ['future_trips/photos/Homolje-Veliki-i-Mali-Vukan-1.jpg', 'future_trips/photos/VELIKI VUKAN_5.jpg', 'future_trips/photos/Veliki_Vukan_mapa.jpeg'],
     },
     {
         file: 'future_trips/Хайдучка, Погана, Миjуциđa caves.gpx',
         name: 'Пещеры: Хайдучка, Погана, Мийучица',
         description: 'Три дикие карстовые пещеры Хомольских гор — настоящее подземное приключение. Хайдучка пещера прячет ледяную подземную реку в тёмных залах. Погана пещера удивляет "световым колодцем" — отверстием в потолке. Мийучица — жемчужина маршрута: подземное озеро, мощный карстовый источник у входа, где берёт начало река Комненска, и живописный водопад рядом. Пещеры дикие, необустроенные — всё в первозданном виде. Маршрут: 17.4 км, набор высоты 827 м.',
+        photos: ['future_trips/photos/20240406_143023.jpg', 'future_trips/photos/135226923.400x300.jpg', 'future_trips/photos/hajducka-pecina-homolje-gajduckaja-pesshera.jpg', 'future_trips/photos/pogana-pecina-vnutri-pesshera.jpg'],
     },
 ];
 futureRoutesList.forEach((data, index) => {
     const key = `future_${index}`;
     routes[key] = {
         id: key, file: data.file,
-        name: data.file.split('/').pop().replace('.gpx', ''),
+        name: data.name || data.file.split('/').pop().replace('.gpx', ''),
         color: '#FF8C00', future: true,
         overrideAscent: null, overrideDescent: null, overrideTime: null, overrideMinEle: null,
-        date: null, description: null, instagramUrl: null,
-        photos: [], videos: []
+        date: null, description: data.description || null, instagramUrl: null,
+        photos: data.photos || [], videos: []
     };
 });
 
@@ -199,6 +202,10 @@ const _overviewFeatures = [];  // for background route lines
 let _showLines = false;        // lines toggle state
 let _carouselHW = 0;           // shared carousel half-width cache
 let _peakMapMarker = null;     // active peak-summit marker on the map
+let _startMarker = null;       // start flag marker
+let _finishMarker = null;      // finish flag marker
+let _drawInterval   = null;    // interval for progressive line drawing
+let _dashAnimFrame  = null;    // animation frame for continuous flow after draw
 let _selectedRouteId = null;   // route whose pulsing dot is currently hidden
 let _activeFilterType = 'all'; // current Все/Отчёты/Планы filter
 
@@ -480,10 +487,14 @@ function triggerRouteSelection(routeId) {
     const routeData = parsedRouteDataCache[routeId];
     if (!routeInfo || !routeData) return;
 
+    // Update URL so this route can be shared / bookmarked
+    history.replaceState(null, '', '#' + routeId);
+
     if (window.hoverPopup) window.hoverPopup.remove();
 
-    // Remove previous peak marker whenever we switch routes
+    // Remove previous peak marker and start/finish markers whenever we switch routes
     if (_peakMapMarker) { _peakMapMarker.remove(); _peakMapMarker = null; }
+    _removeStartFinishMarkers();
 
     if (currentViewedRoute && currentViewedRoute.id !== routeInfo.id) {
         if (map.getLayer(`layer-${currentViewedRoute.id}`)) {
@@ -1199,8 +1210,10 @@ function loadExifForRoute(routeInfo) {
                 try {
                     const blob = await (await fetch(src)).blob();
                     const gps = await exifr.gps(blob);
-                    if (gps) routeData.photoGeoms.push({ src, coords: [gps.longitude, gps.latitude] });
-                } catch(e) {}
+                    routeData.photoGeoms.push({ src, coords: gps ? [gps.longitude, gps.latitude] : null });
+                } catch(e) {
+                    routeData.photoGeoms.push({ src, coords: null });
+                }
             }));
         }
         routeData._exifDone = true;
@@ -1303,8 +1316,10 @@ document.getElementById('btn-back').addEventListener('click', () => {
     if (_heroDescBack) _heroDescBack.classList.remove('hero-hidden');
 
     if (_peakMapMarker) { _peakMapMarker.remove(); _peakMapMarker = null; }
+    _removeStartFinishMarkers();
     _selectedRouteId = null;
     _reviewsRouteId  = null;
+    history.replaceState(null, '', location.pathname + location.search);
     _switchPanelTab('info');
     _applyMarkerFilter(); // restore pulsing dot
 
@@ -1318,7 +1333,6 @@ document.getElementById('btn-back').addEventListener('click', () => {
     if (map.getLayer(`layer-${currentViewedRoute.id}`)) {
         map.setPaintProperty(`layer-${currentViewedRoute.id}`, 'line-opacity', 0);
     }
-
     map.flyTo({
         center: [20.9029, 44.2107], zoom: 6.5, pitch: 0, bearing: 0, speed: 1.2,
         padding: { top: 0, bottom: 0, left: 0, right: 0 }
@@ -1390,23 +1404,42 @@ function parseGPX(gpxString) {
         const pt = trkpts[i];
         const lat = parseFloat(pt.getAttribute('lat'));
         const lon = parseFloat(pt.getAttribute('lon'));
-        let ele = 0;
         const eleNodes = pt.getElementsByTagName('ele');
-        if (eleNodes.length) ele = parseFloat(eleNodes[0].textContent);
+        const hasEle   = eleNodes.length > 0;
+        const ele      = hasEle ? parseFloat(eleNodes[0].textContent) : null;
         let time = null;
         const timeNodes = pt.getElementsByTagName('time');
         if (timeNodes.length) time = new Date(timeNodes[0].textContent);
-        raw.push({ lon, lat, ele, time });
+        raw.push({ lon, lat, ele, hasEle, time });
     }
     if (!raw.length) return null;
 
-    // ── Multi-pass spike filter (removes GPS altitude artifacts before smoothing)
-    // Runs 3 passes: each pass replaces any point that deviates >80 m from its
-    // 4-neighbor average — handles single-point AND consecutive bad points at
-    // track start/end (e.g. GPS lock artefacts, car travel after hiking).
-    for (let pass = 0; pass < 3; pass++) {
-        for (let i = 2; i < raw.length - 2; i++) {
-            const ref = (raw[i-2].ele + raw[i-1].ele + raw[i+1].ele + raw[i+2].ele) / 4;
+    // ── Interpolate missing elevation points (trkpt without <ele> tag) ────────
+    for (let i = 0; i < raw.length; i++) {
+        if (raw[i].hasEle) continue;
+        let prev = -1, next = -1;
+        for (let j = i - 1; j >= 0; j--)            { if (raw[j].hasEle) { prev = j; break; } }
+        for (let j = i + 1; j < raw.length; j++)    { if (raw[j].hasEle) { next = j; break; } }
+        if (prev >= 0 && next >= 0) {
+            const r = (i - prev) / (next - prev);
+            raw[i].ele = raw[prev].ele + r * (raw[next].ele - raw[prev].ele);
+        } else if (prev >= 0) { raw[i].ele = raw[prev].ele; }
+          else if (next >= 0) { raw[i].ele = raw[next].ele; }
+          else                { raw[i].ele = 0; }
+        raw[i].hasEle = true;
+    }
+
+    // ── Multi-pass spike filter — covers ALL points including boundaries
+    // For each point, averages up to 2 available neighbors on each side.
+    for (let pass = 0; pass < 4; pass++) {
+        for (let i = 0; i < raw.length; i++) {
+            const neighbors = [];
+            for (let d = 1; d <= 2; d++) {
+                if (i - d >= 0)             neighbors.push(raw[i - d].ele);
+                if (i + d < raw.length)     neighbors.push(raw[i + d].ele);
+            }
+            if (!neighbors.length) continue;
+            const ref = neighbors.reduce((a, b) => a + b, 0) / neighbors.length;
             if (Math.abs(raw[i].ele - ref) > 80) raw[i].ele = ref;
         }
     }
@@ -1519,19 +1552,113 @@ async function loadRouteData(routeInfo) {
     }
 }
 
+function _removeStartFinishMarkers() {
+    if (_startMarker)   { _startMarker.remove();  _startMarker  = null; }
+    if (_finishMarker)  { _finishMarker.remove(); _finishMarker = null; }
+    if (_drawInterval)  { clearInterval(_drawInterval);           _drawInterval  = null; }
+    if (_dashAnimFrame) { cancelAnimationFrame(_dashAnimFrame);   _dashAnimFrame = null; }
+}
+
+function _addStartFinishMarkers(coordinates) {
+    _removeStartFinishMarkers();
+    const startCoord  = coordinates[0];
+    const finishCoord = coordinates[coordinates.length - 1];
+
+    function makeMarker(label, color, flagSvg) {
+        const el = document.createElement('div');
+        el.style.cssText = 'display:flex;flex-direction:column;align-items:center;pointer-events:none;';
+        el.innerHTML =
+            `<div style="background:rgba(9,9,11,0.9);border:1px solid ${color}99;border-radius:6px;padding:4px 8px;display:flex;align-items:center;gap:5px;box-shadow:0 2px 16px rgba(0,0,0,0.9),0 0 14px ${color}33;">` +
+            flagSvg +
+            `<span style="color:${color};font-size:9px;font-weight:700;letter-spacing:.1em;font-family:system-ui,sans-serif;text-transform:uppercase;">${label}</span>` +
+            `</div>` +
+            `<div style="width:1.5px;height:22px;background:linear-gradient(to bottom,${color}bb,${color}05);"></div>` +
+            `<div style="width:9px;height:9px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,.95);box-shadow:0 0 12px ${color}cc;margin-top:-1px;"></div>`;
+        return el;
+    }
+
+    const startSvg =
+        '<svg width="13" height="14" viewBox="0 0 13 14" fill="none">' +
+        '<rect x="0.5" y="0.5" width="1.5" height="13" rx="0.5" fill="#22c55e"/>' +
+        '<path d="M2 1H11L8.5 4.5L11 8H2V1Z" fill="#22c55e" opacity="0.9"/>' +
+        '</svg>';
+
+    const finishSvg =
+        '<svg width="14" height="14" viewBox="0 0 14 14" fill="none">' +
+        '<rect x="0.5" y="0.5" width="1.5" height="13" rx="0.5" fill="#ef4444"/>' +
+        '<rect x="2" y="1" width="3" height="3" fill="#ef4444"/>' +
+        '<rect x="5" y="1" width="3" height="3" fill="rgba(255,255,255,.85)"/>' +
+        '<rect x="8" y="1" width="3" height="3" fill="#ef4444"/>' +
+        '<rect x="2" y="4" width="3" height="3" fill="rgba(255,255,255,.85)"/>' +
+        '<rect x="5" y="4" width="3" height="3" fill="#ef4444"/>' +
+        '<rect x="8" y="4" width="3" height="3" fill="rgba(255,255,255,.85)"/>' +
+        '</svg>';
+
+    // If start and finish are within ~400m — circular route, show combined marker
+    const dLat = (finishCoord[1] - startCoord[1]) * 111000;
+    const dLon = (finishCoord[0] - startCoord[0]) * 111000 * Math.cos(startCoord[1] * Math.PI / 180);
+    const distM = Math.sqrt(dLat * dLat + dLon * dLon);
+
+    if (distM < 400) {
+        // Combined Start / Finish marker
+        const el = document.createElement('div');
+        el.style.cssText = 'display:flex;flex-direction:column;align-items:center;pointer-events:none;';
+        el.innerHTML =
+            '<div style="background:rgba(9,9,11,0.9);border:1px solid rgba(255,255,255,0.25);border-radius:6px;padding:4px 8px;display:flex;align-items:center;gap:5px;box-shadow:0 2px 16px rgba(0,0,0,0.9);">' +
+            startSvg + finishSvg +
+            '<span style="color:#fff;font-size:9px;font-weight:700;letter-spacing:.08em;font-family:system-ui,sans-serif;text-transform:uppercase;">Start / Finish</span>' +
+            '</div>' +
+            '<div style="width:1.5px;height:22px;background:linear-gradient(to bottom,rgba(255,255,255,0.4),rgba(255,255,255,0.02));"></div>' +
+            '<div style="width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid rgba(255,255,255,.95);box-shadow:0 0 12px rgba(255,255,255,0.6);margin-top:-1px;"></div>';
+        _startMarker = new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat(startCoord).addTo(map);
+    } else {
+        _startMarker  = new mapboxgl.Marker({ element: makeMarker('СТАРТ',  '#22c55e', startSvg),  anchor: 'bottom' }).setLngLat(startCoord).addTo(map);
+        _finishMarker = new mapboxgl.Marker({ element: makeMarker('ФИНИШ', '#ef4444', finishSvg), anchor: 'bottom' }).setLngLat(finishCoord).addTo(map);
+    }
+}
+
 function addRouteToMap(id, coordinates, color) {
+    if (_drawInterval)  { clearInterval(_drawInterval);  _drawInterval  = null; }
+    if (_dashAnimFrame) { cancelAnimationFrame(_dashAnimFrame); _dashAnimFrame = null; }
+
+    const startPt = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [coordinates[0], coordinates[0]] } };
+
     if (!map.getSource(id)) {
-        map.addSource(id, {
-            type: 'geojson',
-            data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } }
-        });
+        map.addSource(id, { type: 'geojson', data: startPt });
         map.addLayer({
             id: `layer-${id}`, type: 'line', source: id,
             layout: { 'line-join': 'round', 'line-cap': 'round' },
-            paint: { 'line-color': color, 'line-width': 3, 'line-opacity': 0, 'line-opacity-transition': { duration: 1000 } }
+            paint: { 'line-color': color, 'line-width': 4, 'line-opacity': 0,
+                     'line-opacity-transition': { duration: 1200, delay: 0 } }
         });
+    } else {
+        map.getSource(id).setData(startPt);
+        map.setPaintProperty(`layer-${id}`, 'line-opacity', 0);
     }
-    setTimeout(() => map.setPaintProperty(`layer-${id}`, 'line-opacity', 1), 50);
+
+    // Fade in via built-in Mapbox transition (one call only)
+    setTimeout(() => {
+        if (map.getLayer(`layer-${id}`)) map.setPaintProperty(`layer-${id}`, 'line-opacity', 1);
+    }, 30);
+
+    _addStartFinishMarkers(coordinates);
+
+    // Progressive draw at 10fps — setData is expensive, don't run at 60fps
+    const total   = coordinates.length;
+    const DRAW_MS = 5000;
+    const t0      = Date.now();
+
+    _drawInterval = setInterval(() => {
+        const p     = Math.min((Date.now() - t0) / DRAW_MS, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        const count = Math.max(2, Math.round(eased * total));
+        const src   = map.getSource(id);
+        if (src) src.setData({
+            type: 'Feature', properties: {},
+            geometry: { type: 'LineString', coordinates: coordinates.slice(0, count) }
+        });
+        if (p >= 1) { clearInterval(_drawInterval); _drawInterval = null; }
+    }, 100);
 }
 
 // ── DOMContentLoaded ───────────────────────────────────────────────────────────
@@ -1545,10 +1672,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const completedRoutes = Object.values(routes).filter(r => !r.future);
     const futureRoutes    = Object.values(routes).filter(r => r.future);
 
-    // Load GPX in batches of 3
+    // Load GPX in batches of 3, then open route from URL hash if present
     (async () => {
         const all = Object.values(routes);
         for (let i = 0; i < all.length; i += 3) await Promise.all(all.slice(i, i+3).map(loadRouteData));
+
+        const hashId = location.hash.slice(1); // e.g. '#route_2' → 'route_2'
+        if (hashId && routes[hashId]) {
+            // Wait for map style to be ready before selecting
+            const doSelect = () => triggerRouteSelection(hashId);
+            if (map.isStyleLoaded()) doSelect();
+            else map.once('load', doSelect);
+        }
     })();
 
     // ── Menu helpers
