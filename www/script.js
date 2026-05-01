@@ -195,7 +195,7 @@ const futureRoutesList = [
         photos: ['future_trips/photos/20240406_143023.jpg', 'future_trips/photos/135226923.400x300.jpg', 'future_trips/photos/hajducka-pecina-homolje-gajduckaja-pesshera.jpg', 'future_trips/photos/pogana-pecina-vnutri-pesshera.jpg'],
     },
     {
-        file: 'future_trips/Tornička Bobija.gpx',
+        file: 'future_trips/Tornicka_Bobija.gpx',
         name: 'Tornička Bobija',
         description: 'Tornička Bobija (1268 м) — лесистая вершина в самом сердце западной Сербии, в горном массиве Подринья. Маршрут петляет через густые буковые леса, то и дело пересекая небольшие ручьи и родники — вода здесь буквально везде: бьёт из-под земли, течёт по камням, наполняет лесные балки.\nНа подъёме встречаются несколько мощных карстовых источников с ледяной водой — идеальная остановка в жаркий день. С гребня открываются виды на поросшие лесом холмы Поринья и долину реки Тамнавы. Вершина скромная, но окружение — первозданный лес без единого человека — компенсирует всё сполна.\nМаршрут круговой: ~15 км, набор высоты ~530 м. Хорошо подходит для межсезонья.',
         photos: [
