@@ -1,0 +1,593 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		CE0B84AC2F9E365600D0AF82 /* hikingmapApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0B84AB2F9E365600D0AF82 /* hikingmapApp.swift */; };
+		CE0B84AE2F9E365600D0AF82 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0B84AD2F9E365600D0AF82 /* ContentView.swift */; };
+		CE0B84B02F9E365900D0AF82 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CE0B84AF2F9E365900D0AF82 /* Assets.xcassets */; };
+		CE0B84B32F9E365900D0AF82 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CE0B84B22F9E365900D0AF82 /* Preview Assets.xcassets */; };
+		CE0B84BD2F9E365900D0AF82 /* hikingmapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0B84BC2F9E365900D0AF82 /* hikingmapTests.swift */; };
+		CE0B84C72F9E365900D0AF82 /* hikingmapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0B84C62F9E365900D0AF82 /* hikingmapUITests.swift */; };
+		CE0B84C92F9E365900D0AF82 /* hikingmapUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0B84C82F9E365900D0AF82 /* hikingmapUITestsLaunchTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		CE0B84B92F9E365900D0AF82 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CE0B84A02F9E365600D0AF82 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CE0B84A72F9E365600D0AF82;
+			remoteInfo = hikingmap;
+		};
+		CE0B84C32F9E365900D0AF82 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CE0B84A02F9E365600D0AF82 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CE0B84A72F9E365600D0AF82;
+			remoteInfo = hikingmap;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		CE0B84A82F9E365600D0AF82 /* hikingmap.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = hikingmap.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE0B84AB2F9E365600D0AF82 /* hikingmapApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hikingmapApp.swift; sourceTree = "<group>"; };
+		CE0B84AD2F9E365600D0AF82 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		CE0B84AF2F9E365900D0AF82 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CE0B84B22F9E365900D0AF82 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		CE0B84B82F9E365900D0AF82 /* hikingmapTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hikingmapTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE0B84BC2F9E365900D0AF82 /* hikingmapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hikingmapTests.swift; sourceTree = "<group>"; };
+		CE0B84C22F9E365900D0AF82 /* hikingmapUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hikingmapUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE0B84C62F9E365900D0AF82 /* hikingmapUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hikingmapUITests.swift; sourceTree = "<group>"; };
+		CE0B84C82F9E365900D0AF82 /* hikingmapUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hikingmapUITestsLaunchTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		CE0B84A52F9E365600D0AF82 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE0B84B52F9E365900D0AF82 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE0B84BF2F9E365900D0AF82 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		CE0B849F2F9E365600D0AF82 = {
+			isa = PBXGroup;
+			children = (
+				CE0B84AA2F9E365600D0AF82 /* hikingmap */,
+				CE0B84BB2F9E365900D0AF82 /* hikingmapTests */,
+				CE0B84C52F9E365900D0AF82 /* hikingmapUITests */,
+				CE0B84A92F9E365600D0AF82 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CE0B84A92F9E365600D0AF82 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CE0B84A82F9E365600D0AF82 /* hikingmap.app */,
+				CE0B84B82F9E365900D0AF82 /* hikingmapTests.xctest */,
+				CE0B84C22F9E365900D0AF82 /* hikingmapUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CE0B84AA2F9E365600D0AF82 /* hikingmap */ = {
+			isa = PBXGroup;
+			children = (
+				CE0B84AB2F9E365600D0AF82 /* hikingmapApp.swift */,
+				CE0B84AD2F9E365600D0AF82 /* ContentView.swift */,
+				CE0B84AF2F9E365900D0AF82 /* Assets.xcassets */,
+				CE0B84B12F9E365900D0AF82 /* Preview Content */,
+			);
+			path = hikingmap;
+			sourceTree = "<group>";
+		};
+		CE0B84B12F9E365900D0AF82 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				CE0B84B22F9E365900D0AF82 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		CE0B84BB2F9E365900D0AF82 /* hikingmapTests */ = {
+			isa = PBXGroup;
+			children = (
+				CE0B84BC2F9E365900D0AF82 /* hikingmapTests.swift */,
+			);
+			path = hikingmapTests;
+			sourceTree = "<group>";
+		};
+		CE0B84C52F9E365900D0AF82 /* hikingmapUITests */ = {
+			isa = PBXGroup;
+			children = (
+				CE0B84C62F9E365900D0AF82 /* hikingmapUITests.swift */,
+				CE0B84C82F9E365900D0AF82 /* hikingmapUITestsLaunchTests.swift */,
+			);
+			path = hikingmapUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		CE0B84A72F9E365600D0AF82 /* hikingmap */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CE0B84CC2F9E365900D0AF82 /* Build configuration list for PBXNativeTarget "hikingmap" */;
+			buildPhases = (
+				CE0B84A42F9E365600D0AF82 /* Sources */,
+				CE0B84A52F9E365600D0AF82 /* Frameworks */,
+				CE0B84A62F9E365600D0AF82 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = hikingmap;
+			productName = hikingmap;
+			productReference = CE0B84A82F9E365600D0AF82 /* hikingmap.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CE0B84B72F9E365900D0AF82 /* hikingmapTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CE0B84CF2F9E365900D0AF82 /* Build configuration list for PBXNativeTarget "hikingmapTests" */;
+			buildPhases = (
+				CE0B84B42F9E365900D0AF82 /* Sources */,
+				CE0B84B52F9E365900D0AF82 /* Frameworks */,
+				CE0B84B62F9E365900D0AF82 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CE0B84BA2F9E365900D0AF82 /* PBXTargetDependency */,
+			);
+			name = hikingmapTests;
+			productName = hikingmapTests;
+			productReference = CE0B84B82F9E365900D0AF82 /* hikingmapTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		CE0B84C12F9E365900D0AF82 /* hikingmapUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CE0B84D22F9E365900D0AF82 /* Build configuration list for PBXNativeTarget "hikingmapUITests" */;
+			buildPhases = (
+				CE0B84BE2F9E365900D0AF82 /* Sources */,
+				CE0B84BF2F9E365900D0AF82 /* Frameworks */,
+				CE0B84C02F9E365900D0AF82 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CE0B84C42F9E365900D0AF82 /* PBXTargetDependency */,
+			);
+			name = hikingmapUITests;
+			productName = hikingmapUITests;
+			productReference = CE0B84C22F9E365900D0AF82 /* hikingmapUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CE0B84A02F9E365600D0AF82 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1520;
+				LastUpgradeCheck = 1520;
+				TargetAttributes = {
+					CE0B84A72F9E365600D0AF82 = {
+						CreatedOnToolsVersion = 15.2;
+					};
+					CE0B84B72F9E365900D0AF82 = {
+						CreatedOnToolsVersion = 15.2;
+						TestTargetID = CE0B84A72F9E365600D0AF82;
+					};
+					CE0B84C12F9E365900D0AF82 = {
+						CreatedOnToolsVersion = 15.2;
+						TestTargetID = CE0B84A72F9E365600D0AF82;
+					};
+				};
+			};
+			buildConfigurationList = CE0B84A32F9E365600D0AF82 /* Build configuration list for PBXProject "hikingmap" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = CE0B849F2F9E365600D0AF82;
+			productRefGroup = CE0B84A92F9E365600D0AF82 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				CE0B84A72F9E365600D0AF82 /* hikingmap */,
+				CE0B84B72F9E365900D0AF82 /* hikingmapTests */,
+				CE0B84C12F9E365900D0AF82 /* hikingmapUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CE0B84A62F9E365600D0AF82 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE0B84B32F9E365900D0AF82 /* Preview Assets.xcassets in Resources */,
+				CE0B84B02F9E365900D0AF82 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE0B84B62F9E365900D0AF82 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE0B84C02F9E365900D0AF82 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		CE0B84A42F9E365600D0AF82 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE0B84AE2F9E365600D0AF82 /* ContentView.swift in Sources */,
+				CE0B84AC2F9E365600D0AF82 /* hikingmapApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE0B84B42F9E365900D0AF82 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE0B84BD2F9E365900D0AF82 /* hikingmapTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE0B84BE2F9E365900D0AF82 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE0B84C72F9E365900D0AF82 /* hikingmapUITests.swift in Sources */,
+				CE0B84C92F9E365900D0AF82 /* hikingmapUITestsLaunchTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CE0B84BA2F9E365900D0AF82 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CE0B84A72F9E365600D0AF82 /* hikingmap */;
+			targetProxy = CE0B84B92F9E365900D0AF82 /* PBXContainerItemProxy */;
+		};
+		CE0B84C42F9E365900D0AF82 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CE0B84A72F9E365600D0AF82 /* hikingmap */;
+			targetProxy = CE0B84C32F9E365900D0AF82 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		CE0B84CA2F9E365900D0AF82 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		CE0B84CB2F9E365900D0AF82 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		CE0B84CD2F9E365900D0AF82 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"hikingmap/Preview Content\"";
+				DEVELOPMENT_TEAM = 8WXA82653P;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.totskii.hikingmap;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CE0B84CE2F9E365900D0AF82 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"hikingmap/Preview Content\"";
+				DEVELOPMENT_TEAM = 8WXA82653P;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.totskii.hikingmap;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CE0B84D02F9E365900D0AF82 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8WXA82653P;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.totskii.hikingmapTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/hikingmap.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/hikingmap";
+			};
+			name = Debug;
+		};
+		CE0B84D12F9E365900D0AF82 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8WXA82653P;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.totskii.hikingmapTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/hikingmap.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/hikingmap";
+			};
+			name = Release;
+		};
+		CE0B84D32F9E365900D0AF82 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8WXA82653P;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.totskii.hikingmapUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = hikingmap;
+			};
+			name = Debug;
+		};
+		CE0B84D42F9E365900D0AF82 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8WXA82653P;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.totskii.hikingmapUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = hikingmap;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CE0B84A32F9E365600D0AF82 /* Build configuration list for PBXProject "hikingmap" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CE0B84CA2F9E365900D0AF82 /* Debug */,
+				CE0B84CB2F9E365900D0AF82 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CE0B84CC2F9E365900D0AF82 /* Build configuration list for PBXNativeTarget "hikingmap" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CE0B84CD2F9E365900D0AF82 /* Debug */,
+				CE0B84CE2F9E365900D0AF82 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CE0B84CF2F9E365900D0AF82 /* Build configuration list for PBXNativeTarget "hikingmapTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CE0B84D02F9E365900D0AF82 /* Debug */,
+				CE0B84D12F9E365900D0AF82 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CE0B84D22F9E365900D0AF82 /* Build configuration list for PBXNativeTarget "hikingmapUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CE0B84D32F9E365900D0AF82 /* Debug */,
+				CE0B84D42F9E365900D0AF82 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CE0B84A02F9E365600D0AF82 /* Project object */;
+}
