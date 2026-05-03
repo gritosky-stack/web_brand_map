@@ -134,6 +134,26 @@ const routesList = [
         ]
     },
     {
+        file: 'Debelo Brdo - Jablanik.gpx', name: 'Debelo Brdo - Jablanik',
+        date: '',
+        description: 'Интересный маршрут. Было довольно людно, встречали группы от 2 до 15 человек.\n\nОт Дебело Брдо до верха Ябланика дорога не сложная, уклон небольшой и не постоянный. По дороге к вершине проходим через красивый лес, сквозь деревья видно Гвождачке Стене — внушительные скалы с обрывом на 400+ метров к реке Дрина и границе Сербии.\n\nНа вершине Ябланика может задувать ветерок, так что рекомендую взять с собой ветровку. Вид с вершины открывается впечатляющий: видно зелёные холмистые равнины на горизонте, гору Медведник, Велики Повлен, Гвождачке Стене и много других горных вершин неподалёку.\n\nСпуск с вершины иногда крутой, но тоже очень красивый. Иногда встречаются сосны, но в основном лиственные деревья. Спустившись попадаем к речушке Ябланица — с чистой водой и небольшим течением.\n\nМаршрут предполагает переход реки как минимум 2–3 раза, будьте готовы. В сухую погоду непромокаемой обуви будет достаточно.\n\nОт реки Ябланица необходимо подняться обратно к Дебело Брдо — есть 2 варианта: короткий но крутой, или более длинный но пологий. В идеале этот маршрут идти наоборот: сначала спуск вниз к реке от Дебело Брдо, а затем подъём на Ябланик — так будет комфортнее.',
+        instagramUrl: null,
+        photos: [
+            'photos/Debelo Brdo - Jablanik/jablanik1.JPG',
+            'photos/Debelo Brdo - Jablanik/jablanik2.JPG',
+            'photos/Debelo Brdo - Jablanik/jablanik3.JPG',
+            'photos/Debelo Brdo - Jablanik/jablanik4.JPG',
+            'photos/Debelo Brdo - Jablanik/jablanik5.JPG',
+            'photos/Debelo Brdo - Jablanik/jablanik6.JPG',
+            'photos/Debelo Brdo - Jablanik/jablanik7.JPG',
+            'photos/Debelo Brdo - Jablanik/jablanik8.JPG',
+            'photos/Debelo Brdo - Jablanik/jablanik9.JPG',
+            'photos/Debelo Brdo - Jablanik/jablanik10.JPG',
+            'photos/Debelo Brdo - Jablanik/jablanik11.JPG',
+            'photos/Debelo Brdo - Jablanik/jablanik12.JPG',
+        ]
+    },
+    {
         file: 'Lastra - Magles - Kusakovici.gpx', name: 'Lastra - Magleš - Kušakovići',
         overrideAscent: 987, overrideDescent: 986, overrideTime: '5h', overrideMinEle: 365,
         date: '', description: 'Один из первых походов, доехал до ЖД станции Ластра, прошел чуть вдоль реки \n и начал подъем в гору. Моментами тропа терялась и приходилось проходить через ветки \n и кустарник. Встречалось много заброшенных хижин. На последних 200 метрах набора высоты \n тропа совсем потерялась и я шел по дикому по заросшим мхом камням. \nПосле вершины вышел на открытый участок с классным видос, начал спуск \n обратно, к станции ластра и по пути наткнулся на деревню Кушаковичи\n', instagramUrl: 'https://www.instagram.com/reel/DUjkxYiiBu-/',
@@ -173,7 +193,6 @@ routesList.forEach((data, index) => {
 const futureRoutesList = [
     { file: 'future_trips/Dom_Vis-Javoracki-vrh.gpx' },
     { file: 'future_trips/Рудник - Благовештење.gpx' },
-    { file: 'future_trips/Дебело Брдо - Ябланик.gpx' },
     { file: 'future_trips/Каблар.gpx' },
     { file: 'future_trips/Дивчибаре - Козомор - Црни Врх.gpx' },
     {
