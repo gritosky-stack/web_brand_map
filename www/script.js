@@ -224,6 +224,17 @@ const futureRoutesList = [
             'future_trips/photos/bobija4.jpg',
         ],
     },
+    {
+        file: 'future_trips/Maglic-Ciker-Usovica.gpx',
+        name: 'Maglić - Čiker - Usovica',
+        description: 'Маршрут по горному массиву Столови вблизи Кралево: три вершины — Маглич (1375 м), Чикер и Усовица — одним кольцом.\nПлато Столови известен своими скальными выходами, лесами и широкими панорамами на долину Ибра и Кралево. Маршрут разнообразный: крутые подъёмы, открытые гребни, живописные спуски через лес.\n📊 Маршрут круговой, ~7 ч в пути, вершина 1375 м.',
+        photos: [
+            'future_trips/photos/stolovi1.JPG',
+            'future_trips/photos/stolovi2.JPG',
+            'future_trips/photos/stolovi3.JPG',
+            'future_trips/photos/stolovi4.JPG',
+        ],
+    },
 ];
 futureRoutesList.forEach((data, index) => {
     const key = `future_${index}`;
