@@ -1979,3 +1979,10 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.textContent = 'Отправить отзыв';
     });
 });
+
+// ── Expose curated routes for assistant.js (AI route matcher) ──
+// `routes` / `parsedRouteDataCache` are top-level `const` (not auto-attached to
+// window). Same object references, so the assistant sees GPX stats as they load.
+window.routes = routes;
+window.parsedRouteDataCache = parsedRouteDataCache;
+window.triggerRouteSelection = triggerRouteSelection;
