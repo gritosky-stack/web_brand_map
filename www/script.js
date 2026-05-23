@@ -391,6 +391,7 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
         maxBounds: [[17.2, 41.0], [24.4, 47.4]],
         renderWorldCopies: false
     });
+    window.map = map; // expose for pss_layer.js (PSS routes on map)
 
     {
         const canvas = map.getCanvas();

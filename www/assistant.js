@@ -640,10 +640,12 @@
     if (route._routeId && typeof window.triggerRouteSelection === 'function') {
       closePanel();
       window.triggerRouteSelection(route._routeId);
+    } else if (route.slug && typeof window.showPSSRoute === 'function') {
+      // PSS route — draw it on our own map, don't send the user off-site
+      closePanel();
+      window.showPSSRoute(route.slug);
     } else if (route.url) {
       window.open(route.url, '_blank', 'noopener,noreferrer');
-    } else if (route.slug) {
-      window.open(`https://www.pss.rs/staze/${route.slug}/`, '_blank', 'noopener,noreferrer');
     }
   }
 
