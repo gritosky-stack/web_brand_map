@@ -242,6 +242,42 @@
 
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
+  // ---- structured (faceted) hard filtering --------------------------------
+  // Mirrors the iOS RouteMatcher.passes(): every active facet is an AND
+  // constraint, so adding a facet only narrows the result set. Difficulty is
+  // bucketed into the same 4 canonical levels the app uses.
+  function canonDiff(d) {
+    if (d === "lak") return "easy";
+    if (d === "umeren") return "medium";
+    if (d === "težak" || d === "tezak") return "hard";
+    return "expert"; // "vrlo težak", "višednevna transverzala", null …
+  }
+
+  function passesFacets(route, f) {
+    if (f.difficulty && f.difficulty.size && !f.difficulty.has(canonDiff(route.difficulty))) return false;
+    if (f.regions && f.regions.size) {
+      if (!route.region || !f.regions.has(route.region)) return false;
+    }
+    if (f.categories && f.categories.size) {
+      if (!route.category || !f.categories.has(route.category)) return false;
+    }
+    if (f.distanceMax != null && route.distance_km > f.distanceMax) return false;
+    if (f.distanceMin != null && route.distance_km < f.distanceMin) return false;
+    if (f.durationMin != null || f.durationMax != null) {
+      if (route.duration_h == null) return false;
+      if (f.durationMax != null && route.duration_h > f.durationMax) return false;
+      if (f.durationMin != null && route.duration_h < f.durationMin) return false;
+    }
+    return true;
+  }
+
+  // Filter + order (by distance asc) for the structured picker.
+  function filterRoutes(f, routes) {
+    return routes
+      .filter(function (r) { return passesFacets(r, f); })
+      .sort(function (a, b) { return a.distance_km - b.distance_km; });
+  }
+
   // ---- public API ---------------------------------------------------------
   function matchRoutes(query, routes, opts) {
     opts = opts || {};
@@ -274,7 +310,10 @@
     return { filters: f, results: scored.slice(0, limit) };
   }
 
-  var api = { matchRoutes: matchRoutes, parseQuery: parseQuery, norm: norm, haversineKm: haversineKm };
+  var api = {
+    matchRoutes: matchRoutes, parseQuery: parseQuery, norm: norm, haversineKm: haversineKm,
+    filterRoutes: filterRoutes, passesFacets: passesFacets, canonDiff: canonDiff,
+  };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RouteMatcher = api;
 })(typeof window !== "undefined" ? window : globalThis);

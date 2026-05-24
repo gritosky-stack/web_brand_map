@@ -18,8 +18,48 @@
   ];
 
   let pssRoutes = [];       // loaded from routes_index.json
+  let pssLoad = null;       // in-flight load promise
   let panelOpen = false;
   let lastQuery = '';
+
+  // ── Picker state ───────────────────────────────────────────
+  let homeTab = 'facets';   // 'facets' | 'pss'
+  let pssQuery = '';
+  let resultsVisible = 5;   // how many result cards are revealed
+  const facets = { diff: new Set(), regions: new Set(), distIdx: 0, durIdx: 0, typeIdx: 0 };
+
+  const DIFFS = [['easy', 'Лёгкий'], ['medium', 'Средний'], ['hard', 'Сложный'], ['expert', 'Экспертный']];
+  const DIST_LABELS = ['Любая', 'до 10 км', '10–20 км', '20–35 км', '35+ км'];
+  const DUR_LABELS  = ['Любое', 'до 4 ч', '4–8 ч', '8+ ч'];
+  const TYPE_LABELS = ['Любой', 'Кольцевой', 'Линейный', 'Трансверзала'];
+
+  const DIFF_BADGE = { easy: 'lak', medium: 'umeren', hard: 'tezak', expert: 'vrlo' };
+  const DIFF_COLOR = { easy: '#4CAF50', medium: '#FF9800', hard: '#F44336', expert: '#9C27B0' };
+
+  function buildFacetFilters() {
+    const f = { difficulty: new Set(facets.diff), regions: new Set(facets.regions), categories: new Set() };
+    switch (facets.distIdx) {
+      case 1: f.distanceMax = 10; break;
+      case 2: f.distanceMin = 10; f.distanceMax = 20; break;
+      case 3: f.distanceMin = 20; f.distanceMax = 35; break;
+      case 4: f.distanceMin = 35; break;
+    }
+    switch (facets.durIdx) {
+      case 1: f.durationMax = 4; break;
+      case 2: f.durationMin = 4; f.durationMax = 8; break;
+      case 3: f.durationMin = 8; break;
+    }
+    switch (facets.typeIdx) {
+      case 1: f.categories = new Set(['kružna']); break;
+      case 2: f.categories = new Set(['linijska']); break;
+      case 3: f.categories = new Set(['transverzala', 'E-transverzala']); break;
+    }
+    return f;
+  }
+
+  function regionOptions() {
+    return Array.from(new Set(pssRoutes.map(r => r.region).filter(Boolean))).sort();
+  }
 
   // ── Inject styles ──────────────────────────────────────────
   function injectStyles() {
@@ -354,6 +394,117 @@
         margin-bottom: 8px;
         opacity: .5;
       }
+
+      /* ── Segmented control (Параметры / Все PSS) ─────── */
+      .asst-seg {
+        display: flex; gap: 4px;
+        background: rgba(255,255,255,.05);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 12px;
+        padding: 4px;
+        margin-bottom: 18px;
+      }
+      .asst-seg-btn {
+        flex: 1;
+        background: transparent; border: none; cursor: pointer;
+        color: rgba(255,255,255,.55);
+        font-size: 12px; font-weight: 600;
+        font-family: inherit;
+        padding: 8px 6px; border-radius: 9px;
+        transition: background .15s, color .15s;
+      }
+      .asst-seg-btn.active { background: rgba(255,77,77,.9); color: #fff; }
+
+      /* ── Facet groups ───────────────────────────────── */
+      .asst-facet-group { margin-bottom: 16px; }
+      .asst-facet-label {
+        font-size: 10px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .08em;
+        color: rgba(255,255,255,.4);
+        margin-bottom: 8px;
+      }
+      .asst-facet-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+      .asst-fchip {
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,255,255,.1);
+        color: rgba(255,255,255,.7);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px; cursor: pointer;
+        transition: background .12s, border-color .12s, color .12s;
+      }
+      .asst-fchip:hover { border-color: rgba(255,77,77,.4); color: #fff; }
+      .asst-fchip.active { background: rgba(255,77,77,.9); border-color: rgba(255,77,77,1); color: #fff; }
+
+      /* ── Show / more / back buttons ─────────────────── */
+      .asst-show-btn {
+        width: 100%;
+        background: rgba(255,77,77,.9); color: #fff;
+        border: none; cursor: pointer;
+        border-radius: 14px;
+        padding: 14px; margin-top: 8px;
+        font-size: 14px; font-weight: 700;
+        font-family: inherit;
+        transition: background .15s;
+      }
+      .asst-show-btn:hover { background: rgba(255,77,77,1); }
+      .asst-show-btn:disabled { opacity: .4; cursor: not-allowed; }
+      .asst-more-btn {
+        width: 100%;
+        background: rgba(255,77,77,.12);
+        border: 1px solid rgba(255,77,77,.4);
+        color: #ff7a7a;
+        border-radius: 14px;
+        padding: 11px; margin-top: 4px;
+        font-size: 12px; font-weight: 600;
+        font-family: inherit; cursor: pointer;
+        transition: background .15s;
+      }
+      .asst-more-btn:hover { background: rgba(255,77,77,.2); }
+      .asst-back-btn {
+        background: none; border: none; cursor: pointer;
+        color: rgba(255,255,255,.5);
+        font-size: 12px; font-weight: 600;
+        font-family: inherit;
+        padding: 0 0 12px; margin: 0;
+        display: inline-flex; align-items: center; gap: 5px;
+      }
+      .asst-back-btn:hover { color: #fff; }
+
+      /* ── PSS browse list ────────────────────────────── */
+      .asst-pss-search {
+        width: 100%; box-sizing: border-box;
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,255,255,.1);
+        border-radius: 12px;
+        padding: 10px 14px; margin-bottom: 4px;
+        color: #fff; font-size: 13px; font-family: inherit;
+        outline: none;
+      }
+      .asst-pss-search:focus { border-color: rgba(255,77,77,.55); }
+      .asst-pss-count {
+        font-size: 10px; font-weight: 600; letter-spacing: .06em;
+        text-transform: uppercase; color: rgba(255,255,255,.4);
+        margin: 12px 0 8px;
+      }
+      .asst-pss-row {
+        display: flex; align-items: center; gap: 10px;
+        padding: 11px 4px;
+        border-bottom: 1px solid rgba(255,255,255,.06);
+        cursor: pointer;
+        transition: background .12s;
+      }
+      .asst-pss-row:hover { background: rgba(255,255,255,.04); }
+      .asst-pss-dot { width: 7px; height: 7px; border-radius: 999px; flex-shrink: 0; }
+      .asst-pss-info { flex: 1; min-width: 0; }
+      .asst-pss-name {
+        font-size: 13px; font-weight: 600; color: #fff;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .asst-pss-meta {
+        font-size: 11px; color: rgba(255,255,255,.5);
+        font-variant-numeric: tabular-nums; margin-top: 2px;
+      }
     `;
     document.head.appendChild(s);
   }
@@ -440,9 +591,15 @@
         if (q) openPanel(q);
       }
     });
-    topInput.addEventListener('focus', () => {
-      // open panel when user focuses top bar (but keep typing in panel input synced)
-    });
+    // Focusing / clicking the top field behaves like pressing «Найти»:
+    // it opens the picker panel (carrying over anything already typed).
+    const openFromTop = () => {
+      if (panelOpen) return;
+      const q = topInput.value.trim();
+      openPanel(q || undefined);
+    };
+    topInput.addEventListener('focus', openFromTop);
+    topInput.addEventListener('mousedown', e => { e.preventDefault(); openFromTop(); });
 
     const panelInput = document.getElementById('asst-panel-input');
     const panelGo = document.getElementById('asst-panel-go');
@@ -471,7 +628,7 @@
       document.getElementById('asst-panel-input').value = initialQuery;
       runSearch(initialQuery);
     } else {
-      renderEmpty();
+      renderHome();
       setTimeout(() => document.getElementById('asst-panel-input').focus(), 300);
     }
   }
@@ -482,26 +639,157 @@
     document.getElementById('asst-panel').classList.remove('open');
   }
 
-  // ── Empty state ────────────────────────────────────────────
-  function renderEmpty() {
+  // ── Home (picker) ──────────────────────────────────────────
+  function renderHome() {
     const body = document.getElementById('asst-panel-body');
     body.innerHTML = `
-      <div class="asst-suggest-label">Попробуй так</div>
-      <div class="asst-suggest-chips">
-        ${SUGGESTIONS.map(s => `<button class="asst-chip" data-q="${escapeAttr(s)}">${escapeHtml(s)}</button>`).join('')}
+      <div class="asst-seg">
+        <button class="asst-seg-btn ${homeTab === 'facets' ? 'active' : ''}" data-tab="facets">Подбор по параметрам</button>
+        <button class="asst-seg-btn ${homeTab === 'pss' ? 'active' : ''}" data-tab="pss">Все PSS</button>
       </div>
-      <div style="color:rgba(255,255,255,.4); font-size:12px; line-height:1.6;">
-        Введи запрос на любом языке — русский, сербский, английский.<br>
-        Учитываются сложность, длина, расстояние от города и многое другое.
-      </div>
+      <div id="asst-home-content"></div>
     `;
-    body.querySelectorAll('.asst-chip').forEach(btn => {
+    body.querySelectorAll('.asst-seg-btn').forEach(btn => {
+      btn.addEventListener('click', () => { homeTab = btn.dataset.tab; renderHome(); });
+    });
+    if (homeTab === 'facets') renderFacets();
+    else renderPssList();
+  }
+
+  // ── Facet picker (like the app's «Подбор по параметрам») ────
+  function chipHTML(label, active, key) {
+    return `<button class="asst-fchip ${active ? 'active' : ''}" data-k="${escapeAttr(key)}">${escapeHtml(label)}</button>`;
+  }
+  function facetGroup(label, chips) {
+    return `<div class="asst-facet-group"><div class="asst-facet-label">${escapeHtml(label)}</div><div class="asst-facet-chips">${chips}</div></div>`;
+  }
+  function toggleFacet(key) {
+    if (key === 'diff-any') { facets.diff.clear(); return; }
+    if (key === 'reg-any') { facets.regions.clear(); return; }
+    if (key.startsWith('diff:')) { const k = key.slice(5); facets.diff.has(k) ? facets.diff.delete(k) : facets.diff.add(k); return; }
+    if (key.startsWith('reg:')) { const r = key.slice(4); facets.regions.has(r) ? facets.regions.delete(r) : facets.regions.add(r); return; }
+    if (key.startsWith('dist:')) { const i = +key.slice(5); facets.distIdx = facets.distIdx === i ? 0 : i; return; }
+    if (key.startsWith('dur:')) { const i = +key.slice(4); facets.durIdx = facets.durIdx === i ? 0 : i; return; }
+    if (key.startsWith('type:')) { const i = +key.slice(5); facets.typeIdx = facets.typeIdx === i ? 0 : i; return; }
+  }
+
+  function renderFacets() {
+    const host = document.getElementById('asst-home-content');
+    if (!host) return;
+    if (!pssRoutes.length) {
+      host.innerHTML = `<div class="asst-no-results">Загрузка маршрутов…</div>`;
+      loadPssRoutes().then(() => { if (panelOpen && homeTab === 'facets') renderFacets(); });
+      return;
+    }
+    const count = window.RouteMatcher.filterRoutes(buildFacetFilters(), buildCandidates()).length;
+
+    const diffChips = [chipHTML('Любая', facets.diff.size === 0, 'diff-any')]
+      .concat(DIFFS.map(([k, l]) => chipHTML(l, facets.diff.has(k), 'diff:' + k))).join('');
+    const distChips = DIST_LABELS.map((l, i) => chipHTML(l, facets.distIdx === i, 'dist:' + i)).join('');
+    const durChips  = DUR_LABELS.map((l, i) => chipHTML(l, facets.durIdx === i, 'dur:' + i)).join('');
+    const typeChips = TYPE_LABELS.map((l, i) => chipHTML(l, facets.typeIdx === i, 'type:' + i)).join('');
+    const regChips  = [chipHTML('Любой', facets.regions.size === 0, 'reg-any')]
+      .concat(regionOptions().map(r => chipHTML(r, facets.regions.has(r), 'reg:' + r))).join('');
+
+    host.innerHTML =
+      facetGroup('Сложность', diffChips) +
+      facetGroup('Расстояние', distChips) +
+      facetGroup('Время в пути', durChips) +
+      facetGroup('Тип', typeChips) +
+      facetGroup('Регион', regChips) +
+      `<button class="asst-show-btn" ${count ? '' : 'disabled'}>Показать маршруты · ${count}</button>` +
+      `<div class="asst-suggest-label" style="margin-top:22px;">Или опиши словами</div>
+       <div class="asst-suggest-chips">${SUGGESTIONS.map(sg => `<button class="asst-chip" data-q="${escapeAttr(sg)}">${escapeHtml(sg)}</button>`).join('')}</div>`;
+
+    host.querySelectorAll('.asst-fchip').forEach(chip => {
+      chip.addEventListener('click', () => { toggleFacet(chip.dataset.k); renderFacets(); });
+    });
+    const showBtn = host.querySelector('.asst-show-btn');
+    if (showBtn) showBtn.addEventListener('click', runFacetSearch);
+    host.querySelectorAll('.asst-chip').forEach(btn => {
       btn.addEventListener('click', () => {
-        const q = btn.dataset.q;
-        document.getElementById('asst-panel-input').value = q;
-        runSearch(q);
+        document.getElementById('asst-panel-input').value = btn.dataset.q;
+        runSearch(btn.dataset.q);
       });
     });
+  }
+
+  function facetReasons(r) {
+    const out = [];
+    const lbl = (DIFFS.find(d => d[0] === window.RouteMatcher.canonDiff(r.difficulty)) || [])[1];
+    if (lbl) out.push(lbl);
+    if (r.distance_km) out.push((+r.distance_km).toFixed(1) + ' км');
+    if (r.region) out.push(r.region);
+    return out.slice(0, 3);
+  }
+
+  function runFacetSearch() {
+    const filtered = window.RouteMatcher.filterRoutes(buildFacetFilters(), buildCandidates());
+    const results = filtered.map(r => ({ route: r, reasons: facetReasons(r) }));
+    resultsVisible = 5;
+    renderResults(results, { from: 'facets' });
+  }
+
+  // ── Browse all PSS routes ──────────────────────────────────
+  function pssRowHTML(r) {
+    const color = DIFF_COLOR[window.RouteMatcher.canonDiff(r.difficulty)] || '#888';
+    const meta = [];
+    if (r.distance_km) meta.push((+r.distance_km).toFixed(1) + ' км');
+    if (r.ascent_m) meta.push('↑' + Math.round(r.ascent_m) + ' м');
+    if (r.duration_h) meta.push('⏱' + (+r.duration_h).toFixed(1) + ' ч');
+    if (r.region) meta.push(r.region);
+    return `<div class="asst-pss-row" data-slug="${escapeAttr(r.slug)}">
+      <div class="asst-pss-dot" style="background:${color}"></div>
+      <div class="asst-pss-info">
+        <div class="asst-pss-name">${escapeHtml(r.name)}</div>
+        <div class="asst-pss-meta">${escapeHtml(meta.join('  ·  '))}</div>
+      </div>
+    </div>`;
+  }
+  function wirePssRows(container) {
+    if (!container) return;
+    container.querySelectorAll('.asst-pss-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const slug = row.dataset.slug;
+        if (slug && typeof window.showPSSRoute === 'function') { closePanel(); window.showPSSRoute(slug); }
+      });
+    });
+  }
+  function pssFilteredList() {
+    const q = window.RouteMatcher.norm(pssQuery);
+    return q ? pssRoutes.filter(r => window.RouteMatcher.norm(r.name).indexOf(q) !== -1) : pssRoutes;
+  }
+  function renderPssList() {
+    const host = document.getElementById('asst-home-content');
+    if (!host) return;
+    if (!pssRoutes.length) {
+      host.innerHTML = `<div class="asst-no-results">Загрузка маршрутов…</div>`;
+      loadPssRoutes().then(() => { if (panelOpen && homeTab === 'pss') renderPssList(); });
+      return;
+    }
+    const list = pssFilteredList();
+    host.innerHTML = `
+      <input class="asst-pss-search" type="text" placeholder="Поиск по PSS маршрутам" value="${escapeAttr(pssQuery)}">
+      <div class="asst-pss-count">${list.length} ${routeWord(list.length)}</div>
+      <div id="asst-pss-rows">${list.map(pssRowHTML).join('') || '<div class="asst-no-results">Ничего не найдено</div>'}</div>
+    `;
+    const search = host.querySelector('.asst-pss-search');
+    search.addEventListener('input', () => {
+      pssQuery = search.value;
+      const list2 = pssFilteredList();
+      host.querySelector('.asst-pss-count').textContent = `${list2.length} ${routeWord(list2.length)}`;
+      const rowsEl = host.querySelector('#asst-pss-rows');
+      rowsEl.innerHTML = list2.map(pssRowHTML).join('') || '<div class="asst-no-results">Ничего не найдено</div>';
+      wirePssRows(rowsEl);
+    });
+    wirePssRows(host.querySelector('#asst-pss-rows'));
+  }
+
+  function routeWord(n) {
+    const m = n % 10, h = n % 100;
+    if (m === 1 && h !== 11) return 'маршрут';
+    if (m >= 2 && m <= 4 && !(h >= 12 && h <= 14)) return 'маршрута';
+    return 'маршрутов';
   }
 
   // ── Build candidate list ───────────────────────────────────
@@ -561,8 +849,9 @@
     setTimeout(() => {
       try {
         const candidates = buildCandidates();
-        const { results } = window.RouteMatcher.matchRoutes(query, candidates, { limit: 5 });
-        renderResults(results);
+        const { results } = window.RouteMatcher.matchRoutes(query, candidates, { limit: 30 });
+        resultsVisible = 5;
+        renderResults(results, { from: 'text' });
       } catch (err) {
         console.error('Assistant search error', err);
         body.innerHTML = `<div class="asst-no-results">
@@ -574,26 +863,47 @@
   }
 
   // ── Render results ─────────────────────────────────────────
-  function renderResults(results) {
+  function wireBack(opts) {
+    const b = document.querySelector('#asst-panel-body .asst-back-btn');
+    if (b) b.addEventListener('click', () => {
+      homeTab = opts.from === 'facets' ? 'facets' : homeTab;
+      renderHome();
+    });
+  }
+
+  function renderResults(results, opts) {
+    opts = opts || {};
     const body = document.getElementById('asst-panel-body');
+    const backLabel = opts.from === 'facets' ? 'к параметрам' : 'назад';
+    const backHTML = `<button class="asst-back-btn">← ${backLabel}</button>`;
+
     if (!results || results.length === 0) {
-      body.innerHTML = `<div class="asst-no-results">
+      body.innerHTML = backHTML + `<div class="asst-no-results">
         <div class="asst-no-results-icon">🥾</div>
         Ничего не нашлось.<br>
-        <span style="font-size:11px; opacity:.7;">Попробуй другой запрос или убери ограничения</span>
+        <span style="font-size:11px; opacity:.7;">Измени параметры или ослабь ограничения</span>
       </div>`;
+      wireBack(opts);
       return;
     }
 
-    const html = results.map((r, i) => renderResultCard(r, i)).join('');
-    body.innerHTML = `
-      <div class="asst-suggest-label">Подобрано · ${results.length}</div>
-      ${html}
-    `;
+    const shown = results.slice(0, resultsVisible);
+    const cards = shown.map((r, i) => renderResultCard(r, i)).join('');
+    const remaining = results.length - resultsVisible;
+    const moreHTML = remaining > 0
+      ? `<button class="asst-more-btn">Ещё ${Math.min(5, remaining)} · осталось ${remaining}</button>`
+      : '';
+
+    body.innerHTML = backHTML +
+      `<div class="asst-suggest-label">Подобрано · ${results.length}</div>` +
+      cards + moreHTML;
 
     body.querySelectorAll('.asst-result').forEach((el, i) => {
-      el.addEventListener('click', () => handleResultClick(results[i].route));
+      el.addEventListener('click', () => handleResultClick(shown[i].route));
     });
+    const moreBtn = body.querySelector('.asst-more-btn');
+    if (moreBtn) moreBtn.addEventListener('click', () => { resultsVisible += 5; renderResults(results, opts); });
+    wireBack(opts);
   }
 
   function renderResultCard(result, idx) {
@@ -659,10 +969,12 @@
 
   // ── Load PSS routes index ─────────────────────────────────
   function loadPssRoutes() {
-    fetch('routes_index.json')
+    if (pssLoad) return pssLoad;
+    pssLoad = fetch('routes_index.json')
       .then(r => r.ok ? r.json() : [])
-      .then(data => { pssRoutes = Array.isArray(data) ? data : []; })
-      .catch(() => { pssRoutes = []; });
+      .then(data => { pssRoutes = Array.isArray(data) ? data : []; return pssRoutes; })
+      .catch(() => { pssRoutes = []; return pssRoutes; });
+    return pssLoad;
   }
 
   // ── Bootstrap ─────────────────────────────────────────────
