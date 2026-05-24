@@ -167,6 +167,33 @@ const routesList = [
             'photos/Lastra - Magles - Kusakovici/IMG_5489.JPG', 'photos/Lastra - Magles - Kusakovici/IMG_5498.JPG',
             'photos/Lastra - Magles - Kusakovici/IMG_5506.JPG'
         ]
+    },
+    {
+        file: 'Ostrvica.gpx', name: 'Ostrvica',
+        date: '',
+        description: 'Острвица — приметная коническая вершина (760 м) в районе горы Рудник в Шумадии, увенчанная руинами средневековой крепости.\n\nМаршрут короткий, но крутой: почти весь набор высоты (≈390 м) укладывается в пару километров — вверх по склону конуса практически без передышки. На вершине сохранились остатки крепостных стен, а вокруг открывается круговая панорама на холмы Шумадии и массив Рудника.\n\n📊 Маршрут: ~2 км, набор ≈390 м, вершина 760 м.',
+        instagramUrl: null,
+        photos: [
+            'photos/Ostrvica/ostrvica1.JPG', 'photos/Ostrvica/ostrvica2.JPG',
+            'photos/Ostrvica/ostrvica3.JPG', 'photos/Ostrvica/ostrvica4.JPG',
+            'photos/Ostrvica/ostrvica5.JPG', 'photos/Ostrvica/ostrvica6.JPG',
+            'photos/Ostrvica/ostrvica7.JPG', 'photos/Ostrvica/ostrvica8.JPG',
+            'photos/Ostrvica/ostrvica9.JPG', 'photos/Ostrvica/ostrvica10.JPG'
+        ]
+    },
+    {
+        file: 'Maglic - Stolovi.gpx', name: 'Maglić - Stolovi',
+        date: '',
+        description: 'Кольцевой маршрут по массиву Столови недалеко от Кралево — горному хребту над долиной реки Ибар.\n\nСнизу почти весь набор (≈960 м) накручивается по лесистым склонам, выводя к скальным выходам и открытым гребням, которыми славятся Столови. С верхней части маршрута открываются широкие виды на окрестные хребты Западной Сербии.\n\n📊 Маршрут кольцевой: ~9 км, набор ≈960 м, верх ≈900 м.',
+        instagramUrl: null,
+        photos: [
+            'photos/Maglic - Stolovi/maglic1.JPG', 'photos/Maglic - Stolovi/maglic2.JPG',
+            'photos/Maglic - Stolovi/maglic3.JPG', 'photos/Maglic - Stolovi/maglic4.JPG',
+            'photos/Maglic - Stolovi/maglic5.JPG', 'photos/Maglic - Stolovi/maglic6.JPG',
+            'photos/Maglic - Stolovi/maglic7.JPG', 'photos/Maglic - Stolovi/maglic8.JPG',
+            'photos/Maglic - Stolovi/maglic9.JPG', 'photos/Maglic - Stolovi/maglic10.JPG',
+            'photos/Maglic - Stolovi/maglic11.JPG'
+        ]
     }
 ];
 
