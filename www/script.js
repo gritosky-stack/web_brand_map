@@ -194,6 +194,34 @@ const routesList = [
             'photos/Maglic - Stolovi/maglic9.JPG', 'photos/Maglic - Stolovi/maglic10.JPG',
             'photos/Maglic - Stolovi/maglic11.JPG'
         ]
+    },
+    {
+        file: 'Dzherdzhap - Ploce - Veliki Strabac.gpx', name: 'Đerdap - Ploče - Veliki Štrbac',
+        date: '2026-05-30',
+        description: 'Стартовали от парковки у дороги. Приехали в национальный парк Джердап с организацией «Srbija za Mlade».\n\nПодъём начали рано утром, почти весь маршрут проходит через лес — что очень классно в жаркие дни. Для групп обязательно сопровождение рейнджеров, которые также могут довезти до основных обзорных точек на Дастерах. Нас сопровождало двое)\n\nГруппа была большая, но мы довольно быстро поднимались и делали привалы каждые час-полтора. Видели много интересных жуков по дороге, лес был очень красивый)\n\nНа вершине и обзорной площадке «Велики Штрбац» открывается безумно красивый вид на Дунай, национальный парк Джердап и Румынию, которая прямо за Дунаем. Дул сильный ветер, пришлось накинуть ветровку.\n\nПосле спустились до ниже расположенного, но не менее красивого обзорного пункта «Плоче». Там соорудили площадку, с которой открывается вид на реку и массивную скалу прямо в ней, а также видно высочайшую точку, с которой мы спустились.\n\nЗатем благополучно спустились обратно и уехали кушать в ресторан 🤤',
+        instagramUrl: null,
+        photos: [
+            'photos/Dzherdzhap - Ploce - V-Strbac/IMG_0149.JPG', 'photos/Dzherdzhap - Ploce - V-Strbac/IMG_0159.JPG',
+            'photos/Dzherdzhap - Ploce - V-Strbac/IMG_0210.JPG', 'photos/Dzherdzhap - Ploce - V-Strbac/IMG_0213.JPG',
+            'photos/Dzherdzhap - Ploce - V-Strbac/IMG_0219.JPG', 'photos/Dzherdzhap - Ploce - V-Strbac/IMG_0228.JPG',
+            'photos/Dzherdzhap - Ploce - V-Strbac/IMG_0231.JPG', 'photos/Dzherdzhap - Ploce - V-Strbac/IMG_0238.JPG',
+            'photos/Dzherdzhap - Ploce - V-Strbac/IMG_0252.JPG', 'photos/Dzherdzhap - Ploce - V-Strbac/IMG_0253.JPG',
+            'photos/Dzherdzhap - Ploce - V-Strbac/IMG_0481.JPG'
+        ]
+    },
+    {
+        file: 'Vrutci Camping V2.gpx', name: 'Vrutci Camping',
+        date: '2026-06-06',
+        description: 'Эпичный двухдневный маршрут, сочетающий прогулку по старинной узкоколейке, исследование диких пещер и ночёвку на берегу горного озера. Идеальный выбор для тех, кто хочет сбежать от городской суеты в настоящую сербскую глушь.\n\n🗺️ Ключевые точки:\n• Каньон Джетинья: живописная тропа через 5 скальных туннелей (до 190 м в длину) и освежающие заводи.\n• Пещера Мегара: исследовательская точка с уникальной экосистемой — внутри колонии летучих мышей и сталактиты (нужен фонарь и сменная одежда).\n• Римские руины: возможность прикоснуться к истории прямо на маршруте.\n• Озеро Врутци: масштабная дамба и живописные берега, окружённые холмистым лесом. Лучшее место для атмосферного кемпинга и ночного купания.\n\n✨ Почему стоит выбрать этот маршрут:\n• Разнообразие: смена локаций от археологических объектов до диких пещер и озёрных стоянок.\n• Доступность: старт и финиш доступны на поезде из Белграда (ст. Стапари).\n• Атмосфера: настоящий «дикий» сербский опыт — тишина, лесные звуки, ночные купания и общение с местными жителями.\n\n⚠️ Советы участникам:\n• Безопасность: в регионе обитают медведи (неагрессивные, предпочитают растительную пищу) — соблюдайте базовые правила хранения еды в лагере.\n• Снаряжение: берите фонари для пещеры и удобную трекинговую обувь (маршрут сочетает ровные участки и лесные тропы).\n• Локальное комьюнити: на плотине можно встретить местных охранников (Радэ), которые подскажут актуальную информацию по рыбалке и ситуации на озере.\n\n🚂 Транспорт: поезд «Белград — Стапари» (~4.5 часа в пути).\n💰 Бюджет: ~2 000 RSD со своим снаряжением.',
+        instagramUrl: null,
+        photos: [
+            'photos/Vrutci Camping/IMG_0495.JPG', 'photos/Vrutci Camping/IMG_0557.JPG',
+            'photos/Vrutci Camping/IMG_0579.JPG', 'photos/Vrutci Camping/IMG_0598.JPG',
+            'photos/Vrutci Camping/IMG_0603.JPG', 'photos/Vrutci Camping/IMG_0607.JPG',
+            'photos/Vrutci Camping/IMG_0616.JPG', 'photos/Vrutci Camping/IMG_0633.JPG',
+            'photos/Vrutci Camping/IMG_0665.JPG', 'photos/Vrutci Camping/IMG_0694.JPG',
+            'photos/Vrutci Camping/IMG_0710.JPG'
+        ]
     }
 ];
 
@@ -523,7 +551,17 @@ function applyMapStyle() {
         id: 'world-mask-layer', type: 'fill',
         source: 'country-boundaries', 'source-layer': 'country_boundaries',
         paint: { 'fill-color': '#000000', 'fill-opacity': 0.75 },
-        filter: ['all', ['!=', 'iso_3166_1_alpha_3', 'SRB'], ['!=', 'iso_3166_1', 'RS']]
+        // Use the Serbian ("RS") worldview, where Kosovo is rendered as part of
+        // Serbia. The tileset stores overlapping polygons per worldview, so we
+        // keep only the "all" features plus those valid for the RS worldview,
+        // then darken everything that is not Serbia (SRB).
+        filter: ['all',
+            ['any',
+                ['==', ['get', 'worldview'], 'all'],
+                ['in', 'RS', ['get', 'worldview']]
+            ],
+            ['!=', ['get', 'iso_3166_1_alpha_3'], 'SRB']
+        ]
     }, firstLabelId);
 
     map.getStyle().layers.forEach(layer => {
@@ -533,10 +571,15 @@ function applyMapStyle() {
             if (id.includes('path') || id.includes('trail') || id.includes('track') || id.includes('footway') || id.includes('steps')) {
                 map.setLayoutProperty(layer.id, 'visibility', 'none');
             }
-            // Hide sub-national admin borders (keep admin-0 = country borders)
-            if ((id.includes('admin') || id.includes('boundary')) &&
-                !id.includes('admin-0') && !id.includes('admin_0') && !id.includes('disputed')) {
-                try { map.setLayoutProperty(layer.id, 'visibility', 'none'); } catch(e) {}
+            // Hide sub-national admin borders (keep admin-0 = country borders),
+            // and hide disputed boundary lines so the Serbia–Kosovo border is not
+            // drawn — matching the RS worldview used for the dark mask above.
+            if (id.includes('admin') || id.includes('boundary')) {
+                const isCountryBorder = id.includes('admin-0') || id.includes('admin_0');
+                const isDisputed = id.includes('disputed');
+                if (!isCountryBorder || isDisputed) {
+                    try { map.setLayoutProperty(layer.id, 'visibility', 'none'); } catch(e) {}
+                }
             }
         }
         if (layer.type === 'symbol') {
