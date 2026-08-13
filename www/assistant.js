@@ -81,6 +81,11 @@
       @media (min-width: 768px) {
         #asst-search-bar { top: 26px; width: min(440px, calc(100vw - 32px)); }
       }
+      /* На мобильных плашка ложится поверх логотипа, а то же самое доступно
+         в кнопке ИИ-подбора внизу справа — поэтому прячем. */
+      @media (max-width: 767px) {
+        #asst-search-bar { display: none; }
+      }
       #asst-search-input-wrap {
         display: flex; align-items: center; gap: 8px;
         background: rgba(12,12,14,0.92);

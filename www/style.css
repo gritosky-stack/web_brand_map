@@ -4,6 +4,23 @@ body {
     color: #ffffff;
 }
 
+/* Карта и оверлей меряются по ВИДИМОЙ части экрана, а не по layout-вьюпорту.
+   В мобильных браузерах 100vh — это высота с уже скрытой адресной строкой,
+   поэтому пока Safari её сворачивает, карта (absolute внутри body) уезжает
+   вверх, а интерфейс (position: fixed, живёт в визуальном вьюпорте) стоит на
+   месте. fixed + dvh убирают расхождение. */
+#map {
+    position: fixed;
+    inset: 0;
+    height: 100dvh;
+}
+.app-overlay {
+    height: 100dvh;
+}
+@supports not (height: 100dvh) {
+    #map, .app-overlay { height: 100vh; }
+}
+
 /* Enhancing typography manually just in case, though Tailwind does a good job */
 h1 {
     line-height: 1.1;
