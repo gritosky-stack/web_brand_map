@@ -49,13 +49,33 @@ const MAPBOX_TOKEN = 'pk.eyJ1IjoidG9jemtpamciLCJhIjoiY21uYWE1dnY0MGdjMTJwcDYwMW9
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
 // ── Хитмап троп ───────────────────────────────────────────────────────────────
-// Публичные GPS-треки OpenStreetMap: видно, где люди реально ходят, даже там,
-// где тропа не нарисована. Открытые данные OSM, ключей и прокси не требуют.
-const HEATMAP_SOURCE = {
-    hint:    'публичные GPS-треки OpenStreetMap',
-    maxzoom: 20,
-    tiles:   ['https://gps.tile.openstreetmap.org/lines/{z}/{x}/{y}.png']
+// Strava отдаёт тайлы БЕЗ заголовка Access-Control-Allow-Origin, а mapbox-gl
+// грузит растр через fetch/crossOrigin=anonymous — в браузере такие тайлы
+// просто не отрисуются (проверено: fetch → "Failed to fetch", <img> без
+// crossOrigin → ок). Плюс без подписи CloudFront зум глубже 12 отдаёт 403.
+// Поэтому на вебе Strava включается только через прокси, который добавляет
+// CORS-заголовок и подпись: готовый воркер — tools/strava-tile-proxy.js.
+// Сюда вписать его адрес вида 'https://strava-tiles.<аккаунт>.workers.dev'.
+const STRAVA_TILE_PROXY = '';
+
+const HEATMAP_SOURCES = {
+    strava: {
+        label: 'Strava',
+        hint:  'следы активностей Strava',
+        maxzoom: 15,
+        tiles: () => ['a', 'b', 'c'].map(s =>
+            `${STRAVA_TILE_PROXY.replace(/\/$/, '')}/${s}/all/hot/{z}/{x}/{y}.png`)
+    },
+    osm: {
+        label: 'OSM GPS',
+        hint:  'публичные GPS-треки OpenStreetMap',
+        maxzoom: 20,
+        tiles: () => ['https://gps.tile.openstreetmap.org/lines/{z}/{x}/{y}.png']
+    }
 };
+
+// Strava — только если прокси настроен, иначе честно показываем OSM-треки.
+const HEATMAP_KIND = STRAVA_TILE_PROXY ? 'strava' : 'osm';
 
 let _heatmapOn = false;
 
@@ -69,10 +89,10 @@ function toggleHeatmap(on) {
     if (map.getSource('heatmap-source')) map.removeSource('heatmap-source');
     if (!on) return;
 
+    const cfg = HEATMAP_SOURCES[HEATMAP_KIND];
+    if (HEATMAP_KIND === 'strava' && !STRAVA_TILE_PROXY) return;
     map.addSource('heatmap-source', {
-        type: 'raster', tiles: HEATMAP_SOURCE.tiles, tileSize: 256,
-        minzoom: 3, maxzoom: HEATMAP_SOURCE.maxzoom,
-        attribution: '© OpenStreetMap contributors'
+        type: 'raster', tiles: cfg.tiles(), tileSize: 256, minzoom: 3, maxzoom: cfg.maxzoom
     });
     // Под линиями маршрутов, чтобы красные треки не терялись в оранжевом.
     map.addLayer({
@@ -2149,7 +2169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const linesCb = document.getElementById('layer-lines');
         const heatCb  = document.getElementById('layer-heat');
 
-        document.getElementById('layer-heat-hint').textContent = HEATMAP_SOURCE.hint;
+        document.getElementById('layer-heat-hint').textContent = HEATMAP_SOURCES[HEATMAP_KIND].hint;
 
         const syncBtn = () => btn.classList.toggle('lines-active', _showLines || _heatmapOn);
 

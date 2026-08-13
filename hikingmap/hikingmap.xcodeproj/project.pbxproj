@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		407FE7A5A27BC305F5FE154A /* StravaLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B5AC0F80304CAE70C09067 /* StravaLoginView.swift */; };
+		E5AA87E3F27D063C20F0F8E3 /* StravaHeatmap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C9DC3401A47E0265D3BB7E /* StravaHeatmap.swift */; };
 		19DC715431D44B8F88E99A11 /* FitnessMatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8DF3C120F8A43C0B4EDAE1E /* FitnessMatchView.swift */; };
 		2AD726D4254F88B2543E45CD /* TrackRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2174F1E76377A349A2BB1F7F /* TrackRecorder.swift */; };
 		3F5CE64B59540BF79EC8B121 /* LiveTrackHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 354C631697992D9F609E2694 /* LiveTrackHUD.swift */; };
@@ -69,6 +71,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		63B5AC0F80304CAE70C09067 /* StravaLoginView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StravaLoginView.swift; sourceTree = "<group>"; };
+		58C9DC3401A47E0265D3BB7E /* StravaHeatmap.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StravaHeatmap.swift; sourceTree = "<group>"; };
 		2174F1E76377A349A2BB1F7F /* TrackRecorder.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackRecorder.swift; sourceTree = "<group>"; };
 		2703ACB415474911AFCECF20 /* SmartTimeView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SmartTimeView.swift; sourceTree = "<group>"; };
 		354C631697992D9F609E2694 /* LiveTrackHUD.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LiveTrackHUD.swift; sourceTree = "<group>"; };
@@ -209,6 +213,7 @@
 		CE6B923D2F9E3ED30076358C /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				63B5AC0F80304CAE70C09067 /* StravaLoginView.swift */,
 				CE6B923E2F9E3ED30076358C /* ElevationChartView.swift */,
 				CE6B923F2F9E3ED30076358C /* RouteCardCarousel.swift */,
 				CE6B92402F9E3ED30076358C /* RouteDetailPanel.swift */,
@@ -256,6 +261,7 @@
 		EE11223344556677889900AA /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				58C9DC3401A47E0265D3BB7E /* StravaHeatmap.swift */,
 				F6789012B3C4D5E6F7890123 /* ElevationService.swift */,
 				AA1122334455667788990002 /* TrailSnapService.swift */,
 				2174F1E76377A349A2BB1F7F /* TrackRecorder.swift */,
@@ -405,6 +411,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				407FE7A5A27BC305F5FE154A /* StravaLoginView.swift in Sources */,
+				E5AA87E3F27D063C20F0F8E3 /* StravaHeatmap.swift in Sources */,
 				CE6B924A2F9E3ED30076358C /* RouteDetailPanel.swift in Sources */,
 				CE0B84AE2F9E365600D0AF82 /* ContentView.swift in Sources */,
 				CE6B924C2F9E3ED30076358C /* GPXParser.swift in Sources */,

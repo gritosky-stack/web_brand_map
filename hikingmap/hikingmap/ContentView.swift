@@ -91,6 +91,12 @@ struct ContentView: View {
         .sheet(isPresented: $appState.showAIAssistant) {
             AIAssistantView().environmentObject(appState)
         }
+        .sheet(isPresented: $appState.showStravaLogin) {
+            StravaLoginView {
+                appState.stravaAuthorized = StravaHeatmap.isAuthorized
+                appState.showStravaHeatmap = true
+            }
+        }
         .fileImporter(
             isPresented: $showGPXImporter,
             allowedContentTypes: [.xml, .data],
@@ -374,7 +380,7 @@ struct ContentView: View {
     }
 
     private var anyLayerActive: Bool {
-        appState.topoAlpha > 0.01 || appState.showTrailsHeatmap
+        appState.topoAlpha > 0.01 || appState.showStravaHeatmap
     }
 
     private var mapToolsRow: some View {
@@ -478,7 +484,7 @@ struct ContentView: View {
 
             Divider().background(DS.border).padding(.vertical, 2)
 
-            heatmapRow
+            stravaHeatmapRow
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -489,20 +495,41 @@ struct ContentView: View {
         .frame(width: 250)
     }
 
-    /// Тоггл хитмапа троп — публичные GPS-треки OpenStreetMap.
-    private var heatmapRow: some View {
+    /// Тоггл хитмапа Strava + статус подписи CloudFront.
+    private var stravaHeatmapRow: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Toggle(isOn: $appState.showTrailsHeatmap) {
-                Text("🔥 Хитмап троп")
+            Toggle(isOn: $appState.showStravaHeatmap) {
+                Text("🔥 Strava heatmap")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(appState.showTrailsHeatmap ? DS.accent : DS.textSecondary)
+                    .foregroundColor(appState.showStravaHeatmap ? DS.accent : DS.textSecondary)
             }
             .toggleStyle(SwitchToggleStyle(tint: DS.accent))
 
-            Text("GPS-треки OpenStreetMap — где реально ходят")
-                .font(.system(size: 10))
-                .foregroundColor(DS.textSecondary.opacity(0.75))
-                .fixedSize(horizontal: false, vertical: true)
+            let authorized = appState.stravaAuthorized
+            let needsLogin = !authorized && appState.mapZoom > Double(StravaHeatmap.publicMaxZoom)
+
+            HStack(spacing: 6) {
+                Text(authorized ? "Детальный режим включён"
+                                : needsLogin ? "Ближе \(StravaHeatmap.publicMaxZoom)-го зума нужен вход"
+                                             : "Без входа — обзорно, до \(StravaHeatmap.publicMaxZoom)-го зума")
+                    .font(.system(size: 10))
+                    .foregroundColor(needsLogin ? DS.accent.opacity(0.9) : DS.textSecondary.opacity(0.75))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+
+                Button(authorized ? "Выйти" : "Войти") {
+                    if authorized {
+                        StravaHeatmap.credentials = nil
+                        appState.stravaAuthorized = false
+                    } else {
+                        appState.showStravaLogin = true
+                    }
+                }
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(DS.accent)
+                .buttonStyle(.plain)
+            }
         }
     }
 

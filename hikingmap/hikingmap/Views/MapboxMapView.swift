@@ -151,9 +151,11 @@ final class Coordinator: NSObject {
             .sink { [weak self] alpha in self?.updateTopoOpacity(alpha) }
             .store(in: &cancellables)
 
-        appState.$showTrailsHeatmap
+        // Хитмап пересобираем и по тогглу, и после логина — у слоя меняется
+        // URL тайлов (tiles → tiles-auth) и maxzoom.
+        Publishers.CombineLatest(appState.$showStravaHeatmap, appState.$stravaAuthorized)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] show in self?.updateTrailsHeatmap(show) }
+            .sink { [weak self] show, _ in self?.updateStravaHeatmap(show) }
             .store(in: &cancellables)
 
         appState.$isRecording
@@ -258,7 +260,7 @@ final class Coordinator: NSObject {
         sightingManager = mapView.annotations.makePointAnnotationManager(id: "sightings")
         onSelectedRouteChanged(appState.selectedRoute)
         updateAllTrails(showAll: appState.showAllTrails, stats: appState.routeStats)
-        updateTrailsHeatmap(appState.showTrailsHeatmap)
+        updateStravaHeatmap(appState.showStravaHeatmap)
         loadCaveLayer(mapView)
     }
 
@@ -702,36 +704,36 @@ final class Coordinator: NSObject {
         updateTrailColorsForTopo(alpha: alpha, on: mapView)
     }
 
-    // MARK: - Хитмап троп
+    // MARK: - Strava heatmap
 
-    /// Публичные GPS-треки OpenStreetMap: видно, где люди реально ходят, даже
-    /// там, где тропа не нарисована. Слой кладём поверх маски, но под тропами и
-    /// маршрутами — чтобы линии маршрутов не терялись. Как и топо, добавляем
-    /// лениво: с opacity=0 Mapbox всё равно качал бы тайлы.
-    private func updateTrailsHeatmap(_ show: Bool) {
+    /// Растровый слой поверх маски, но под тропами и маршрутами — чтобы линии
+    /// маршрутов не тонули в оранжевом. Как и топо, добавляем лениво: с
+    /// opacity=0 Mapbox всё равно качал бы тайлы.
+    private func updateStravaHeatmap(_ show: Bool) {
         guard isStyleLoaded, let mapView else { return }
-        removeTrailsHeatmap(from: mapView)
+        removeStravaHeatmap(from: mapView)
         guard show else { return }
 
-        var src = RasterSource(id: "trails-heat-source")
-        src.tiles    = ["https://gps.tile.openstreetmap.org/lines/{z}/{x}/{y}.png"]
+        var src = RasterSource(id: "strava-heat-source")
+        src.tiles   = StravaHeatmap.tileTemplates()
         src.tileSize = 256
-        src.minzoom  = 3
-        src.maxzoom  = 20
-        src.attribution = "© OpenStreetMap contributors"
+        src.minzoom = 3
+        src.maxzoom = StravaHeatmap.maxZoom
         try? mapView.mapboxMap.addSource(src)
 
-        var layer = RasterLayer(id: "trails-heat-layer", source: "trails-heat-source")
-        layer.rasterOpacity      = .constant(0.75)
-        layer.rasterFadeDuration = .constant(0)
+        var layer = RasterLayer(id: "strava-heat-layer", source: "strava-heat-source")
+        layer.rasterOpacity  = .constant(0.75)
+        // Спутник тёмный: чуть поднимаем яркость, иначе слабые треки не видно.
+        layer.rasterBrightnessMin = .constant(0.05)
+        layer.rasterFadeDuration  = .constant(0)
         let anchor = mapView.mapboxMap.layerExists(withId: "osm-hiking-trails")
             ? "osm-hiking-trails" : "world-mask"
         try? mapView.mapboxMap.addLayer(layer, layerPosition: .below(anchor))
     }
 
-    private func removeTrailsHeatmap(from mapView: MapView) {
-        try? mapView.mapboxMap.removeLayer(withId: "trails-heat-layer")
-        try? mapView.mapboxMap.removeSource(withId: "trails-heat-source")
+    private func removeStravaHeatmap(from mapView: MapView) {
+        try? mapView.mapboxMap.removeLayer(withId: "strava-heat-layer")
+        try? mapView.mapboxMap.removeSource(withId: "strava-heat-source")
     }
 
     // Interpolate trail colors to contrast with topo map's orange/brown/yellow/green palette

@@ -39,8 +39,12 @@ final class AppState: ObservableObject {
     @Published var showPSSRouteDetail = false
     @Published var topoAlpha: Double = 0.0
     @Published var showLayersPanel = false
-    /// Хитмап троп — публичные GPS-треки OpenStreetMap (тоггл в «Слоях»)
-    @Published var showTrailsHeatmap = false
+    // Strava heatmap: тоггл слоя + экран логина (подпись CloudFront для z>12)
+    @Published var showStravaHeatmap = false
+    @Published var showStravaLogin = false
+    /// Есть ли подпись CloudFront. Меняется после логина/сброса — карта по
+    /// этому событию пересобирает слой (tiles → tiles-auth, другой maxzoom).
+    @Published var stravaAuthorized = StravaHeatmap.isAuthorized
     @Published var routeListExpanded = false
     @Published var mapZoom: Double = 6.5
 
