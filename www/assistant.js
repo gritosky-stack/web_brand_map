@@ -70,16 +70,16 @@
       /* ── Top search bar ─────────────────────────────── */
       #asst-search-bar {
         position: fixed;
-        top: 20px;
+        top: 12px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 35;
-        width: min(440px, calc(100vw - 32px));
-        display: none; /* desktop only */
+        width: min(440px, calc(100vw - 80px));
+        display: block;
         pointer-events: auto;
       }
       @media (min-width: 768px) {
-        #asst-search-bar { display: block; top: 26px; }
+        #asst-search-bar { top: 26px; width: min(440px, calc(100vw - 32px)); }
       }
       #asst-search-input-wrap {
         display: flex; align-items: center; gap: 8px;

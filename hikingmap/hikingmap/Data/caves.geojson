@@ -1,0 +1,9454 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "node/150903150",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.207569,
+          42.4780855
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Gadimës",
+        "name:sr": "Мермерна пећина",
+        "name:en": "Marble Cave Gadime",
+        "name:sr-Latn": "Mermerna pećina",
+        "wikipedia": "sq:Shpella e Gadimës",
+        "wikidata": "Q1662138",
+        "fee": "yes",
+        "tourism": "attraction",
+        "length": 1260.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/302030915",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.5826747,
+          43.727842
+        ]
+      },
+      "properties": {
+        "name": "Магурата",
+        "name:en": "Magura Cave",
+        "wikidata": "Q1884722",
+        "depth": 56.0,
+        "length": 2500.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/389947238",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9625315,
+          44.0294144
+        ]
+      },
+      "properties": {
+        "name": "Лазарева пећина",
+        "name:sr": "Лазарева пећина",
+        "name:en": "Lazar's Cave",
+        "name:sr-Latn": "Lazareva pećina",
+        "wikipedia": "sr:Лазарева пећина",
+        "wikidata": "Q25048156",
+        "access": "yes",
+        "fee": "yes",
+        "opening_hours": "Mo-Su 09:00-16:00; Oct-Apr off",
+        "tourism": "attraction",
+        "length": 16041.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/417768162",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9358234,
+          44.2449641
+        ]
+      },
+      "properties": {
+        "name": "Петничка пећина",
+        "name:sr": "Петничка пећина",
+        "name:sr-Latn": "Petnička pećina",
+        "wikipedia": "sr:Петничка пећина",
+        "wikidata": "Q12044790",
+        "length": 600.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/487068225",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8845713,
+          44.2379412
+        ]
+      },
+      "properties": {
+        "name": "Дегурићка пећина",
+        "name:sr": "Дегурићка пећина",
+        "name:sr-Latn": "Degurićka pećina",
+        "wikipedia": "sr:Дегурићка пећина",
+        "wikidata": "Q5251864",
+        "tourism": "viewpoint",
+        "length": 236.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/529793585",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.3509149,
+          45.7969495
+        ]
+      },
+      "properties": {
+        "name": "Peștera Românești",
+        "name:en": "Românești Cave",
+        "wikipedia": "ro:Peștera Românești",
+        "wikidata": "Q13624642",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/828564076",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0496506,
+          43.1396127
+        ]
+      },
+      "properties": {
+        "name": "Ledena pećina",
+        "name:sr": "Ледена пећина",
+        "name:en": "Ice cave",
+        "ele": 2180.0,
+        "wikipedia": "fr:Grotte de Ledena",
+        "wikidata": "Q48755302",
+        "access": "yes",
+        "fee": "no",
+        "opening_hours": "24/7"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/1644665871",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4482133,
+          43.908393
+        ]
+      },
+      "properties": {
+        "name": "Васића понор",
+        "name:sr": "Васића понор",
+        "name:sr-Latn": "Vasića ponor"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/1707063003",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8543014,
+          45.1622874
+        ]
+      },
+      "properties": {
+        "name": "Peșteră"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/1952352599",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0643009,
+          44.6102725
+        ]
+      },
+      "properties": {
+        "name": "Šuplja stijena",
+        "name:sr": "Шупља стијена",
+        "access": "yes",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2169679887",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.00521,
+          42.3521136
+        ]
+      },
+      "properties": {
+        "name": "Obodska pećina",
+        "name:sr": "Ободска пећина",
+        "name:sr-Latn": "Obodska pećina",
+        "wikidata": "Q27562125",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2293889854",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.4270756,
+          44.8983029
+        ]
+      },
+      "properties": {
+        "name": "Grota cu Aburi",
+        "ele": 392.0,
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2328239677",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.6064195,
+          42.9324839
+        ]
+      },
+      "properties": {
+        "name": "Šušov krš",
+        "name:sr": "Шушов крш",
+        "name:sr-Latn": "Šušov krš"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2372440458",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.576996,
+          43.7321517
+        ]
+      },
+      "properties": {
+        "name": "Магурата"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2391463059",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6297467,
+          44.0726888
+        ]
+      },
+      "properties": {
+        "name": "Ресавска пећина",
+        "name:sr": "Ресавска пећина",
+        "name:en": "Resava cave",
+        "name:sr-Latn": "Resavska pećina",
+        "wikipedia": "en:Resava cave",
+        "wikidata": "Q2453168",
+        "length": 2304.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2393275439",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7874453,
+          44.7540994
+        ]
+      },
+      "properties": {
+        "name": "Filipova díra",
+        "access": "yes",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2394186803",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7393384,
+          44.7313671
+        ]
+      },
+      "properties": {
+        "name": "Gaura Turceasca",
+        "access": "yes",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2395352541",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7295379,
+          44.7039769
+        ]
+      },
+      "properties": {
+        "name": "Vranovec"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2494127108",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1421259,
+          44.1153006
+        ]
+      },
+      "properties": {
+        "name": "Мокра пећина",
+        "name:sr": "Мокра пећина",
+        "name:sr-Latn": "Mokra pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2590565035",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8011126,
+          42.3802647
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Rratheve",
+        "access": "yes",
+        "fee": "no",
+        "opening_hours": "24/7"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2590565118",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7596024,
+          42.4395061
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Majës së Harapit"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2852803690",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.4284718,
+          44.8962524
+        ]
+      },
+      "properties": {
+        "name": "Grota Haiducilor"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2971491429",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9474205,
+          45.1782641
+        ]
+      },
+      "properties": {
+        "name": "Peștera Comarnic",
+        "name:sr": "Pećina Komarnik",
+        "name:en": "Comarnic Cave",
+        "wikipedia": "ro:Peștera Comarnic",
+        "wikidata": "Q82368",
+        "access": "customers",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2983881962",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8313831,
+          42.4267167
+        ]
+      },
+      "properties": {
+        "name": "Pećina Terem",
+        "name:sr": "Пећина Терем"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2983881965",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8298005,
+          42.4314011
+        ]
+      },
+      "properties": {
+        "name": "Žestoka jama",
+        "name:sr": "Жестока јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2983881966",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8336675,
+          42.4295053
+        ]
+      },
+      "properties": {
+        "name": "Bojanovica",
+        "name:sr": "Бојановица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2983881967",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8337337,
+          42.4305332
+        ]
+      },
+      "properties": {
+        "name": "Prelazna pećina",
+        "name:sr": "Прелазна пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2983881968",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8315887,
+          42.433011
+        ]
+      },
+      "properties": {
+        "name": "Pećina Njegoš",
+        "name:sr": "Пећина Његош"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2983881969",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8333021,
+          42.4330184
+        ]
+      },
+      "properties": {
+        "name": "pećina Buba",
+        "name:sr": "Пећина Буба"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2983881989",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8251508,
+          42.4525167
+        ]
+      },
+      "properties": {
+        "name": "Zečja rupa",
+        "name:sr": "Зечја рупа",
+        "name:sr-Latn": "Zečja rupa"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2983882233",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8462013,
+          42.427934
+        ]
+      },
+      "properties": {
+        "name": "Ponornica podno Kape",
+        "name:sr": "Понорница подно Капе"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2983882237",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8554786,
+          42.4052333
+        ]
+      },
+      "properties": {
+        "name": "Jama Dinja",
+        "name:sr": "Јама Диња"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/2983882239",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.847964,
+          42.3988688
+        ]
+      },
+      "properties": {
+        "name": "Miloševa pećina",
+        "name:sr": "Милошева пећина",
+        "wikidata": "Q27569521"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3001177811",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2611585,
+          44.5953162
+        ]
+      },
+      "properties": {
+        "name": "Peștera Ponicova",
+        "name:en": "Ponicova Cave",
+        "wikipedia": "ro:Peștera Ponicova",
+        "wikidata": "Q12737966",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3155995195",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8869461,
+          45.0868172
+        ]
+      },
+      "properties": {
+        "name": "Peștera Buhui",
+        "name:en": "Buhui Cave",
+        "wikipedia": "ro:Peștera Buhui",
+        "wikidata": "Q12737932",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3163237303",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6523584,
+          43.8975863
+        ]
+      },
+      "properties": {
+        "name": "Пећина Грза"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3164300283",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8762623,
+          45.2029069
+        ]
+      },
+      "properties": {
+        "name": "Peștera de după Cârșă",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3166164857",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9224575,
+          45.1993056
+        ]
+      },
+      "properties": {
+        "name": "Peștera Țolosu",
+        "name:en": "Țolosu Cave",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3195703632",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8481682,
+          42.3970985
+        ]
+      },
+      "properties": {
+        "name": "Jama Lahner",
+        "name:sr": "јама Лахнер"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3202940011",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.092347,
+          44.2055709
+        ]
+      },
+      "properties": {
+        "name": "Рибничка пећина",
+        "name:sr": "Рибничка пећина",
+        "name:sr-Latn": "Ribnička pećina",
+        "wikipedia": "sr:Рибничка пећина",
+        "wikidata": "Q31184004",
+        "tourism": "attraction",
+        "length": 52.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3203260169",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8241557,
+          44.1783438
+        ]
+      },
+      "properties": {
+        "name": "Ленчина пећина",
+        "name:sr": "Ленчина пећина",
+        "name:sr-Latn": "Lenčina pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3203285580",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7971071,
+          44.1789335
+        ]
+      },
+      "properties": {
+        "name": "Драгов понор",
+        "name:sr": "Драгов понор",
+        "name:sr-Latn": "Dragov ponor"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3203472487",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9665909,
+          44.2106548
+        ]
+      },
+      "properties": {
+        "name": "Шупља липа",
+        "name:sr": "Шупља липа",
+        "name:sr-Latn": "Šuplja lipa"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3414510775",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8571198,
+          45.1364147
+        ]
+      },
+      "properties": {
+        "name": "Бели Коп",
+        "name:sr": "Бели Коп",
+        "name:sr-Latn": "Beli Kop",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3480953844",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6600859,
+          44.291698
+        ]
+      },
+      "properties": {
+        "name": "Прераст Касоње"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3524513125",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9418685,
+          42.4460182
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Dragobisë",
+        "access": "yes",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3553821530",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6507068,
+          45.1351022
+        ]
+      },
+      "properties": {
+        "name": "Гргуревачка пећина",
+        "name:sr": "Гргуревачка пећина",
+        "name:sr-Latn": "Grgurevačka pećina",
+        "wikipedia": "sr:Гргуревачка пећина",
+        "wikidata": "Q61127866",
+        "access": "no",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3572001793",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8205835,
+          42.4466507
+        ]
+      },
+      "properties": {
+        "name": "Jama Tami",
+        "name:sr": "Јама Тами"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3588624001",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8379332,
+          42.4310501
+        ]
+      },
+      "properties": {
+        "name": "Jama Mahovina",
+        "name:sr": "Јама Маховина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3588624002",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8366832,
+          42.4320835
+        ]
+      },
+      "properties": {
+        "name": "Pećina Kosac",
+        "name:sr": "Пећина Косац"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3588630825",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8319489,
+          42.4325005
+        ]
+      },
+      "properties": {
+        "name": "jama ER-1 (Fehérjefeldolgozó-barlang)",
+        "name:sr": "јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3594310778",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8252148,
+          42.4034492
+        ]
+      },
+      "properties": {
+        "name": "Jama Frižider",
+        "name:sr": "Јама Фрижидер"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3594321954",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8457298,
+          42.4165353
+        ]
+      },
+      "properties": {
+        "name": "Jama Vindi",
+        "name:sr": "јама Винди"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3594393181",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8332674,
+          42.3595674
+        ]
+      },
+      "properties": {
+        "name": "Đurđevačka jama",
+        "name:sr": "Ђурђевачка јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3594394147",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8319833,
+          42.3870837
+        ]
+      },
+      "properties": {
+        "name": "Jama Golubišnica",
+        "name:sr": "Голубишница"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3599537244",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.9535409,
+          42.3739938
+        ]
+      },
+      "properties": {
+        "name": "Lipska Pećina",
+        "name:sr": "Липска Пећина",
+        "name:en": "Lipa Cave",
+        "wikidata": "Q23808470",
+        "access": "customers",
+        "fee": "yes"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3804317957",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.879874,
+          45.0961621
+        ]
+      },
+      "properties": {
+        "name": "Peștera Buhui (Exurgență)"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3804322126",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2631316,
+          44.5992567
+        ]
+      },
+      "properties": {
+        "name": "Peștera Veterani",
+        "access": "yes",
+        "fee": "yes",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3806834075",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9271779,
+          42.3665026
+        ]
+      },
+      "properties": {
+        "name": "Shpella Zezë",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3810918585",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8277792,
+          42.8309176
+        ]
+      },
+      "properties": {
+        "name": "Čađa",
+        "name:sr": "Чађа"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3810936692",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8513335,
+          42.8557471
+        ]
+      },
+      "properties": {
+        "name": "Tmušina pećina",
+        "name:sr": "Тмушина пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829132368",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7472705,
+          42.854809
+        ]
+      },
+      "properties": {
+        "name": "Župan pećina",
+        "name:sr": "Жупан пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829135354",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7600152,
+          42.8568956
+        ]
+      },
+      "properties": {
+        "name": "Bracanovića pećina",
+        "name:sr": "Брацановића пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829135693",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7482813,
+          42.879555
+        ]
+      },
+      "properties": {
+        "name": "Njevaštica",
+        "name:sr": "Њеваштица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829295178",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6761165,
+          42.8393635
+        ]
+      },
+      "properties": {
+        "name": "Jama",
+        "name:sr": "Јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829297946",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7528527,
+          42.8547888
+        ]
+      },
+      "properties": {
+        "name": "Lučanska jama",
+        "name:sr": "Лучанска јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829309092",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8257868,
+          42.8393791
+        ]
+      },
+      "properties": {
+        "name": "Tunelska",
+        "name:sr": "Тунелска"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829315157",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.827334,
+          42.8299184
+        ]
+      },
+      "properties": {
+        "name": "Žara",
+        "name:sr": "Жара"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829318584",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8282808,
+          42.8309736
+        ]
+      },
+      "properties": {
+        "name": "Vilino vreteno",
+        "name:sr": "Вилино вретено"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829320388",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8283344,
+          42.8309451
+        ]
+      },
+      "properties": {
+        "name": "Velika Zidanica",
+        "name:sr": "Велика Зиданица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829322489",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8317221,
+          42.8307504
+        ]
+      },
+      "properties": {
+        "name": "Velika pećina",
+        "name:sr": "Велика пећина",
+        "depth": 6.0,
+        "length": 168.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829322657",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8261673,
+          42.830949
+        ]
+      },
+      "properties": {
+        "name": "Velika okapina",
+        "name:sr": "Велика окапина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829323657",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8313359,
+          42.8311418
+        ]
+      },
+      "properties": {
+        "name": "Mala zidanica",
+        "name:sr": "Мала зиданица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829329771",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8650865,
+          42.8887256
+        ]
+      },
+      "properties": {
+        "name": "Uroševica",
+        "name:sr": "Урошевица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829331557",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8619481,
+          42.8870272
+        ]
+      },
+      "properties": {
+        "name": "Torina pećina",
+        "name:sr": "Торина пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829459337",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.853018,
+          42.8550788
+        ]
+      },
+      "properties": {
+        "name": "Džabadinska pećina",
+        "name:sr": "Џабадинска пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3829459427",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.856698,
+          42.8566124
+        ]
+      },
+      "properties": {
+        "name": "Crvena pećina",
+        "name:sr": "Црвена пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830302712",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8721426,
+          42.9061685
+        ]
+      },
+      "properties": {
+        "name": "Orlova pećina",
+        "name:sr": "Орлова пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830303033",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.86265,
+          42.8818669
+        ]
+      },
+      "properties": {
+        "name": "Zidanica",
+        "name:sr": "Зиданица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830307495",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.871641,
+          42.9060566
+        ]
+      },
+      "properties": {
+        "name": "Goveđa pećina",
+        "name:sr": "Говеђа пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830307657",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.871641,
+          42.905697
+        ]
+      },
+      "properties": {
+        "name": "Koźa pećina",
+        "name:sr": "Козја пећина",
+        "name:sr-Latn": "Kozja pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830307660",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8718067,
+          42.9065294
+        ]
+      },
+      "properties": {
+        "name": "Ovčja pećina",
+        "name:sr": "Овчја пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830307958",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8719461,
+          42.9065275
+        ]
+      },
+      "properties": {
+        "name": "Golublja pećina",
+        "name:sr": "Голубља пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830310261",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9214552,
+          42.8712548
+        ]
+      },
+      "properties": {
+        "name": "Velika pećina",
+        "name:sr": "Велика пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830310262",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9195937,
+          42.8710388
+        ]
+      },
+      "properties": {
+        "name": "Mala pećina",
+        "name:sr": "Мала пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830310788",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9070332,
+          42.8351628
+        ]
+      },
+      "properties": {
+        "name": "Đato",
+        "name:sr": "Ђато"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830311556",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9067996,
+          42.828473
+        ]
+      },
+      "properties": {
+        "name": "Đato pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830312598",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9185372,
+          42.8404557
+        ]
+      },
+      "properties": {
+        "name": "Zvečka",
+        "name:sr": "Звечка"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830312661",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8904762,
+          42.8008915
+        ]
+      },
+      "properties": {
+        "name": "Minina pećina",
+        "name:sr": "Минина пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830313190",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9081969,
+          42.8203328
+        ]
+      },
+      "properties": {
+        "name": "Zagorsko vrelo",
+        "name:sr": "Загорско врело"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830317653",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9222923,
+          42.7610275
+        ]
+      },
+      "properties": {
+        "name": "Jama",
+        "name:sr": "Јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830317684",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8866833,
+          42.7774721
+        ]
+      },
+      "properties": {
+        "name": "Moskovača",
+        "name:sr": "Московача"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830317869",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9298022,
+          42.7637802
+        ]
+      },
+      "properties": {
+        "name": "Kemelj",
+        "name:sr": "Кемељ"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830317870",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9304674,
+          42.7640008
+        ]
+      },
+      "properties": {
+        "name": "Lisičja pećina",
+        "name:sr": "Лисичја пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830320352",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0379169,
+          42.7746056
+        ]
+      },
+      "properties": {
+        "name": "Snježara",
+        "name:sr": "Сњежара"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830320369",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9485457,
+          42.7665885
+        ]
+      },
+      "properties": {
+        "name": "Ržanica",
+        "name:sr": "Ржаница"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830320457",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9556804,
+          42.7594359
+        ]
+      },
+      "properties": {
+        "name": "Komitska pećina",
+        "name:sr": "Комитска пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830320619",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0234276,
+          42.7721666
+        ]
+      },
+      "properties": {
+        "name": "Jama",
+        "name:sr": "Јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830321484",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0372034,
+          42.7688414
+        ]
+      },
+      "properties": {
+        "name": "Jama",
+        "name:sr": "Јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830322229",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0385076,
+          42.7994318
+        ]
+      },
+      "properties": {
+        "name": "Jama",
+        "name:sr": "Јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830322357",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0374969,
+          42.8028789
+        ]
+      },
+      "properties": {
+        "name": "Bezdanica",
+        "name:sr": "Безданица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830322722",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0145587,
+          42.8186046
+        ]
+      },
+      "properties": {
+        "name": "Jama",
+        "name:sr": "Јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830323014",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0242361,
+          42.8201785
+        ]
+      },
+      "properties": {
+        "name": "Tromeđa",
+        "name:sr": "Тромеђа"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830327243",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8819524,
+          42.6983656
+        ]
+      },
+      "properties": {
+        "name": "Lazovića pećina",
+        "name:sr": "Лазовића пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830329499",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9839552,
+          42.78467
+        ]
+      },
+      "properties": {
+        "name": "Prašnica",
+        "name:sr": "Прашница"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830332024",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9791556,
+          42.7232456
+        ]
+      },
+      "properties": {
+        "name": "Jama",
+        "name:sr": "Јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830332385",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9716776,
+          42.698864
+        ]
+      },
+      "properties": {
+        "name": "Tojina pećina",
+        "name:sr": "Тојина пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830333707",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9175817,
+          42.7190303
+        ]
+      },
+      "properties": {
+        "name": "Đevojačka pećina",
+        "name:sr": "Ђевојачка пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830338173",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8460086,
+          42.7925512
+        ]
+      },
+      "properties": {
+        "name": "Navotinsko vrelo",
+        "name:sr": "Навотинско врело"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3830340195",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8059584,
+          42.8140876
+        ]
+      },
+      "properties": {
+        "name": "Vranjaštička pećina",
+        "name:sr": "Врањаштичка пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3855447437",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.0973182,
+          44.6846482
+        ]
+      },
+      "properties": {
+        "name": "Zamonica"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3857531767",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6992833,
+          44.6649313
+        ]
+      },
+      "properties": {
+        "name": "Gaura cu Muscă",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3857586110",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7325011,
+          44.6654277
+        ]
+      },
+      "properties": {
+        "name": "Velebný žlábek"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3929006015",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5355054,
+          42.2420779
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Pëllumbave",
+        "access": "yes",
+        "fee": "no",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3946236646",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7569331,
+          42.549844
+        ]
+      },
+      "properties": {
+        "name": "Šuplja vrata",
+        "name:sr": "Шупља врата"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3946254847",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7778381,
+          42.5968926
+        ]
+      },
+      "properties": {
+        "name": "Mirakova pećina",
+        "name:sr": "Миракова пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3955651178",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.114804,
+          42.7617042
+        ]
+      },
+      "properties": {
+        "name": "Jama",
+        "name:sr": "Јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3955855583",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1996401,
+          42.8096046
+        ]
+      },
+      "properties": {
+        "name": "Ledena pećina",
+        "name:sr": "Ледена пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3960292022",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7550274,
+          42.560143
+        ]
+      },
+      "properties": {
+        "name": "Jama",
+        "name:sr": "Јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3960366558",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8115045,
+          42.5174547
+        ]
+      },
+      "properties": {
+        "name": "Jama",
+        "name:sr": "Јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3961757485",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.3098264,
+          42.8416818
+        ]
+      },
+      "properties": {
+        "name": "Baćke pećine",
+        "name:sr": "Баћке пећине"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3961928340",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.2964357,
+          42.7721328
+        ]
+      },
+      "properties": {
+        "name": "Shpella",
+        "name:sr": "пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3964278589",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1060761,
+          42.9419494
+        ]
+      },
+      "properties": {
+        "name": "Musina jama",
+        "name:sr": "Мусина јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/3977945520",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.2956303,
+          42.9466212
+        ]
+      },
+      "properties": {
+        "name": "Годовска пећина",
+        "name:sr": "Годовска пећина",
+        "name:sr-Latn": "Godovska pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4034241430",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.1020232,
+          43.3803509
+        ]
+      },
+      "properties": {
+        "name": "Преконошка пећина",
+        "wikipedia": "sr:Преконошка пећина",
+        "wikidata": "Q12757798",
+        "access": "no",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4037862992",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.3232728,
+          43.3724295
+        ]
+      },
+      "properties": {
+        "name": "Пандирало",
+        "ele": 470.0,
+        "wikipedia": "sr:Понор Пандирало",
+        "wikidata": "Q64843241",
+        "access": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4058987697",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9396226,
+          43.4301215
+        ]
+      },
+      "properties": {
+        "name": "Церјанска пећина",
+        "name:sr": "Церјанска пећина",
+        "name:en": "Cerjanska cave",
+        "name:sr-Latn": "Cerjanska pećina",
+        "wikipedia": "sr:Церјанска пећина",
+        "wikidata": "Q20438284",
+        "access": "permissive",
+        "length": 7149.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4059492642",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.1549022,
+          43.7061202
+        ]
+      },
+      "properties": {
+        "name": "Леденица",
+        "name:en": "Ledenica"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4079550753",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.0842935,
+          43.3374067
+        ]
+      },
+      "properties": {
+        "name": "Баланица",
+        "wikipedia": "sr:Мала Баланица",
+        "wikidata": "Q15057637",
+        "access": "no",
+        "fee": "no",
+        "length": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4110232395",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.5824083,
+          44.3019654
+        ]
+      },
+      "properties": {
+        "name": "Рисовача",
+        "name:sr": "Рисовача",
+        "name:sr-Latn": "Risovača",
+        "wikipedia": "sr:Рисовача",
+        "wikidata": "Q5240279",
+        "tourism": "attraction",
+        "length": 800.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4123714989",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.16794,
+          44.1056804
+        ]
+      },
+      "properties": {
+        "name": "Сува пећина",
+        "name:sr": "Сува пећина",
+        "name:sr-Latn": "Suva pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4155023790",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5783287,
+          42.5656732
+        ]
+      },
+      "properties": {
+        "name": "Jama od Karimana",
+        "name:sr": "Јама од Каримана"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4155058437",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5774489,
+          42.5577559
+        ]
+      },
+      "properties": {
+        "name": "Korina pećina",
+        "name:sr": "Корина пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4155068331",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5628577,
+          42.5679489
+        ]
+      },
+      "properties": {
+        "name": "Špela",
+        "name:sr": "Шпела"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4155146066",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5816117,
+          42.561802
+        ]
+      },
+      "properties": {
+        "name": "Jareća pećina",
+        "name:sr": "Јарећа пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4197016322",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9713981,
+          43.4448754
+        ]
+      },
+      "properties": {
+        "name": "Понор Бигра",
+        "access": "yes",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4197017789",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9762302,
+          43.4457893
+        ]
+      },
+      "properties": {
+        "name": "Самар",
+        "name:sr": "Самар",
+        "name:sr-Latn": "Samar",
+        "length": 3463.0,
+        "wikipedia": "sr:Самар пећина",
+        "wikidata": "Q61123857",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4197017790",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9756296,
+          43.4465179
+        ]
+      },
+      "properties": {
+        "name": "Језава"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4197017791",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9819686,
+          43.435574
+        ]
+      },
+      "properties": {
+        "name": "Ponor Sudveka"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4205171947",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2610959,
+          44.5594167
+        ]
+      },
+      "properties": {
+        "name": "Буронов понор"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4209882389",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2791623,
+          44.5126118
+        ]
+      },
+      "properties": {
+        "name": "Ракин понор",
+        "wikipedia": "sr:Ракин понор",
+        "website": "http://www.asak.org.rs/caves/rakin/rakin_y.html",
+        "wikidata": "Q110045259"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4227017589",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.3135056,
+          43.2148224
+        ]
+      },
+      "properties": {
+        "name": "Vrelska pećina",
+        "ele": 345.0,
+        "access": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4316231979",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9334224,
+          43.7954768
+        ]
+      },
+      "properties": {
+        "name": "Потпећка пећина",
+        "name:sr": "Потпећка пећина",
+        "name:en": "Potpece Cave",
+        "name:sr-Latn": "Potpećka pećina",
+        "ele": 551.0,
+        "wikipedia": "sr:Потпећка пећина",
+        "wikidata": "Q12757663",
+        "access": "customers",
+        "fee": "yes"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4325824307",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.0943692,
+          43.3479718
+        ]
+      },
+      "properties": {
+        "name": "Микина дувка",
+        "ele": 560.0,
+        "access": "yes"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4349034324",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8779305,
+          43.4452597
+        ]
+      },
+      "properties": {
+        "name": "Бисерна пећина",
+        "wikipedia": "sr:Бисерна пећина",
+        "wikidata": "Q61132068"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4367651453",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8540006,
+          42.4432411
+        ]
+      },
+      "properties": {
+        "name": "Bukovička jama",
+        "name:sr": "Буковичка јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4371579106",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.3064267,
+          42.7371699
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Radacit (Bukuroshja e Fjetur)",
+        "name:sr": "Радовачка пећина",
+        "name:en": "Radovac Cave",
+        "wikipedia": "sq:Shpella e Radacit",
+        "wikidata": "Q16087480",
+        "fee": "yes"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4375260911",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2556966,
+          44.5951353
+        ]
+      },
+      "properties": {
+        "name": "Peștera Ponicova",
+        "name:en": "Ponicova Cave",
+        "wikipedia": "ro:Peștera Ponicova",
+        "wikidata": "Q12737966"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4431193579",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8740003,
+          42.2922817
+        ]
+      },
+      "properties": {
+        "name": "Pećina Ivanovići"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4489258331",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2272359,
+          43.4702261
+        ]
+      },
+      "properties": {
+        "name": "Козја дувка"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4590065786",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6029702,
+          42.478742
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Errët"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4590065941",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.526613,
+          42.3584071
+        ]
+      },
+      "properties": {
+        "name": "Shpella"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4621711663",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0529684,
+          43.153465
+        ]
+      },
+      "properties": {
+        "name": "Jelovačka pećina",
+        "name:sr": "Јеловачка пећина",
+        "wikidata": "Q27571535"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4623112757",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0694068,
+          43.2207705
+        ]
+      },
+      "properties": {
+        "name": "V. Datlo",
+        "name:sr": "В. Датло",
+        "ele": 1152.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4623119818",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0395151,
+          43.2390947
+        ]
+      },
+      "properties": {
+        "name": "Bijela vrela",
+        "name:sr": "Бијела врела",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4624929439",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0792523,
+          43.0463623
+        ]
+      },
+      "properties": {
+        "name": "Arapova pećina",
+        "name:sr": "Арапова пећина",
+        "wikidata": "Q27571620"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4634838671",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.3207988,
+          43.131082
+        ]
+      },
+      "properties": {
+        "name": "Radonjica",
+        "name:sr": "Радоњица",
+        "wikidata": "Q27569908"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4634839408",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.3334803,
+          43.1333056
+        ]
+      },
+      "properties": {
+        "name": "Zmajeva pećina",
+        "name:sr": "Змајева пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4639482929",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.3986434,
+          43.0230538
+        ]
+      },
+      "properties": {
+        "name": "Šolintrača",
+        "name:sr": "Шолинтрача"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4639702971",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.9885314,
+          43.1603404
+        ]
+      },
+      "properties": {
+        "name": "Pušljenska pećina",
+        "name:sr": "Пушљенска пећина",
+        "wikidata": "Q27571551"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4639734727",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.9490493,
+          43.135432
+        ]
+      },
+      "properties": {
+        "name": "Grotna pećina",
+        "name:sr": "Гротна пећина",
+        "wikidata": "Q27571587"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4731983556",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8471457,
+          42.3508458
+        ]
+      },
+      "properties": {
+        "name": "Shpella Bravnikut"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4731983558",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8624236,
+          42.3442327
+        ]
+      },
+      "properties": {
+        "name": "Shpella Kakverrit"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4731983595",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8950064,
+          42.3592812
+        ]
+      },
+      "properties": {
+        "name": "Shpella Drelës"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4731983597",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8780289,
+          42.3598414
+        ]
+      },
+      "properties": {
+        "name": "Shpella Lumit"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4732089148",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1010102,
+          42.4733843
+        ]
+      },
+      "properties": {
+        "name": "Shpella Gjapit"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4732089844",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0621933,
+          42.440408
+        ]
+      },
+      "properties": {
+        "name": "Shpella Madhe"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4732107186",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6633166,
+          42.4964796
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Gjatë"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4732111061",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6201867,
+          42.4672115
+        ]
+      },
+      "properties": {
+        "name": "Shpellë"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4732150149",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4322479,
+          42.3445564
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Kiremanicës"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4732150150",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5327601,
+          42.4465299
+        ]
+      },
+      "properties": {
+        "name": "Shpellë"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4732150151",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.530389,
+          42.4363401
+        ]
+      },
+      "properties": {
+        "name": "Shpellë"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4732150152",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5478341,
+          42.4798908
+        ]
+      },
+      "properties": {
+        "name": "Shpella Make Grud"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4732150153",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6874806,
+          42.4821221
+        ]
+      },
+      "properties": {
+        "name": "Shpella Dragines"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4732150154",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6835968,
+          42.4824228
+        ]
+      },
+      "properties": {
+        "name": "Shpellë"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4732150155",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7176072,
+          42.4686776
+        ]
+      },
+      "properties": {
+        "name": "Shpellë"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4773781806",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7471087,
+          43.8261779
+        ]
+      },
+      "properties": {
+        "name": "Извор Пећура",
+        "name:sr": "Извор Пећура",
+        "name:sr-Latn": "Izvor Pećura"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4812264210",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2786111,
+          44.5038611
+        ]
+      },
+      "properties": {
+        "name": "Фаца Шора",
+        "wikipedia": "sr:Фаца Шора",
+        "wikidata": "Q110045268"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4838548484",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2337344,
+          44.4862305
+        ]
+      },
+      "properties": {
+        "name": "Безимена пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4838548485",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2355556,
+          44.4841868
+        ]
+      },
+      "properties": {
+        "name": "Дисина пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4838591190",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2664869,
+          44.5431038
+        ]
+      },
+      "properties": {
+        "name": "Ибрин понор",
+        "wikipedia": "sr:Ибрин понор",
+        "wikidata": "Q110045241"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4838607296",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2688472,
+          44.5328295
+        ]
+      },
+      "properties": {
+        "name": "Суви понор",
+        "wikipedia": "sr:Суви понор",
+        "wikidata": "Q110045262"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4858212032",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2554347,
+          44.5911952
+        ]
+      },
+      "properties": {
+        "name": "Galerie"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4934467692",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9457038,
+          44.0622747
+        ]
+      },
+      "properties": {
+        "name": "Гаупа Мику"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/4934467693",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.946326,
+          44.0640016
+        ]
+      },
+      "properties": {
+        "name": "Гаупа бурћи"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5102861049",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8909618,
+          42.495988
+        ]
+      },
+      "properties": {
+        "name": "Ledena pećina",
+        "name:sr": "Ледена пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5257687854",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8379459,
+          43.2745976
+        ]
+      },
+      "properties": {
+        "name": "Velika pećina",
+        "name:sr": "Велика пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5259381121",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.9964736,
+          43.2530362
+        ]
+      },
+      "properties": {
+        "name": "Crijemuša",
+        "name:sr": "Цријемуша",
+        "wikidata": "Q27561368"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5259381122",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0001428,
+          43.2610851
+        ]
+      },
+      "properties": {
+        "name": "Šušnjarica",
+        "name:sr": "Шушњарица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5259381126",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0096915,
+          43.2543802
+        ]
+      },
+      "properties": {
+        "name": "Varda",
+        "name:sr": "Варда"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5259381127",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.9952934,
+          43.2621633
+        ]
+      },
+      "properties": {
+        "name": "Gubavica",
+        "name:sr": "Губавица",
+        "ele": 743.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5259396433",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0982451,
+          43.2785832
+        ]
+      },
+      "properties": {
+        "name": "Velika Lastva",
+        "name:sr": "Велика Ластва"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5259396877",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.1162481,
+          43.2694758
+        ]
+      },
+      "properties": {
+        "name": "Konjska pećina",
+        "name:sr": "Коњска пећина",
+        "wikidata": "Q27560137"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5259542417",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0900483,
+          43.2830509
+        ]
+      },
+      "properties": {
+        "name": "Skorupna jama",
+        "name:sr": "Скорупна јама",
+        "wikidata": "Q27560129"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5259557505",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0920889,
+          43.2818481
+        ]
+      },
+      "properties": {
+        "name": "Žujova jama",
+        "name:sr": "Жујова јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5266085145",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.3408127,
+          42.8319126
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Keqe",
+        "name:sr": "пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5323310644",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.855159,
+          43.7022525
+        ]
+      },
+      "properties": {
+        "name": "Стопића пећина",
+        "name:sr": "Стопића пећина",
+        "name:en": "Stopića pećina",
+        "name:sr-Latn": "Stopića pećina",
+        "wikipedia": "sr:Стопића пећина",
+        "wikidata": "Q6589753",
+        "access": "customers",
+        "fee": "yes",
+        "tourism": "attraction",
+        "length": 1691.5
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5323317930",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.804159,
+          43.6235633
+        ]
+      },
+      "properties": {
+        "name": "Ршумска пећина",
+        "name:sr": "Ршумска пећина",
+        "name:sr-Latn": "Ršumska pećina",
+        "access": "yes",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5323469862",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6519643,
+          43.638927
+        ]
+      },
+      "properties": {
+        "name": "Кораћева пећина",
+        "name:sr": "Кораћева пећина",
+        "name:sr-Latn": "Koraćeva pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5323528827",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4804587,
+          43.8219459
+        ]
+      },
+      "properties": {
+        "name": "Црвена пећина",
+        "name:sr": "Црвена пећина",
+        "name:sr-Latn": "Crvena pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5323528828",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4754826,
+          43.8261461
+        ]
+      },
+      "properties": {
+        "name": "Хајдучка пећина",
+        "name:sr": "Хајдучка пећина",
+        "name:sr-Latn": "Hajdučka pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5327505491",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.871075,
+          43.6808091
+        ]
+      },
+      "properties": {
+        "name": "Муњића пећина",
+        "name:sr": "Муњића пећина",
+        "name:sr-Latn": "Munjića pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5359679901",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.2409983,
+          42.7559068
+        ]
+      },
+      "properties": {
+        "name": "Gropa"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5436849611",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0775984,
+          43.1210649
+        ]
+      },
+      "properties": {
+        "name": "Okno",
+        "name:sr": "Окно"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5436852278",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0887945,
+          43.1142328
+        ]
+      },
+      "properties": {
+        "name": "Šupljika",
+        "name:sr": "Шупљика"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5436897396",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0399096,
+          43.1478989
+        ]
+      },
+      "properties": {
+        "name": "Urljača",
+        "name:sr": "Урљача"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5436913575",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0273333,
+          43.1555195
+        ]
+      },
+      "properties": {
+        "name": "Rutušina pećina",
+        "name:sr": "Рутушина пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5448612071",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9288169,
+          45.171053
+        ]
+      },
+      "properties": {
+        "name": "Peștera Popovăț",
+        "length": 1121.0,
+        "ele": 421.0,
+        "wikipedia": "ro:Peștera Popovăț",
+        "access": "no",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5448612312",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9012887,
+          45.1424252
+        ]
+      },
+      "properties": {
+        "name": "Peștera de la Haldină",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5559013106",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0747321,
+          42.3936874
+        ]
+      },
+      "properties": {
+        "name": "Shpellë"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5602406648",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8098975,
+          44.1914288
+        ]
+      },
+      "properties": {
+        "name": "Бабина Пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5602406661",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8132498,
+          44.190786
+        ]
+      },
+      "properties": {
+        "name": "Девојачка пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5602406663",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8131855,
+          44.1886704
+        ]
+      },
+      "properties": {
+        "name": "Кракаста пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5602406664",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8243327,
+          44.1916091
+        ]
+      },
+      "properties": {
+        "name": "Пасерара кладе пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5602406665",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8265321,
+          44.1922707
+        ]
+      },
+      "properties": {
+        "name": "Кљанц пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5602406666",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8174651,
+          44.1951453
+        ]
+      },
+      "properties": {
+        "name": "Говеђа пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5604392092",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9494805,
+          44.0264637
+        ]
+      },
+      "properties": {
+        "name": "Верњикица",
+        "name:sr": "Верњикица",
+        "name:en": "Vernjikica Cave",
+        "name:sr-Latn": "Vernjikica",
+        "ele": 454.0,
+        "wikipedia": "sr:Пећина Верњикица",
+        "wikidata": "Q12757262"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5609421053",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9275399,
+          43.9510819
+        ]
+      },
+      "properties": {
+        "name": "Девојачка пећина",
+        "name:sr": "Девојачка пећина",
+        "name:en": "Devojačka Cave"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5672149079",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6788007,
+          44.0728211
+        ]
+      },
+      "properties": {
+        "name": "Пејкова пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5672149083",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7190652,
+          44.0697138
+        ]
+      },
+      "properties": {
+        "name": "Велика крстата пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5688862046",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8780332,
+          44.2575862
+        ]
+      },
+      "properties": {
+        "name": "Јагина пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5688862047",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8788915,
+          44.2615971
+        ]
+      },
+      "properties": {
+        "name": "Коркан пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5789928310",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9611165,
+          44.4402987
+        ]
+      },
+      "properties": {
+        "name": "Рајкова пећина",
+        "name:sr": "Рајкова пећина",
+        "name:sr-Latn": "Rajkova pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5789949238",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9534006,
+          44.4410261
+        ]
+      },
+      "properties": {
+        "name": "Рајкова пећина",
+        "name:sr": "Рајкова пећина",
+        "name:sr-Latn": "Rajkova pećina",
+        "ele": 427.0,
+        "wikipedia": "sr:Рајкова пећина",
+        "wikidata": "Q4859970",
+        "access": "permissive",
+        "fee": "yes",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5789949239",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9520976,
+          44.4420444
+        ]
+      },
+      "properties": {
+        "name": "Паскова пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/5789950515",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9532134,
+          44.449451
+        ]
+      },
+      "properties": {
+        "name": "Римски бунар",
+        "ele": 458.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6035734347",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.8507599,
+          43.3013373
+        ]
+      },
+      "properties": {
+        "name": "Метође",
+        "name:sr": "Метође",
+        "name:sr-Latn": "Metođe",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6075973874",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.5012668,
+          45.7946496
+        ]
+      },
+      "properties": {
+        "name": "Pestera din valea seaca"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6076002127",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7414628,
+          45.0595674
+        ]
+      },
+      "properties": {
+        "name": "Avenul Gorun"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6117053617",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.4253444,
+          45.7532471
+        ]
+      },
+      "properties": {
+        "name": "Avenul Albota"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6117058289",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.4209935,
+          45.7620104
+        ]
+      },
+      "properties": {
+        "name": "Avenul Negoita"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6119838795",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9669829,
+          45.2164964
+        ]
+      },
+      "properties": {
+        "name": "Av Groazei"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6148346993",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.4148389,
+          45.8267584
+        ]
+      },
+      "properties": {
+        "name": "Pestera Pietroasa"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6152265074",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.876364,
+          45.2053625
+        ]
+      },
+      "properties": {
+        "name": "Peștera Liliecilor"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6156472820",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.1850399,
+          45.5423278
+        ]
+      },
+      "properties": {
+        "name": "Pestera Dambu Steniului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6173666947",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.1754862,
+          45.5476558
+        ]
+      },
+      "properties": {
+        "name": "Pestera Zanelor"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6221893753",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.42692,
+          45.7584252
+        ]
+      },
+      "properties": {
+        "name": "Pestera Paleontologica"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6316189067",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1947001,
+          43.9089074
+        ]
+      },
+      "properties": {
+        "name": "Турчиновац",
+        "name:sr": "Турчиновац",
+        "name:sr-Latn": "Turčinovac",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6336525316",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9879016,
+          43.698711
+        ]
+      },
+      "properties": {
+        "name": "Сесалачка пећина",
+        "access": "yes"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6338558419",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.1778332,
+          45.5521331
+        ]
+      },
+      "properties": {
+        "name": "Av Tomita"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6346044045",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.3027845,
+          45.6973783
+        ]
+      },
+      "properties": {
+        "name": "Avenul Ștefania"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6356586465",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9251252,
+          43.8970192
+        ]
+      },
+      "properties": {
+        "name": "Боговинска пећина",
+        "name:sr": "Боговинска пећина",
+        "wikipedia": "sr:Боговинска пећина",
+        "wikidata": "Q20435095",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6429063113",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9905978,
+          42.7916923
+        ]
+      },
+      "properties": {
+        "name": "Stočarska pećina",
+        "name:sr": "Сточарска пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6446724636",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.625055,
+          44.0736107
+        ]
+      },
+      "properties": {
+        "name": "Пећина II",
+        "name:sr-Latn": "Resavska pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6447436185",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0825286,
+          43.0948174
+        ]
+      },
+      "properties": {
+        "name": "Zakharov’s crack",
+        "name:en": "Zakharov’s crack"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6535579454",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7748873,
+          45.0255941
+        ]
+      },
+      "properties": {
+        "name": "Peștera Sf. Elena"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6539437316",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8266908,
+          42.4837279
+        ]
+      },
+      "properties": {
+        "name": "Jama Pavičevič",
+        "name:sr": "Јама Павићевић",
+        "access": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6559784042",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8181987,
+          45.1777148
+        ]
+      },
+      "properties": {
+        "name": "Перина пећина",
+        "name:sr": "Перина пећина",
+        "name:sr-Latn": "Perina pećina",
+        "wikipedia": "sr:Перина пећина",
+        "wikidata": "Q61129616"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6575375108",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9544972,
+          43.356941
+        ]
+      },
+      "properties": {
+        "name": "Ледена пећина",
+        "name:sr": "Ледена пећина",
+        "name:en": "Ledena cave",
+        "name:sr-Latn": "Ledena pećina",
+        "wikipedia": "sr:Ледена пећина",
+        "wikidata": "Q31182506",
+        "length": 2500.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6577130696",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.8460533,
+          43.3061197
+        ]
+      },
+      "properties": {
+        "name": "Пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6771068682",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7879675,
+          45.1808099
+        ]
+      },
+      "properties": {
+        "name": "Пећина плана"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6787395519",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.5607862,
+          44.8198895
+        ]
+      },
+      "properties": {
+        "name": "Peștera Topolnița"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6892909191",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2955967,
+          44.3085048
+        ]
+      },
+      "properties": {
+        "name": "Canetova cave"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6926893355",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9272171,
+          45.1818831
+        ]
+      },
+      "properties": {
+        "name": "Peștera Racoviță"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6932405013",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.4234149,
+          45.7611309
+        ]
+      },
+      "properties": {
+        "name": "Pesteruta"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7023607489",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.4291064,
+          44.872913
+        ]
+      },
+      "properties": {
+        "name": "Pestera Mare de la Șoroniște"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7105351679",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9248815,
+          45.1945531
+        ]
+      },
+      "properties": {
+        "name": "Avenul Mare"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7138502471",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.401745,
+          42.5677619
+        ]
+      },
+      "properties": {
+        "name": "Kučka pećina (Smoljanovica)",
+        "name:sr": "Кучка пећина (Смољановица)"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7242709834",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9229766,
+          45.1936356
+        ]
+      },
+      "properties": {
+        "name": "Peștera Cuptorul Ciumei"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7242716162",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9306509,
+          45.1689505
+        ]
+      },
+      "properties": {
+        "name": "Pestera Cerbului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7242718301",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9273807,
+          45.1868607
+        ]
+      },
+      "properties": {
+        "name": "Peștera Cuptorul Porcului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7243380187",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.4496926,
+          42.3216188
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Qirave",
+        "name:en": "Cave of Candles",
+        "access": "private"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7243380188",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.4468754,
+          42.3195445
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Kusarit",
+        "name:en": "Cave of Kusari",
+        "wikipedia": "sq:Shpella e Kusarit",
+        "wikidata": "Q27343875"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7299955636",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9236679,
+          45.1765794
+        ]
+      },
+      "properties": {
+        "name": "P. Zidita nr 1"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7522459897",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7658751,
+          44.5509617
+        ]
+      },
+      "properties": {
+        "name": "Дубочка пећина",
+        "name:sr": "Дубочка пећина",
+        "name:sr-Latn": "Dubočka pećina",
+        "wikipedia": "sr:Дубочка пећина",
+        "wikidata": "Q16084420"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7537677408",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.1894137,
+          45.5467624
+        ]
+      },
+      "properties": {
+        "name": "Av Mamut"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7553319311",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7951277,
+          43.6606095
+        ]
+      },
+      "properties": {
+        "name": "Раковичка пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7553329906",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8100106,
+          43.6127635
+        ]
+      },
+      "properties": {
+        "name": "Чичина пећина",
+        "name:sr": "Чичина пећина",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7554064584",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9465823,
+          43.4334151
+        ]
+      },
+      "properties": {
+        "name": "Церјанска пропаст"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7569741162",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9604722,
+          43.4546125
+        ]
+      },
+      "properties": {
+        "name": "Попшички пештер",
+        "wikipedia": "sr:Пећина Попшички пештер",
+        "wikidata": "Q61132079",
+        "access": "yes",
+        "fee": "no",
+        "length": 530.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7577759336",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7655857,
+          45.0180744
+        ]
+      },
+      "properties": {
+        "name": "Avenul cu Gheață"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7577759337",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7654274,
+          45.0177161
+        ]
+      },
+      "properties": {
+        "name": "Peștera Bijuteria"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7606298295",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.5125878,
+          44.9945739
+        ]
+      },
+      "properties": {
+        "name": "Pestera cu 2 intrari"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7606298297",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.5116637,
+          44.9938453
+        ]
+      },
+      "properties": {
+        "name": "Pestera Salitrari"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7608244569",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.0043571,
+          43.6123639
+        ]
+      },
+      "properties": {
+        "name": "Мала Пропаст",
+        "name:sr": "Мала Пропаст",
+        "name:sr-Latn": "Mala Propast"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7608244690",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.004349,
+          43.6158953
+        ]
+      },
+      "properties": {
+        "name": "Велика Пропаст",
+        "name:sr": "Велика Пропаст",
+        "name:sr-Latn": "Velika Propast"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7617548317",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.884398,
+          43.6399168
+        ]
+      },
+      "properties": {
+        "name": "Пећина",
+        "fee": "no",
+        "opening_hours": "24/7"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7646266083",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8331895,
+          45.0303225
+        ]
+      },
+      "properties": {
+        "name": "ponor uscata"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7684596969",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9942426,
+          43.629399
+        ]
+      },
+      "properties": {
+        "name": "Маркова пећина",
+        "name:sr": "Маркова пећина",
+        "name:sr-Latn": "Markova pećina",
+        "wikipedia": "sr:Маркова пећина",
+        "wikidata": "Q85995989"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7709107160",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8025188,
+          44.8787117
+        ]
+      },
+      "properties": {
+        "name": "Grota"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7710550462",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7315919,
+          45.0344807
+        ]
+      },
+      "properties": {
+        "name": "Puțul Vodarului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7710597365",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.851349,
+          45.0389496
+        ]
+      },
+      "properties": {
+        "name": "Avenul Uteris"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7733729399",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2230292,
+          45.5631319
+        ]
+      },
+      "properties": {
+        "name": "Pestera Ponorul cu Tug"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7737544756",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7555329,
+          45.033659
+        ]
+      },
+      "properties": {
+        "name": "Avenul mare din dealul Simionului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7743089426",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.3832715,
+          44.3939655
+        ]
+      },
+      "properties": {
+        "name": "Ковачевића пећина",
+        "name:sr": "Ковачевића пећина",
+        "name:en": "Kovacevica cave",
+        "name:sr-Latn": "Kovačevića pećina",
+        "wikipedia": "sr:Ковачевића пећина",
+        "wikidata": "Q31184169",
+        "length": 960.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7746558018",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7748101,
+          45.0241883
+        ]
+      },
+      "properties": {
+        "name": "Peștera Lenuța"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7752525465",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.950322,
+          45.2441606
+        ]
+      },
+      "properties": {
+        "name": "P Gaura Parsului de la C.B."
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7752567176",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9555737,
+          45.2528625
+        ]
+      },
+      "properties": {
+        "name": "Gaura Turcului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7752569346",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.949984,
+          45.2432906
+        ]
+      },
+      "properties": {
+        "name": "P Gaura de la capul Baciului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7756565865",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.5120503,
+          44.997819
+        ]
+      },
+      "properties": {
+        "name": "Pestera Roland"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7782276316",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.2823526,
+          43.9202661
+        ]
+      },
+      "properties": {
+        "name": "Sniježnica",
+        "name:sr": "Снијежница",
+        "name:sr-Latn": "Sniježnica"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7803876568",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7561365,
+          45.0406732
+        ]
+      },
+      "properties": {
+        "name": "Avenul Dosul Simionului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7822061341",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6373292,
+          44.3824898
+        ]
+      },
+      "properties": {
+        "name": "Церемошња",
+        "name:sr": "Церемошња",
+        "name:sr-Latn": "Ceremošnja",
+        "wikipedia": "sr:Церемошња (пећина)",
+        "wikidata": "Q12761012",
+        "length": 775.5
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7836942145",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8759209,
+          45.0879514
+        ]
+      },
+      "properties": {
+        "name": "Avenul albastru"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7853501033",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9154547,
+          43.3579141
+        ]
+      },
+      "properties": {
+        "name": "Стубна пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7853501043",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.892475,
+          43.3488331
+        ]
+      },
+      "properties": {
+        "name": "Ђаволска пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7853501045",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8919668,
+          43.3472897
+        ]
+      },
+      "properties": {
+        "name": "Велика пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7853501047",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8904326,
+          43.3429986
+        ]
+      },
+      "properties": {
+        "name": "Шиљата пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7893324260",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.3977055,
+          45.6453033
+        ]
+      },
+      "properties": {
+        "name": "Pestera Cristal"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7899493925",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2283105,
+          44.4624929
+        ]
+      },
+      "properties": {
+        "name": "Градишница",
+        "name:sr": "Градишница",
+        "name:sr-Latn": "Gradašnica",
+        "wikipedia": "sr:Градашница (пећина)",
+        "wikidata": "Q102178845",
+        "access": "yes"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7928483923",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1336487,
+          44.1800747
+        ]
+      },
+      "properties": {
+        "name": "Велика Рајачка пећина",
+        "name:sr": "Велика Рајачка пећина",
+        "name:sr-Latn": "Velika Rajačka pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7948764873",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0782511,
+          44.1907345
+        ]
+      },
+      "properties": {
+        "name": "Шалитрена пећина",
+        "name:sr": "Шалитрена пећина",
+        "name:sr-Latn": "Šalitrena pećina",
+        "wikipedia": "sr:Шалитрена пећина",
+        "wikidata": "Q16086052"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7966815998",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8285531,
+          42.63945
+        ]
+      },
+      "properties": {
+        "name": "Kođa pećina",
+        "name:sr": "Кођа пећина",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/7966816015",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8202482,
+          42.5032871
+        ]
+      },
+      "properties": {
+        "name": "Srpska jama",
+        "name:sr": "Српска јама"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8000137061",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9697511,
+          45.2028707
+        ]
+      },
+      "properties": {
+        "name": "P nr 3 din valea Toplita"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8000164565",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9669734,
+          45.208808
+        ]
+      },
+      "properties": {
+        "name": "Av lui George"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8000169103",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9671195,
+          45.2086595
+        ]
+      },
+      "properties": {
+        "name": "Av Verde"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8000186680",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.929522,
+          45.0132397
+        ]
+      },
+      "properties": {
+        "name": "P alba din v Minisului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8000191194",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9509138,
+          45.180518
+        ]
+      },
+      "properties": {
+        "name": "P Strategica"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8009581836",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.5812373,
+          44.8433492
+        ]
+      },
+      "properties": {
+        "name": "Peștera Gramei"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8080861439",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9170825,
+          45.1931429
+        ]
+      },
+      "properties": {
+        "name": "Av Dibaci"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8080892317",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.918199,
+          45.1961361
+        ]
+      },
+      "properties": {
+        "name": "Av 2238/83"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8080914576",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9216892,
+          45.1860249
+        ]
+      },
+      "properties": {
+        "name": "P nr3 Socolovat"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8080914577",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9218984,
+          45.1857073
+        ]
+      },
+      "properties": {
+        "name": "P din Socolovat"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8080914578",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9176583,
+          45.1885816
+        ]
+      },
+      "properties": {
+        "name": "Av nr 5 Socolovat"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8080971248",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9180967,
+          45.179108
+        ]
+      },
+      "properties": {
+        "name": "Av Mortii"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8127034609",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8535258,
+          45.1648254
+        ]
+      },
+      "properties": {
+        "name": "P cu apa din Garliste"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8127051590",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8544306,
+          45.1657155
+        ]
+      },
+      "properties": {
+        "name": "Pestera Galatiului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8143351705",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9101286,
+          45.1598782
+        ]
+      },
+      "properties": {
+        "name": "Peștera Porcilor"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8143365934",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9104058,
+          45.1602728
+        ]
+      },
+      "properties": {
+        "name": "Peștera Iederei"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8143377225",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9273534,
+          45.1888081
+        ]
+      },
+      "properties": {
+        "name": "Peștera cu Oase"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8143377226",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9275627,
+          45.1890639
+        ]
+      },
+      "properties": {
+        "name": "Peștera cu puț"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8198304204",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9231353,
+          45.1870116
+        ]
+      },
+      "properties": {
+        "name": "Peștera Fugarilor"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8251848333",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9562869,
+          45.2468193
+        ]
+      },
+      "properties": {
+        "name": "Av Bizonului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8251848334",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9575744,
+          45.2494908
+        ]
+      },
+      "properties": {
+        "name": "Av Incepatorilor"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8308945330",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9598579,
+          45.2237383
+        ]
+      },
+      "properties": {
+        "name": "Av Calului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8308966479",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9725083,
+          45.2204738
+        ]
+      },
+      "properties": {
+        "name": "Av din Cioaca mare"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8314275295",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6208766,
+          43.5267418
+        ]
+      },
+      "properties": {
+        "name": "Велика пећина",
+        "name:sr": "Велика пећина",
+        "name:sr-Latn": "Velika pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8411806537",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9233724,
+          43.0761572
+        ]
+      },
+      "properties": {
+        "name": "Đalovića pećina",
+        "name:sr": "Ђаловића пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8416165653",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9200075,
+          45.0807582
+        ]
+      },
+      "properties": {
+        "name": "Peștera din valea seacă"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8493103085",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.3906128,
+          43.459395
+        ]
+      },
+      "properties": {
+        "name": "Korenatac",
+        "wikipedia": "sr:Пећина Коренатац",
+        "wikidata": "Q85997768",
+        "access": "permissive",
+        "length": 218.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8521496763",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.1700905,
+          45.5486868
+        ]
+      },
+      "properties": {
+        "name": "Izbucul Zanelor"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8521509817",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9235599,
+          45.1962751
+        ]
+      },
+      "properties": {
+        "name": "Av de la Fagul Gaunos"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8569434937",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9533488,
+          45.2089585
+        ]
+      },
+      "properties": {
+        "name": "Av Manusa lui Ioji"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8593155814",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8950084,
+          43.4238758
+        ]
+      },
+      "properties": {
+        "name": "Мечја рупа"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8639729681",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2222645,
+          45.562618
+        ]
+      },
+      "properties": {
+        "name": "Av P cu tug"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8639738098",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2266846,
+          45.5684099
+        ]
+      },
+      "properties": {
+        "name": "Av Mare Maciova"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8648647455",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0341241,
+          43.6504786
+        ]
+      },
+      "properties": {
+        "name": "Водена пећина",
+        "name:sr": "Водена пећина",
+        "name:en": "Vodena pećina",
+        "name:sr-Latn": "Vodena pećina",
+        "wikipedia": "sr:Водена пећина",
+        "wikidata": "Q31183317"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8664510517",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9316266,
+          45.1839311
+        ]
+      },
+      "properties": {
+        "name": "Av din Padina cu Spini"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8664510553",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9290087,
+          45.1799603
+        ]
+      },
+      "properties": {
+        "name": "Av Spiralat"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8667078271",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9766777,
+          45.2331031
+        ]
+      },
+      "properties": {
+        "name": "Av din Poiana Gropii"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8686730825",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2791135,
+          44.30123
+        ]
+      },
+      "properties": {
+        "name": "Rajska prerast",
+        "wikipedia": "de:Rajska prerast",
+        "wikidata": "Q110045208"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8736708385",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9210689,
+          45.203974
+        ]
+      },
+      "properties": {
+        "name": "Av Groapa iepii"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8736723353",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9216591,
+          45.200198
+        ]
+      },
+      "properties": {
+        "name": "Av Tolosu"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8757422655",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9665267,
+          45.2309778
+        ]
+      },
+      "properties": {
+        "name": "Pestera Ursului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8757465925",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9661695,
+          45.2321816
+        ]
+      },
+      "properties": {
+        "name": "Ponor spre Tolosu"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8757468603",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9581836,
+          45.2351799
+        ]
+      },
+      "properties": {
+        "name": "Avenul 110"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8760744913",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8752739,
+          45.2014755
+        ]
+      },
+      "properties": {
+        "name": "Peștera Văleaga"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8819936159",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9093414,
+          45.1698269
+        ]
+      },
+      "properties": {
+        "name": "Av de la fantana"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8819972440",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9125665,
+          45.1709974
+        ]
+      },
+      "properties": {
+        "name": "Av cu Sala de pe Teria"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8840921111",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9846459,
+          42.4625058
+        ]
+      },
+      "properties": {
+        "name": "AVLC-52"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8845822753",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9859028,
+          42.4622145
+        ]
+      },
+      "properties": {
+        "name": "AVLC-51"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8845949593",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9819821,
+          42.4702592
+        ]
+      },
+      "properties": {
+        "name": "AVLC-71"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8850652008",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.470693,
+          44.8105631
+        ]
+      },
+      "properties": {
+        "name": "Ташмајданска пећина",
+        "name:sr": "Ташмајданска пећина",
+        "name:en": "Tašmajdan Cave",
+        "name:sr-Latn": "Tašmajdanska pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8856495099",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9792576,
+          42.4628199
+        ]
+      },
+      "properties": {
+        "name": "AVLC-53"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8856509054",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9893283,
+          42.4649698
+        ]
+      },
+      "properties": {
+        "name": "AVLC-54"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8856509280",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9951056,
+          42.4702938
+        ]
+      },
+      "properties": {
+        "name": "AVLC-38"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8856914996",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9823229,
+          42.4710577
+        ]
+      },
+      "properties": {
+        "name": "AVLC-55"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8856924910",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9821383,
+          42.4698538
+        ]
+      },
+      "properties": {
+        "name": "AVLC-59"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8856969701",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9824849,
+          42.4696138
+        ]
+      },
+      "properties": {
+        "name": "AVLC-60"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8856971819",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9821956,
+          42.4716159
+        ]
+      },
+      "properties": {
+        "name": "AVLC-56"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8856983535",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9825376,
+          42.4702938
+        ]
+      },
+      "properties": {
+        "name": "AVLC-58"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8856996916",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9825749,
+          42.4690478
+        ]
+      },
+      "properties": {
+        "name": "AVLC-64"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857001795",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9826403,
+          42.4696758
+        ]
+      },
+      "properties": {
+        "name": "AVLC-61"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857005999",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9824329,
+          42.4694638
+        ]
+      },
+      "properties": {
+        "name": "AVLC-62"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857007691",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9813022,
+          42.4669039
+        ]
+      },
+      "properties": {
+        "name": "AVLC-66"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857009071",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9797703,
+          42.4672058
+        ]
+      },
+      "properties": {
+        "name": "AVLC-68"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857017472",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9826537,
+          42.46911
+        ]
+      },
+      "properties": {
+        "name": "AVLC-63"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857028402",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9825829,
+          42.469034
+        ]
+      },
+      "properties": {
+        "name": "AVLC-65"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857063452",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9806956,
+          42.4664639
+        ]
+      },
+      "properties": {
+        "name": "AVLC-67"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857083353",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9817929,
+          42.4694919
+        ]
+      },
+      "properties": {
+        "name": "AVLC-70"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857088118",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9798576,
+          42.4675399
+        ]
+      },
+      "properties": {
+        "name": "AVLC-69"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857124905",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9870929,
+          42.4668299
+        ]
+      },
+      "properties": {
+        "name": "AVLC-73"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857125463",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9881576,
+          42.4669459
+        ]
+      },
+      "properties": {
+        "name": "AVLC-75"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857126317",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9881629,
+          42.4663579
+        ]
+      },
+      "properties": {
+        "name": "AVLC-72"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8857146603",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9884749,
+          42.4668837
+        ]
+      },
+      "properties": {
+        "name": "AVLC-74"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8863127860",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9688541,
+          45.2496021
+        ]
+      },
+      "properties": {
+        "name": "Av de la cant Pin"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8863161024",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.221607,
+          45.5630489
+        ]
+      },
+      "properties": {
+        "name": "Intr 3"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8874911415",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8855487,
+          45.0934592
+        ]
+      },
+      "properties": {
+        "name": "Peștera Buhui (intrarea 2)"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/8903953617",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6171484,
+          44.4091807
+        ]
+      },
+      "properties": {
+        "name": "Равништарка",
+        "name:sr": "Равништарка",
+        "name:en": "Ravništarka",
+        "name:sr-Latn": "Ravništarka",
+        "wikipedia": "sr:Пећина Равништарка",
+        "wikidata": "Q12757263",
+        "tourism": "attraction",
+        "length": 589.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9035004287",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.733354,
+          43.8569184
+        ]
+      },
+      "properties": {
+        "name": "Мегара",
+        "wikipedia": "sr:Пећина Мегара",
+        "wikidata": "Q31182911"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9045721425",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.166982,
+          43.8977338
+        ]
+      },
+      "properties": {
+        "name": "Кађеница",
+        "name:sr": "Кађеница",
+        "name:sr-Latn": "Kađenica",
+        "wikipedia": "sr:Кађеница",
+        "wikidata": "Q6381863"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9054470052",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.6099634,
+          44.8792914
+        ]
+      },
+      "properties": {
+        "name": "PESTERA CURECEA"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9054470053",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.6017666,
+          44.8755989
+        ]
+      },
+      "properties": {
+        "name": "PESTERA CURECEA EXIT"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9105942219",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.5668321,
+          45.9690939
+        ]
+      },
+      "properties": {
+        "name": "P nr1 de la Bogda"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9105946256",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.593859,
+          45.9934513
+        ]
+      },
+      "properties": {
+        "name": "P nr 2 de la Bogda"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9113273114",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1745141,
+          43.9121466
+        ]
+      },
+      "properties": {
+        "name": "Велика пећина",
+        "name:sr": "Велика пећина",
+        "name:sr-Latn": "Velika pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9122247860",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1956244,
+          43.8828059
+        ]
+      },
+      "properties": {
+        "name": "Врелска пећина",
+        "name:sr": "Врелска пећина",
+        "name:sr-Latn": "Vrelska pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9122247863",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1738584,
+          43.9109633
+        ]
+      },
+      "properties": {
+        "name": "Јама Бездан",
+        "name:sr": "Јама Бездан",
+        "name:sr-Latn": "Jama Bezdan"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9134523594",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.267864,
+          42.8281456
+        ]
+      },
+      "properties": {
+        "name": "Paunova cave",
+        "name:sr": "Паунова пећина",
+        "name:sr-Latn": "Paunova Pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9144759293",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8967989,
+          45.0206934
+        ]
+      },
+      "properties": {
+        "name": "P de la Carsa rosie"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9144785919",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.91538,
+          45.182336
+        ]
+      },
+      "properties": {
+        "name": "Av Socolovat"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9213372533",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8779838,
+          45.1871594
+        ]
+      },
+      "properties": {
+        "name": "Av de pe Șareneac"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9240997859",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.739488,
+          44.8656073
+        ]
+      },
+      "properties": {
+        "name": "P cu nisip"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9301331799",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8061252,
+          44.2505027
+        ]
+      },
+      "properties": {
+        "name": "Ћебића пећина",
+        "name:sr": "Ћебића пећина",
+        "name:sr-Latn": "Ćebića pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9320809683",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8130942,
+          43.5862247
+        ]
+      },
+      "properties": {
+        "name": "Зимоња",
+        "name:sr-Latn": "Zimonja",
+        "ele": 1272.0,
+        "access": "yes",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9322183229",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9455249,
+          44.1791713
+        ]
+      },
+      "properties": {
+        "name": "пећина Мратишић",
+        "name:sr": "пећина Мратишић",
+        "name:sr-Latn": "pećina Mratišić"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9358231002",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4082096,
+          43.9513453
+        ]
+      },
+      "properties": {
+        "name": "Тодосина пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9369757100",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7099976,
+          43.5461286
+        ]
+      },
+      "properties": {
+        "name": "Попова пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9433176931",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.5950432,
+          44.3145972
+        ]
+      },
+      "properties": {
+        "name": "Мијуцића пећина",
+        "name:sr": "Мијуцића пећина",
+        "name:sr-Latn": "Mijucića pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9433181000",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.5925995,
+          44.3287841
+        ]
+      },
+      "properties": {
+        "name": "Хајдучка пећина",
+        "name:sr": "Хајдучка пећина",
+        "name:sr-Latn": "Hajdučka pećina",
+        "wikipedia": "sr:Хајдучка пећина",
+        "wikidata": "Q16086965",
+        "access": "yes",
+        "fee": "no",
+        "length": 840.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9449765940",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.0462207,
+          43.2939312
+        ]
+      },
+      "properties": {
+        "name": "Пештурина",
+        "name:sr": "Пештурина",
+        "name:sr-Latn": "Pešturina",
+        "wikipedia": "en:Pešturina",
+        "wikidata": "Q38251321"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9460790075",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.18377,
+          45.5396557
+        ]
+      },
+      "properties": {
+        "name": "Izbuc D Steniului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9547483316",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9259858,
+          45.1965843
+        ]
+      },
+      "properties": {
+        "name": "Av dintre doline"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459947",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9576274,
+          43.3869639
+        ]
+      },
+      "properties": {
+        "name": "Баџарска пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459948",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9445533,
+          43.5253277
+        ]
+      },
+      "properties": {
+        "name": "Црквиште"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459949",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9661063,
+          43.5320255
+        ]
+      },
+      "properties": {
+        "name": "Говеђи пештар"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459950",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9771755,
+          43.5335929
+        ]
+      },
+      "properties": {
+        "name": "Кулиште"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459951",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.0936553,
+          43.4731995
+        ]
+      },
+      "properties": {
+        "name": "Кулска пећина",
+        "name:sr": "Кулска пећина",
+        "name:sr-Latn": "Kulska pećina",
+        "wikipedia": "sr:Кулска пећина",
+        "wikidata": "Q61130007"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459956",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.5944566,
+          43.0950041
+        ]
+      },
+      "properties": {
+        "name": "Држинска пећина",
+        "wikipedia": "sr:Велика пећина (Пирот)",
+        "wikidata": "Q61124690",
+        "length": 1440.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459961",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6749827,
+          43.9781039
+        ]
+      },
+      "properties": {
+        "name": "Добра леденица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459963",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7078273,
+          44.0760626
+        ]
+      },
+      "properties": {
+        "name": "Влашка пећина",
+        "wikipedia": "sr:Влашка пећина",
+        "wikidata": "Q25464293",
+        "length": 650.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459964",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6611134,
+          44.1071592
+        ]
+      },
+      "properties": {
+        "name": "Велика Атула"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459965",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6480267,
+          44.1067678
+        ]
+      },
+      "properties": {
+        "name": "Радошева пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459966",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7561262,
+          44.158888
+        ]
+      },
+      "properties": {
+        "name": "Ледена пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459967",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.0185821,
+          44.2617351
+        ]
+      },
+      "properties": {
+        "name": "Пешћера маре",
+        "wikipedia": "sr:Пешћера Маре",
+        "wikidata": "Q110045255"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459968",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8724881,
+          44.2659991
+        ]
+      },
+      "properties": {
+        "name": "Планинска пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459969",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8620478,
+          44.308109
+        ]
+      },
+      "properties": {
+        "name": "Корњету пешћера"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459973",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.3449907,
+          44.5074829
+        ]
+      },
+      "properties": {
+        "name": "Соколовица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459975",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.3188372,
+          44.5841545
+        ]
+      },
+      "properties": {
+        "name": "Граорара",
+        "wikipedia": "sr:Гаура Ра",
+        "wikidata": "Q110045230"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459981",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9216291,
+          44.3685384
+        ]
+      },
+      "properties": {
+        "name": "Пешчера Пиштољ"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459982",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9213433,
+          44.3691002
+        ]
+      },
+      "properties": {
+        "name": "Дебелолушка пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459983",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9205716,
+          44.3693624
+        ]
+      },
+      "properties": {
+        "name": "Ваља Фундата"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459985",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6286767,
+          44.3847974
+        ]
+      },
+      "properties": {
+        "name": "Јовина пештера"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459986",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.5875071,
+          44.3252616
+        ]
+      },
+      "properties": {
+        "name": "Погана пећина",
+        "wikipedia": "sr:Погана пећ",
+        "wikidata": "Q115390226"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459987",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6849854,
+          44.5355731
+        ]
+      },
+      "properties": {
+        "name": "Шумећа"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459989",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.6921964,
+          44.5722019
+        ]
+      },
+      "properties": {
+        "name": "Фундури"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459990",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7293626,
+          44.6045944
+        ]
+      },
+      "properties": {
+        "name": "Гаура Вел"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459991",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.1846285,
+          44.4770419
+        ]
+      },
+      "properties": {
+        "name": "Орловача"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459992",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.3141479,
+          44.426537
+        ]
+      },
+      "properties": {
+        "name": "Бобарна пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459993",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.3224765,
+          44.4272724
+        ]
+      },
+      "properties": {
+        "name": "Шупља пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459996",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6328721,
+          44.2449874
+        ]
+      },
+      "properties": {
+        "name": "Црвена пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459997",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6515343,
+          44.2371551
+        ]
+      },
+      "properties": {
+        "name": "Јањина пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557459998",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6516969,
+          44.2346645
+        ]
+      },
+      "properties": {
+        "name": "Буцурска пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557460007",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1894774,
+          44.1488334
+        ]
+      },
+      "properties": {
+        "name": "Башка пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557460014",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.7502026,
+          43.3274529
+        ]
+      },
+      "properties": {
+        "name": "Кадиљача"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557460016",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.4311649,
+          42.9266922
+        ]
+      },
+      "properties": {
+        "name": "Цинцаруша"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467017",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.3613958,
+          43.0453303
+        ]
+      },
+      "properties": {
+        "name": "Смолућка пећина",
+        "wikipedia": "sr:Смолућка пећина",
+        "wikidata": "Q61134315"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467020",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9905238,
+          43.3276165
+        ]
+      },
+      "properties": {
+        "name": "Тубића пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467021",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9559567,
+          43.3448639
+        ]
+      },
+      "properties": {
+        "name": "Ушачка пећина",
+        "wikipedia": "sr:Ушачка пећина",
+        "wikidata": "Q110420813",
+        "length": 2110.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467022",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8095919,
+          43.3646583
+        ]
+      },
+      "properties": {
+        "name": "Велика пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467023",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6067155,
+          43.5193249
+        ]
+      },
+      "properties": {
+        "name": "Велика пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467025",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7635016,
+          43.5053891
+        ]
+      },
+      "properties": {
+        "name": "Рикача"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467026",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9358817,
+          43.4256138
+        ]
+      },
+      "properties": {
+        "name": "Гњилата пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467027",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.9313172,
+          43.4297796
+        ]
+      },
+      "properties": {
+        "name": "Стуричка пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467030",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.2415284,
+          43.7337099
+        ]
+      },
+      "properties": {
+        "name": "Драгачевска пећина",
+        "ele": 405.0,
+        "wikipedia": "sr:Драгачевска пећина",
+        "wikidata": "Q61128705",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467033",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.8378167,
+          43.7559076
+        ]
+      },
+      "properties": {
+        "name": "Жунска пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467035",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4196822,
+          43.9528785
+        ]
+      },
+      "properties": {
+        "name": "Дуге пећине",
+        "wikipedia": "sr:Дуга пећина",
+        "wikidata": "Q31183295"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467036",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.423598,
+          43.9528016
+        ]
+      },
+      "properties": {
+        "name": "Видова пећина",
+        "wikipedia": "sr:Видова пећина",
+        "wikidata": "Q31183287"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467037",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4261396,
+          43.9497717
+        ]
+      },
+      "properties": {
+        "name": "Јабучка пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467038",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4278189,
+          43.94514
+        ]
+      },
+      "properties": {
+        "name": "Козја пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467040",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5141168,
+          43.5805488
+        ]
+      },
+      "properties": {
+        "name": "Реџина пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467041",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5300054,
+          43.5170566
+        ]
+      },
+      "properties": {
+        "name": "Стан пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9557467046",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5650611,
+          43.38957
+        ]
+      },
+      "properties": {
+        "name": "Попова пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9656167309",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.3861986,
+          43.0513805
+        ]
+      },
+      "properties": {
+        "name": "Đavolova duvka",
+        "name:en": "Devil's Hole",
+        "ele": 640.0,
+        "access": "yes",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9660865153",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.757544,
+          45.0105345
+        ]
+      },
+      "properties": {
+        "name": "Peștera cu Iederă"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9729873478",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9493009,
+          45.2367695
+        ]
+      },
+      "properties": {
+        "name": "Av lui Luta"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9729928510",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9442676,
+          45.1687187
+        ]
+      },
+      "properties": {
+        "name": "Intrarea Ponicova"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9732819400",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0038565,
+          42.4286037
+        ]
+      },
+      "properties": {
+        "name": "Sokolska pečina",
+        "name:sr": "Соколска пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9757258581",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.91566,
+          45.1928038
+        ]
+      },
+      "properties": {
+        "name": "Aven -25m"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9804860653",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9515842,
+          44.0272358
+        ]
+      },
+      "properties": {
+        "name": "Тунел „Код лепе Влајне”",
+        "access": "yes"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9816928158",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7585128,
+          45.0080298
+        ]
+      },
+      "properties": {
+        "name": "Avenul de 100"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9849655318",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.932181,
+          45.0828251
+        ]
+      },
+      "properties": {
+        "name": "Peștera nr. 2 de la Cârneală"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9850111098",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9153378,
+          45.0687177
+        ]
+      },
+      "properties": {
+        "name": "Peștera nr. 3 de la Cârneală"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9850143782",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9314288,
+          45.07197
+        ]
+      },
+      "properties": {
+        "name": "Peștera Cârneală"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9854394575",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.2286092,
+          43.2589114
+        ]
+      },
+      "properties": {
+        "name": "Шпајска пећина",
+        "ele": 460.0,
+        "access": "yes"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9867774391",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9205566,
+          45.1625866
+        ]
+      },
+      "properties": {
+        "name": "Av Frumos"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9867810723",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9171975,
+          45.1685878
+        ]
+      },
+      "properties": {
+        "name": "Av din Lapiezuri"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9867810738",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9197563,
+          45.1697666
+        ]
+      },
+      "properties": {
+        "name": "Av din valea Pietroasa"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9867810770",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9215445,
+          45.1734386
+        ]
+      },
+      "properties": {
+        "name": "Av Crapaturii"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9872045960",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9083455,
+          45.1881573
+        ]
+      },
+      "properties": {
+        "name": "Av lui Didi"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9872051187",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.910441,
+          45.185981
+        ]
+      },
+      "properties": {
+        "name": "Av lui Nichi"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9898963962",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8276158,
+          45.0133208
+        ]
+      },
+      "properties": {
+        "name": "Av de la km 23"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9963733761",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.5596689,
+          44.8130103
+        ]
+      },
+      "properties": {
+        "name": "Ciocârdie"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9963733762",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.5637436,
+          44.8181637
+        ]
+      },
+      "properties": {
+        "name": "Prosăc"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9967814566",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8815157,
+          45.1076745
+        ]
+      },
+      "properties": {
+        "name": "Pestera Marghitas-"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9992478756",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9189365,
+          45.0012056
+        ]
+      },
+      "properties": {
+        "name": "Av Padurarului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9992502840",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9113943,
+          44.9936353
+        ]
+      },
+      "properties": {
+        "name": "P cu aven din poiana Liciovacea"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9992517208",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.873843,
+          44.9338029
+        ]
+      },
+      "properties": {
+        "name": "Av Stana lui Ivascu"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/9992519108",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9115989,
+          44.9883682
+        ]
+      },
+      "properties": {
+        "name": "Av cu trei intrari"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10047074773",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.6268631,
+          44.8744308
+        ]
+      },
+      "properties": {
+        "name": "Peștera Balta"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10075071698",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.4294479,
+          44.8813972
+        ]
+      },
+      "properties": {
+        "name": "Peștera lui Șerban"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10108385196",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9796192,
+          45.2402648
+        ]
+      },
+      "properties": {
+        "name": "Av de sub creasta"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10108385197",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9792455,
+          45.239576
+        ]
+      },
+      "properties": {
+        "name": "Pestera din Bradet"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10108393420",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9764557,
+          45.2459112
+        ]
+      },
+      "properties": {
+        "name": "Av Necunoscut"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10108414828",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.970102,
+          45.2353539
+        ]
+      },
+      "properties": {
+        "name": "Av 8 martie"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10172403900",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.7571246,
+          43.8842283
+        ]
+      },
+      "properties": {
+        "name": "Пещера \"Мечата дупка\"",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10181993503",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.520013,
+          43.9342622
+        ]
+      },
+      "properties": {
+        "name": "Пећина Соколица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10212349153",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9414683,
+          44.0566524
+        ]
+      },
+      "properties": {
+        "name": "Мандина пећина",
+        "wikipedia": "sr:Мандина пећина",
+        "wikidata": "Q110045284"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10213142690",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.0315159,
+          44.1536776
+        ]
+      },
+      "properties": {
+        "name": "Градац",
+        "name:sr": "Градац",
+        "name:sr-Latn": "Gradac",
+        "wikipedia": "sr:Пећина Градац",
+        "wikidata": "Q6471138"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10213919449",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.2406633,
+          43.6274875
+        ]
+      },
+      "properties": {
+        "name": "Хаџи Проданова пећина",
+        "ele": 600.0,
+        "wikipedia": "sr:Хаџи Проданова пећина",
+        "wikidata": "Q12760797",
+        "tourism": "attraction"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10225954298",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.9207985,
+          42.3881193
+        ]
+      },
+      "properties": {
+        "name": "Цетинская пещера. Верхний вход",
+        "access": "yes"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10316360843",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7707808,
+          45.0589382
+        ]
+      },
+      "properties": {
+        "name": "Izbuc Oravița"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10537125620",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.886557,
+          42.2859244
+        ]
+      },
+      "properties": {
+        "name": "Пещера",
+        "access": "permissive",
+        "fee": "no",
+        "opening_hours": "24/7"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10603547833",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.396219,
+          45.9494576
+        ]
+      },
+      "properties": {
+        "name": "Vulcan carbogazos 1"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10670011068",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.4650764,
+          42.2647577
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Tri Dritareve"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10771626092",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8042701,
+          44.8798186
+        ]
+      },
+      "properties": {
+        "name": "Peștera Voinii"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10771635812",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8023237,
+          44.8788546
+        ]
+      },
+      "properties": {
+        "name": "Peștera Boilor"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10771635813",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8022602,
+          44.878798
+        ]
+      },
+      "properties": {
+        "name": "Peșterile lui Vit"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10771635828",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7799779,
+          44.8912271
+        ]
+      },
+      "properties": {
+        "name": "Peștera Dubova"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10771635829",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7878983,
+          44.8915738
+        ]
+      },
+      "properties": {
+        "name": "Peștera Porcariului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10771635841",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7945704,
+          44.8938116
+        ]
+      },
+      "properties": {
+        "name": "Gaura Hicleană"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10771635842",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.77362,
+          44.9001618
+        ]
+      },
+      "properties": {
+        "name": "Peștera Rolului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10866054012",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6969544,
+          43.7473064
+        ]
+      },
+      "properties": {
+        "name": "Кобиља пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10929785789",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.82854,
+          42.4477901
+        ]
+      },
+      "properties": {
+        "name": "Jama Viper"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10929811015",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8285444,
+          42.447785
+        ]
+      },
+      "properties": {
+        "name": "Viperas-jama"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10978625035",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.817833,
+          45.1459303
+        ]
+      },
+      "properties": {
+        "name": "Pestera Vidra"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11012496708",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8947563,
+          43.7488453
+        ]
+      },
+      "properties": {
+        "name": "Јама Леденица",
+        "name:sr": "Јама Леденица",
+        "name:en": "Cave Ledenica",
+        "name:sr-Latn": "Jama Ledenica",
+        "ele": 935.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11061243579",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5785143,
+          42.5470355
+        ]
+      },
+      "properties": {
+        "name": "B3 (Grlati)",
+        "depth": 28.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11061285858",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5780873,
+          42.5484927
+        ]
+      },
+      "properties": {
+        "name": "B1 (Grlati)",
+        "depth": 32.0,
+        "ele": 1848.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11084267367",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5472412,
+          42.5430085
+        ]
+      },
+      "properties": {
+        "name": "Spiral",
+        "depth": 713.0,
+        "ele": 1829.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11109109536",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.6873562,
+          45.2917445
+        ]
+      },
+      "properties": {
+        "name": "Peștera Gugului"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11121502097",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.4015507,
+          45.6431336
+        ]
+      },
+      "properties": {
+        "name": "Mina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11121507694",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9804807,
+          45.2515769
+        ]
+      },
+      "properties": {
+        "name": "Av cu cuib"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11121508332",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8375983,
+          45.0284403
+        ]
+      },
+      "properties": {
+        "name": "P Ponor Plopa"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11166872448",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9745687,
+          45.2498906
+        ]
+      },
+      "properties": {
+        "name": "Av cu Lumanari"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11166874345",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9660322,
+          45.2493999
+        ]
+      },
+      "properties": {
+        "name": "Av din Uvala"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11185541159",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.782667,
+          45.3527567
+        ]
+      },
+      "properties": {
+        "name": "Galeria Melia"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11202338208",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9403523,
+          45.2020381
+        ]
+      },
+      "properties": {
+        "name": "Av de la Padina seaca"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11202352446",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9323308,
+          45.154508
+        ]
+      },
+      "properties": {
+        "name": "Peștera Bătrână"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11216892977",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.8173768,
+          43.8058932
+        ]
+      },
+      "properties": {
+        "name": "Пещера \"Сакулица\""
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11216892978",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.8170941,
+          43.8089671
+        ]
+      },
+      "properties": {
+        "name": "Пещера „Опушената дупка“",
+        "ele": 22.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11286427783",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.4682275,
+          45.7765349
+        ]
+      },
+      "properties": {
+        "name": "Bârlogul Hoților"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11360417711",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.2402838,
+          42.5463236
+        ]
+      },
+      "properties": {
+        "name": "Shpellë"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11393086025",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.9332621,
+          43.7428389
+        ]
+      },
+      "properties": {
+        "name": "Голема Порица"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11395152201",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8433647,
+          42.4605217
+        ]
+      },
+      "properties": {
+        "name": "Jama Stella-Rosa"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11406432017",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8313499,
+          42.4462667
+        ]
+      },
+      "properties": {
+        "name": "Jama mače"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11431909744",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.7277906,
+          45.2702159
+        ]
+      },
+      "properties": {
+        "name": "Mina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11663799008",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.356801,
+          43.8181678
+        ]
+      },
+      "properties": {
+        "name": "Stjeničko okno"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11740741192",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6732536,
+          42.3877085
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Husit dhe Pusit"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11740747343",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4935928,
+          42.3324142
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Gjolajve"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11740772949",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6918485,
+          42.3789265
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Njerzve te Lagur"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11774026628",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.9222017,
+          42.3884151
+        ]
+      },
+      "properties": {
+        "name": "Cetinje Cave (lower entrance)",
+        "access": "no",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11801917662",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.5181949,
+          45.3455617
+        ]
+      },
+      "properties": {
+        "name": "Mina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11917787878",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.0311466,
+          43.6493003
+        ]
+      },
+      "properties": {
+        "name": "Расовачка пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12026952917",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0358144,
+          43.0446513
+        ]
+      },
+      "properties": {
+        "name": "Vidana Pecina",
+        "access": "yes",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12028828747",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7959566,
+          42.3742434
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Kataraktit"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12028859526",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7646759,
+          42.3927218
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Rrathëve të Potit"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12028872755",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7951259,
+          42.3822697
+        ]
+      },
+      "properties": {
+        "name": "Shpella Gumnarit (Thethit)"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12028908985",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.852657,
+          42.4218102
+        ]
+      },
+      "properties": {
+        "name": "Shpella e Haxhisë"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12054064552",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.7922181,
+          43.7144645
+        ]
+      },
+      "properties": {
+        "name": "Терзића пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12072826231",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5566981,
+          42.5414623
+        ]
+      },
+      "properties": {
+        "name": "KK11",
+        "depth": 47.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12072847468",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5563403,
+          42.5407507
+        ]
+      },
+      "properties": {
+        "name": "KK2",
+        "depth": 30.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12072872452",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5484845,
+          42.5437631
+        ]
+      },
+      "properties": {
+        "name": "Black bird cave",
+        "depth": 58.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12223026171",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.8133157,
+          43.2993486
+        ]
+      },
+      "properties": {
+        "name": "Pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12254724270",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4762304,
+          42.4042203
+        ]
+      },
+      "properties": {
+        "name": "Kron Grzoj"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12321153373",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.543862,
+          42.537771
+        ]
+      },
+      "properties": {
+        "name": "S3",
+        "depth": 48.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12321153374",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.543438,
+          42.537726
+        ]
+      },
+      "properties": {
+        "name": "S4",
+        "depth": 87.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12324393600",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.512596,
+          42.4704842
+        ]
+      },
+      "properties": {
+        "name": "KK4"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12324442645",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5216787,
+          42.4736301
+        ]
+      },
+      "properties": {
+        "name": "Opasna Jama",
+        "depth": 464.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12324467102",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5176475,
+          42.4737359
+        ]
+      },
+      "properties": {
+        "name": "KK2"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12324467103",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5173084,
+          42.4721579
+        ]
+      },
+      "properties": {
+        "name": "KK7"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12324467104",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5188849,
+          42.4714739
+        ]
+      },
+      "properties": {
+        "name": "Spela e akulit"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12324467105",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5412004,
+          42.4801885
+        ]
+      },
+      "properties": {
+        "name": "Zatrijebački katun 1"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12324467106",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.54407,
+          42.479525
+        ]
+      },
+      "properties": {
+        "name": "Jagodina jama",
+        "depth": 70.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12324467107",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.542029,
+          42.488532
+        ]
+      },
+      "properties": {
+        "name": "Ponor Korita",
+        "depth": 5.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12324467108",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.547988,
+          42.492705
+        ]
+      },
+      "properties": {
+        "name": "Kišna Jama",
+        "depth": 70.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498050",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.516694,
+          42.471944
+        ]
+      },
+      "properties": {
+        "name": "Početnikova jama"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498051",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.483761,
+          42.466202
+        ]
+      },
+      "properties": {
+        "name": "Spela e nanes"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498052",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.52086,
+          42.48101
+        ]
+      },
+      "properties": {
+        "name": "Bezimena jama",
+        "depth": 60.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498053",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.51594,
+          42.48052
+        ]
+      },
+      "properties": {
+        "name": "Jama od snijega",
+        "depth": 70.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498054",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.46581,
+          42.48029
+        ]
+      },
+      "properties": {
+        "name": "Jama ispod Kodre",
+        "depth": 84.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498055",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.45155,
+          42.469617
+        ]
+      },
+      "properties": {
+        "name": "Šoćnora",
+        "depth": 44.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498056",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.517277,
+          42.472195
+        ]
+      },
+      "properties": {
+        "name": "KK5"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498057",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.47178,
+          42.4766
+        ]
+      },
+      "properties": {
+        "name": "Jama iza Trogrle jame"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498058",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.465882,
+          42.479861
+        ]
+      },
+      "properties": {
+        "name": "Jama u Kodre",
+        "depth": 100.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498059",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.463438,
+          42.479368
+        ]
+      },
+      "properties": {
+        "name": "Zepina jama",
+        "depth": 65.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498060",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.472134,
+          42.478052
+        ]
+      },
+      "properties": {
+        "name": "Gura",
+        "depth": 5.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498061",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.470653,
+          42.476877
+        ]
+      },
+      "properties": {
+        "name": "Trogrla jama",
+        "depth": 100.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498062",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.474719,
+          42.474197
+        ]
+      },
+      "properties": {
+        "name": "Komitska pečina",
+        "depth": 3.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498063",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.476247,
+          42.476618
+        ]
+      },
+      "properties": {
+        "name": "Jama u Duboki koljat"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498064",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4975578,
+          42.4838819
+        ]
+      },
+      "properties": {
+        "name": "Jama u Duku",
+        "depth": 35.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498065",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4904282,
+          42.483445
+        ]
+      },
+      "properties": {
+        "name": "Jama Šaljeza",
+        "depth": 30.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498066",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4958609,
+          42.4800405
+        ]
+      },
+      "properties": {
+        "name": "Matova jama"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498067",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5011826,
+          42.480669
+        ]
+      },
+      "properties": {
+        "name": "Jama u borove",
+        "depth": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12325498068",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5020931,
+          42.4781902
+        ]
+      },
+      "properties": {
+        "name": "Snježnica kod Milića"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326611956",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.47434,
+          42.47625
+        ]
+      },
+      "properties": {
+        "name": "JG2"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326611957",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.52509,
+          42.47425
+        ]
+      },
+      "properties": {
+        "name": "Jama pored puta"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326611958",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.453167,
+          42.470633
+        ]
+      },
+      "properties": {
+        "name": "Špela ujnina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326611959",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.52467,
+          42.47468
+        ]
+      },
+      "properties": {
+        "name": "JOO8"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326611960",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.507167,
+          42.471028
+        ]
+      },
+      "properties": {
+        "name": "Tomi2"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326611961",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.500722,
+          42.471667
+        ]
+      },
+      "properties": {
+        "name": "Tomi1"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326611962",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.462046,
+          42.471523
+        ]
+      },
+      "properties": {
+        "name": "Jama Mušova"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326611963",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.459698,
+          42.462128
+        ]
+      },
+      "properties": {
+        "name": "Rasap"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326611964",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.447791,
+          42.466231
+        ]
+      },
+      "properties": {
+        "name": "Cucke"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326611965",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.444229,
+          42.465236
+        ]
+      },
+      "properties": {
+        "name": "Boškova"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326650441",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5772097,
+          42.5480423
+        ]
+      },
+      "properties": {
+        "name": "B2 (Grlati)"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326650442",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5760753,
+          42.5465947
+        ]
+      },
+      "properties": {
+        "name": "B5 (Grlati)"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12326650443",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.5761551,
+          42.5460558
+        ]
+      },
+      "properties": {
+        "name": "B6 (Grlati)"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12330592668",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.571618,
+          42.552732
+        ]
+      },
+      "properties": {
+        "name": "B3 (Beskeza)",
+        "depth": 24.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12330592669",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.56929,
+          42.55119
+        ]
+      },
+      "properties": {
+        "name": "B1 (Beskeza)",
+        "depth": 23.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12330592670",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.569227,
+          42.551846
+        ]
+      },
+      "properties": {
+        "name": "Monstruozni Prostor",
+        "depth": 290.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12330633447",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.547544,
+          42.542991
+        ]
+      },
+      "properties": {
+        "name": "S3",
+        "depth": 14.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12330633448",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.547791,
+          42.542859
+        ]
+      },
+      "properties": {
+        "name": "Meander S2",
+        "depth": 23.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12330671188",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.554072,
+          42.541912
+        ]
+      },
+      "properties": {
+        "name": "KK1",
+        "depth": 12.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12330686541",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.576261,
+          42.546761
+        ]
+      },
+      "properties": {
+        "name": "B4 (Grlati)"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12486276711",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8664592,
+          45.1919265
+        ]
+      },
+      "properties": {
+        "name": "Av. Carasovenilor"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12532427491",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.888347,
+          43.634694
+        ]
+      },
+      "properties": {
+        "name": "Пећина",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12837109532",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4429752,
+          42.5251997
+        ]
+      },
+      "properties": {
+        "name": "Jama Kržanja",
+        "depth": 38.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12842218061",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4373679,
+          42.5552018
+        ]
+      },
+      "properties": {
+        "name": "Marina pečina",
+        "length": 160.0,
+        "ele": 1142.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12870680985",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0313873,
+          44.6083954
+        ]
+      },
+      "properties": {
+        "name": "Kazan",
+        "name:sr": "Казан"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12873937532",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.203148,
+          42.4588566
+        ]
+      },
+      "properties": {
+        "name": "Magara",
+        "access": "permit"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12909488932",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8379615,
+          42.4455202
+        ]
+      },
+      "properties": {
+        "name": "Mace rupa"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12909546152",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8358014,
+          42.445607
+        ]
+      },
+      "properties": {
+        "name": "Tri rupe"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12909546153",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8361586,
+          42.4450255
+        ]
+      },
+      "properties": {
+        "name": "Karneval jama"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12909546154",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8328757,
+          42.4462524
+        ]
+      },
+      "properties": {
+        "name": "Pećina sa čepom"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12909546155",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8296563,
+          42.4467206
+        ]
+      },
+      "properties": {
+        "name": "Lampa jama"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12909546156",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.827577,
+          42.448765
+        ]
+      },
+      "properties": {
+        "name": "Pećina mrtve neveste"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/12912333282",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.4531108,
+          44.8140629
+        ]
+      },
+      "properties": {
+        "name": "Лагум у Радићевој",
+        "access": "private",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13100111523",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8249723,
+          42.2762599
+        ]
+      },
+      "properties": {
+        "name": "Golubinj pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13167524469",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.607417,
+          42.5444878
+        ]
+      },
+      "properties": {
+        "name": "ST1"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13176518162",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6106449,
+          42.5475148
+        ]
+      },
+      "properties": {
+        "name": "Plava (ST4)",
+        "ele": 1832.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13192374670",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.3514674,
+          42.5258096
+        ]
+      },
+      "properties": {
+        "name": "Babina pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13192374671",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.3602086,
+          42.5161942
+        ]
+      },
+      "properties": {
+        "name": "Vruća pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13192374679",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.3482424,
+          42.5342874
+        ]
+      },
+      "properties": {
+        "name": "Smrdulja"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13192374681",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.3430492,
+          42.5413568
+        ]
+      },
+      "properties": {
+        "name": "Dugačka"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13192374682",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.343253,
+          42.541657
+        ]
+      },
+      "properties": {
+        "name": "Rasadnica"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13192374683",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.3432817,
+          42.5434867
+        ]
+      },
+      "properties": {
+        "name": "Brštanica"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13207187432",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6103754,
+          42.5474727
+        ]
+      },
+      "properties": {
+        "name": "ST3",
+        "depth": 19.0
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13207187433",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.6098381,
+          42.5452048
+        ]
+      },
+      "properties": {
+        "name": "Portal (ST2)"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13207187437",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.501939,
+          42.570879
+        ]
+      },
+      "properties": {
+        "name": "IS4"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13207187438",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.50151,
+          42.570927
+        ]
+      },
+      "properties": {
+        "name": "IS3"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13207187439",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.50129,
+          42.571184
+        ]
+      },
+      "properties": {
+        "name": "IS2"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13260269572",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.0235771,
+          43.5384919
+        ]
+      },
+      "properties": {
+        "name": "Ilijina Pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13295120171",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.2012128,
+          42.6651683
+        ]
+      },
+      "properties": {
+        "name": "Gryka e Madhe",
+        "name:en": "Great Canyon Cave",
+        "access": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13374773884",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1801848,
+          44.1324398
+        ]
+      },
+      "properties": {
+        "name": "Степановића пећина",
+        "name:sr": "Степановића пећина",
+        "name:sr-Latn": "Stepanovića pećina"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13611525477",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4125475,
+          44.3765254
+        ]
+      },
+      "properties": {
+        "name": "Стојковска пећина"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/13703941350",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.8075636,
+          44.9356085
+        ]
+      },
+      "properties": {
+        "name": "Peștera Mare de la Cascada Beușnița"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/1044445039",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.9289392,
+          42.8939201
+        ]
+      },
+      "properties": {
+        "name": "Birat e Kishës",
+        "access": "yes",
+        "fee": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/1115503456",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.4468983,
+          42.3195398
+        ]
+      },
+      "properties": {
+        "name": "cave of kusar"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/1115503633",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.4496814,
+          42.3216146
+        ]
+      },
+      "properties": {
+        "name": "cave of candles"
+      }
+    }
+  ]
+}

@@ -1,0 +1,462 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<gpx version="1.1" creator="OsmAnd Maps 5.3.3 (5380)" xmlns="http://www.topografix.com/GPX/1/1" xmlns:osmand="https://osmand.net/docs/technical/osmand-file-formats/osmand-gpx" xmlns:gpxtpx="https://www8.garmin.com/xmlschemas/TrackPointExtensionv1.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 https://www.topografix.com/GPX/1/1/gpx.xsd">
+    <metadata>
+        <name>Dren. Kik Camp Day 2</name>
+        <time>2026-08-13T16:21:06Z</time>
+    </metadata>
+    <rte>
+        <rtept lat="44.1081272" lon="19.8681624">
+            <extensions>
+                <osmand:profile>pedestrian</osmand:profile>
+                <osmand:trkpt_idx>0</osmand:trkpt_idx>
+                <osmand:color>#00000000</osmand:color>
+            </extensions>
+        </rtept>
+        <rtept lat="44.1112179" lon="19.8706248">
+            <extensions>
+                <osmand:profile>pedestrian</osmand:profile>
+                <osmand:trkpt_idx>11</osmand:trkpt_idx>
+                <osmand:color>#00000000</osmand:color>
+            </extensions>
+        </rtept>
+        <rtept lat="44.1142277" lon="19.8705958">
+            <extensions>
+                <osmand:profile>pedestrian</osmand:profile>
+                <osmand:trkpt_idx>33</osmand:trkpt_idx>
+                <osmand:color>#00000000</osmand:color>
+            </extensions>
+        </rtept>
+        <rtept lat="44.1233147" lon="19.8579473">
+            <extensions>
+                <osmand:profile>pedestrian</osmand:profile>
+                <osmand:trkpt_idx>106</osmand:trkpt_idx>
+                <osmand:color>#00000000</osmand:color>
+            </extensions>
+        </rtept>
+    </rte>
+    <trk>
+        <name>Чт 13 авг. 2026_(4)</name>
+        <trkseg>
+            <trkpt lat="44.1081272" lon="19.8681624">
+                <ele>801.1</ele>
+            </trkpt>
+            <trkpt lat="44.1079898" lon="19.8682356">
+                <ele>801.1</ele>
+            </trkpt>
+            <trkpt lat="44.1080397" lon="19.8684177">
+                <ele>800.8</ele>
+            </trkpt>
+            <trkpt lat="44.1082092" lon="19.8686323">
+                <ele>800</ele>
+            </trkpt>
+            <trkpt lat="44.1085828" lon="19.8689568">
+                <ele>797.8</ele>
+            </trkpt>
+            <trkpt lat="44.1089006" lon="19.8692921">
+                <ele>795.5</ele>
+            </trkpt>
+            <trkpt lat="44.1092068" lon="19.8696113">
+                <ele>793</ele>
+            </trkpt>
+            <trkpt lat="44.109359" lon="19.8696783">
+                <ele>792</ele>
+            </trkpt>
+            <trkpt lat="44.1096844" lon="19.8700002">
+                <ele>790.8</ele>
+            </trkpt>
+            <trkpt lat="44.1104066" lon="19.8703542">
+                <ele>788.8</ele>
+            </trkpt>
+            <trkpt lat="44.1112143" lon="19.8706444">
+                <ele>782</ele>
+            </trkpt>
+            <trkpt lat="44.1112143" lon="19.8706444">
+                <ele>782</ele>
+            </trkpt>
+            <trkpt lat="44.1112424" lon="19.8706546">
+                <ele>781</ele>
+            </trkpt>
+            <trkpt lat="44.1112963" lon="19.8705205">
+                <ele>780</ele>
+            </trkpt>
+            <trkpt lat="44.1113695" lon="19.8703542">
+                <ele>776.8</ele>
+            </trkpt>
+            <trkpt lat="44.1113907" lon="19.8701155">
+                <ele>773.2</ele>
+            </trkpt>
+            <trkpt lat="44.1114234" lon="19.8698607">
+                <ele>769</ele>
+            </trkpt>
+            <trkpt lat="44.1114408" lon="19.8696542">
+                <ele>766.2</ele>
+            </trkpt>
+            <trkpt lat="44.1114793" lon="19.8695576">
+                <ele>763.8</ele>
+            </trkpt>
+            <trkpt lat="44.1115544" lon="19.8695469">
+                <ele>761</ele>
+            </trkpt>
+            <trkpt lat="44.1116526" lon="19.8699439">
+                <ele>759.8</ele>
+            </trkpt>
+            <trkpt lat="44.1118856" lon="19.8701906">
+                <ele>755.2</ele>
+            </trkpt>
+            <trkpt lat="44.1122477" lon="19.8703381">
+                <ele>753</ele>
+            </trkpt>
+            <trkpt lat="44.1125597" lon="19.8704079">
+                <ele>752.8</ele>
+            </trkpt>
+            <trkpt lat="44.1127657" lon="19.8703891">
+                <ele>752.2</ele>
+            </trkpt>
+            <trkpt lat="44.1130835" lon="19.8702201">
+                <ele>746.5</ele>
+            </trkpt>
+            <trkpt lat="44.1134031" lon="19.8699921">
+                <ele>738</ele>
+            </trkpt>
+            <trkpt lat="44.1136458" lon="19.8700511">
+                <ele>737.2</ele>
+            </trkpt>
+            <trkpt lat="44.1138499" lon="19.8703086">
+                <ele>742</ele>
+            </trkpt>
+            <trkpt lat="44.1139847" lon="19.8704186">
+                <ele>744.5</ele>
+            </trkpt>
+            <trkpt lat="44.1141022" lon="19.87055">
+                <ele>749.2</ele>
+            </trkpt>
+            <trkpt lat="44.114185" lon="19.8705742">
+                <ele>751.8</ele>
+            </trkpt>
+            <trkpt lat="44.1141946" lon="19.8705579">
+                <ele>751.6</ele>
+            </trkpt>
+            <trkpt lat="44.1141946" lon="19.8705579">
+                <ele>751.6</ele>
+            </trkpt>
+            <trkpt lat="44.1142543" lon="19.8704562">
+                <ele>750.8</ele>
+            </trkpt>
+            <trkpt lat="44.1143024" lon="19.8702979">
+                <ele>748.2</ele>
+            </trkpt>
+            <trkpt lat="44.114416" lon="19.8696086">
+                <ele>737.8</ele>
+            </trkpt>
+            <trkpt lat="44.114572" lon="19.868187">
+                <ele>727</ele>
+            </trkpt>
+            <trkpt lat="44.1146645" lon="19.8679188">
+                <ele>723.2</ele>
+            </trkpt>
+            <trkpt lat="44.1149418" lon="19.8677418">
+                <ele>718.2</ele>
+            </trkpt>
+            <trkpt lat="44.1153731" lon="19.867723">
+                <ele>711.2</ele>
+            </trkpt>
+            <trkpt lat="44.1158545" lon="19.8679">
+                <ele>708.5</ele>
+            </trkpt>
+            <trkpt lat="44.1162608" lon="19.8680422">
+                <ele>702.8</ele>
+            </trkpt>
+            <trkpt lat="44.116359" lon="19.868077">
+                <ele>700.8</ele>
+            </trkpt>
+            <trkpt lat="44.116827" lon="19.8681951">
+                <ele>691.8</ele>
+            </trkpt>
+            <trkpt lat="44.1171389" lon="19.8681468">
+                <ele>689.5</ele>
+            </trkpt>
+            <trkpt lat="44.1176627" lon="19.867554">
+                <ele>681.2</ele>
+            </trkpt>
+            <trkpt lat="44.1179534" lon="19.8672">
+                <ele>677.5</ele>
+            </trkpt>
+            <trkpt lat="44.118094" lon="19.866913">
+                <ele>673</ele>
+            </trkpt>
+            <trkpt lat="44.1184214" lon="19.8665187">
+                <ele>666.5</ele>
+            </trkpt>
+            <trkpt lat="44.1188392" lon="19.866398">
+                <ele>661.2</ele>
+            </trkpt>
+            <trkpt lat="44.1191935" lon="19.8661914">
+                <ele>657.2</ele>
+            </trkpt>
+            <trkpt lat="44.1194053" lon="19.8658964">
+                <ele>656.8</ele>
+            </trkpt>
+            <trkpt lat="44.1195054" lon="19.8654619">
+                <ele>651.5</ele>
+            </trkpt>
+            <trkpt lat="44.1195478" lon="19.8651347">
+                <ele>647</ele>
+            </trkpt>
+            <trkpt lat="44.1196325" lon="19.8648101">
+                <ele>642.2</ele>
+            </trkpt>
+            <trkpt lat="44.1196691" lon="19.8645231">
+                <ele>635.8</ele>
+            </trkpt>
+            <trkpt lat="44.1196248" lon="19.8640296">
+                <ele>625</ele>
+            </trkpt>
+            <trkpt lat="44.1195555" lon="19.8635763">
+                <ele>616.5</ele>
+            </trkpt>
+            <trkpt lat="44.1195054" lon="19.8633993">
+                <ele>613.8</ele>
+            </trkpt>
+            <trkpt lat="44.1195054" lon="19.862608">
+                <ele>604.5</ele>
+            </trkpt>
+            <trkpt lat="44.1195054" lon="19.862254">
+                <ele>599.5</ele>
+            </trkpt>
+            <trkpt lat="44.1196691" lon="19.8621038">
+                <ele>594.5</ele>
+            </trkpt>
+            <trkpt lat="44.1198097" lon="19.8620662">
+                <ele>590</ele>
+            </trkpt>
+            <trkpt lat="44.119931" lon="19.8622325">
+                <ele>590.8</ele>
+            </trkpt>
+            <trkpt lat="44.1202487" lon="19.862718">
+                <ele>592.2</ele>
+            </trkpt>
+            <trkpt lat="44.1203989" lon="19.8628548">
+                <ele>591.5</ele>
+            </trkpt>
+            <trkpt lat="44.1206242" lon="19.8630613">
+                <ele>593.5</ele>
+            </trkpt>
+            <trkpt lat="44.1208514" lon="19.8630533">
+                <ele>592</ele>
+            </trkpt>
+            <trkpt lat="44.1210651" lon="19.8628736">
+                <ele>587.8</ele>
+            </trkpt>
+            <trkpt lat="44.1211498" lon="19.862667">
+                <ele>583.5</ele>
+            </trkpt>
+            <trkpt lat="44.1212057" lon="19.8619857">
+                <ele>573</ele>
+            </trkpt>
+            <trkpt lat="44.1213481" lon="19.8616907">
+                <ele>569</ele>
+            </trkpt>
+            <trkpt lat="44.1214617" lon="19.8611462">
+                <ele>559</ele>
+            </trkpt>
+            <trkpt lat="44.1214406" lon="19.8608619">
+                <ele>556.2</ele>
+            </trkpt>
+            <trkpt lat="44.1214194" lon="19.8604944">
+                <ele>549.8</ele>
+            </trkpt>
+            <trkpt lat="44.1212981" lon="19.8602477">
+                <ele>546.8</ele>
+            </trkpt>
+            <trkpt lat="44.1211344" lon="19.8601511">
+                <ele>545.2</ele>
+            </trkpt>
+            <trkpt lat="44.1208514" lon="19.8601699">
+                <ele>542</ele>
+            </trkpt>
+            <trkpt lat="44.1208013" lon="19.8600411">
+                <ele>537.8</ele>
+            </trkpt>
+            <trkpt lat="44.1209573" lon="19.8597649">
+                <ele>532.8</ele>
+            </trkpt>
+            <trkpt lat="44.121171" lon="19.8596174">
+                <ele>528</ele>
+            </trkpt>
+            <trkpt lat="44.121404" lon="19.8596576">
+                <ele>525.5</ele>
+            </trkpt>
+            <trkpt lat="44.1217602" lon="19.8597944">
+                <ele>520.8</ele>
+            </trkpt>
+            <trkpt lat="44.122024" lon="19.8598856">
+                <ele>516</ele>
+            </trkpt>
+            <trkpt lat="44.122205" lon="19.8599124">
+                <ele>512.5</ele>
+            </trkpt>
+            <trkpt lat="44.1223012" lon="19.8598748">
+                <ele>510.5</ele>
+            </trkpt>
+            <trkpt lat="44.1223725" lon="19.8597783">
+                <ele>508.2</ele>
+            </trkpt>
+            <trkpt lat="44.1224514" lon="19.8595557">
+                <ele>504.8</ele>
+            </trkpt>
+            <trkpt lat="44.1225246" lon="19.8587376">
+                <ele>496.2</ele>
+            </trkpt>
+            <trkpt lat="44.122565" lon="19.8585203">
+                <ele>492.5</ele>
+            </trkpt>
+            <trkpt lat="44.1226266" lon="19.8584586">
+                <ele>491</ele>
+            </trkpt>
+            <trkpt lat="44.1227114" lon="19.8585042">
+                <ele>491.5</ele>
+            </trkpt>
+            <trkpt lat="44.1228307" lon="19.8589495">
+                <ele>496.5</ele>
+            </trkpt>
+            <trkpt lat="44.1229174" lon="19.8591989">
+                <ele>498.8</ele>
+            </trkpt>
+            <trkpt lat="44.1229617" lon="19.8592472">
+                <ele>499.5</ele>
+            </trkpt>
+            <trkpt lat="44.1230252" lon="19.859215">
+                <ele>500.2</ele>
+            </trkpt>
+            <trkpt lat="44.1230483" lon="19.8591292">
+                <ele>500</ele>
+            </trkpt>
+            <trkpt lat="44.1230753" lon="19.8589951">
+                <ele>499.2</ele>
+            </trkpt>
+            <trkpt lat="44.1230406" lon="19.8587885">
+                <ele>496.2</ele>
+            </trkpt>
+            <trkpt lat="44.1229713" lon="19.8584613">
+                <ele>496.2</ele>
+            </trkpt>
+            <trkpt lat="44.1228596" lon="19.8577854">
+                <ele>481</ele>
+            </trkpt>
+            <trkpt lat="44.1228538" lon="19.8577264">
+                <ele>480</ele>
+            </trkpt>
+            <trkpt lat="44.1228731" lon="19.8576701">
+                <ele>479</ele>
+            </trkpt>
+            <trkpt lat="44.1230425" lon="19.8578256">
+                <ele>481.5</ele>
+            </trkpt>
+            <trkpt lat="44.1231196" lon="19.857839">
+                <ele>481.8</ele>
+            </trkpt>
+            <trkpt lat="44.1232139" lon="19.8578551">
+                <ele>482</ele>
+            </trkpt>
+            <extensions>
+                <osmand:route>
+                    <segment id="1071523519" length="7" startTrkptIdx="0" segmentTime="176.96" speed="1.10" turnType="C" turnAngle="" types="0,1,2,3" pointTypes=";4;4;5;6;6;6" names="20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36"/>
+                    <segment id="1071523520" length="4" startTrkptIdx="6" segmentTime="202.12" speed="1.10" turnType="" turnAngle="" types="7,8,1,2,9" pointTypes=";5;4;" names="20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36"/>
+                    <segment id="1071523520" length="2" startTrkptIdx="9" segmentTime="2.94" speed="1.10" turnType="C" turnAngle="" types="7,8,1,2,9" pointTypes=";10" names="20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36"/>
+                    <segment id="373462979" length="2" startTrkptIdx="11" segmentTime="11.16" speed="1.10" turnType="TL" turnAngle="-75.22" types="0,11,9" pointTypes=";" names=""/>
+                    <segment id="1292699711" length="7" startTrkptIdx="12" segmentTime="81.17" speed="1.10" turnType="KR" turnAngle="2.26" types="0,11,9" pointTypes=";;;;;;" names=""/>
+                    <segment id="949034712" length="14" startTrkptIdx="18" segmentTime="425.03" speed="0.82" turnType="TR" turnAngle="105.12" types="0,11,9" pointTypes="4;5;;6;;4;;;5;;;;12;" names=""/>
+                    <segment id="949034712" length="16" startTrkptIdx="31" segmentTime="589.12" speed="1.10" turnType="C" turnAngle="" types="0,11,9" pointTypes=";10;;;;;;;5;13;;;6;;10;" names=""/>
+                    <segment id="1292699712" length="34" startTrkptIdx="46" segmentTime="959.75" speed="1.06" turnType="TSLR" turnAngle="14.85" types="0,11,9" pointTypes=";;;;4;;;;;;;;;;;;;;5;;6;;;;;;13;;13;10;;;;" names=""/>
+                    <segment id="949034738" length="20" startTrkptIdx="79" segmentTime="428.81" speed="0.93" turnType="" turnAngle="" types="0,3" pointTypes=";;13;;;;;;13;;;;;;;;5;6;;" names=""/>
+                    <segment id="1292699715" length="2" startTrkptIdx="98" segmentTime="50.34" speed="1.10" turnType="" turnAngle="" types="0,14,3" pointTypes="" names=""/>
+                    <segment id="1292699716" length="3" startTrkptIdx="99" segmentTime="8.85" speed="1.10" turnType="" turnAngle="" types="0,3" pointTypes=";;" names=""/>
+                    <segment id="1292699714" length="4" startTrkptIdx="101" segmentTime="59.58" speed="0.70" turnType="TR" turnAngle="114.14" types="15,1,16,17,2,9" pointTypes=";4;4;" names="37,38,39,40,24,25,26,27,41,29,30,42,43,33,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80"/>
+                </osmand:route>
+                <osmand:types>
+                    <type t="highway" v="track"/>
+                    <type t="route_hiking_1" v=""/>
+                    <type t="route_hiking" v=""/>
+                    <type t="osmand_highway_integrity_brouting" v="3"/>
+                    <type t="osmand_ele_decline_1" v="1"/>
+                    <type t="osmand_ele_decline_3" v="1"/>
+                    <type t="osmand_ele_decline_5" v="1"/>
+                    <type t="highway" v="unclassified"/>
+                    <type t="surface" v="gravel"/>
+                    <type t="osmand_highway_integrity_brouting" v="4"/>
+                    <type t="osmand_ele_decline_7" v="1"/>
+                    <type t="surface" v="unpaved"/>
+                    <type t="ford" v="yes"/>
+                    <type t="osmand_ele_decline_11" v="1"/>
+                    <type t="tunnel" v="yes"/>
+                    <type t="highway" v="path"/>
+                    <type t="route_hiking_2" v=""/>
+                    <type t="route_hiking_3" v=""/>
+                    <type t="name" v=""/>
+                    <type t="ref" v=""/>
+                    <type t="route_hiking_1_ascent" v="376"/>
+                    <type t="route_hiking_1_descent" v="500"/>
+                    <type t="route_hiking_1_distance" v="14.8 km"/>
+                    <type t="route_hiking_1_name" v="Село Радановици - „Обрадовићи”"/>
+                    <type t="route_hiking_1_network" v="rwn"/>
+                    <type t="route_hiking_1_operator" v="Povlen PK"/>
+                    <type t="route_hiking_1_osmc_background" v="red_round"/>
+                    <type t="route_hiking_1_osmc_stub_name" v="."/>
+                    <type t="route_hiking_1_osmc_text" v="1"/>
+                    <type t="route_hiking_1_osmc_textcolor" v="white"/>
+                    <type t="route_hiking_1_osmc_waycolor" v="red"/>
+                    <type t="route_hiking_1_ref" v="3-18-1"/>
+                    <type t="route_hiking_1_relation_id" v="14274639"/>
+                    <type t="route_hiking_1_roundtrip" v="no"/>
+                    <type t="route_hiking_1_website" v="https://pss.rs/terenipp/selo-radanovci-obradovic/"/>
+                    <type t="route_hiking_1_name:sr" v="Село Радановици - „Обрадовићи”"/>
+                    <type t="route_hiking_1_name:sr-latn" v="Selo Radanovci – „Obradovići“"/>
+                    <type t="route_hiking_1_ascent" v="962"/>
+                    <type t="route_hiking_1_descent" v="310"/>
+                    <type t="route_hiking_1_distance" v="16 km"/>
+                    <type t="route_hiking_1_name" v="Жел. ст. Самари - планинарска кућа ”Повленски кућерак”"/>
+                    <type t="route_hiking_1_osmc_text" v="6"/>
+                    <type t="route_hiking_1_ref" v="3-14-6"/>
+                    <type t="route_hiking_1_relation_id" v="12464587"/>
+                    <type t="route_hiking_1_website" v="https://pss.rs/terenipp/zel-st-samari-s-mravinjci-planinarska-kuca-povlenski-kucerak/"/>
+                    <type t="route_hiking_2_ascent" v="982"/>
+                    <type t="route_hiking_2_descent" v="982"/>
+                    <type t="route_hiking_2_distance" v="20 km"/>
+                    <type t="route_hiking_2_name" v="Жел. ст. Самари - Мравињци"/>
+                    <type t="route_hiking_2_network" v="rwn"/>
+                    <type t="route_hiking_2_operator" v="Povlen PK"/>
+                    <type t="route_hiking_2_osmc_background" v="red_round"/>
+                    <type t="route_hiking_2_osmc_stub_name" v="."/>
+                    <type t="route_hiking_2_osmc_text" v="7"/>
+                    <type t="route_hiking_2_osmc_textcolor" v="white"/>
+                    <type t="route_hiking_2_osmc_waycolor" v="red"/>
+                    <type t="route_hiking_2_ref" v="3-14-7"/>
+                    <type t="route_hiking_2_relation_id" v="12481140"/>
+                    <type t="route_hiking_2_roundtrip" v="yes"/>
+                    <type t="route_hiking_2_website" v="https://pss.rs/terenipp/zel-st-samari-s-mravinjci-vrh-maglesa-zel-st-samari/"/>
+                    <type t="route_hiking_3_ascent" v="982"/>
+                    <type t="route_hiking_3_descent" v="982"/>
+                    <type t="route_hiking_3_distance" v="20 km"/>
+                    <type t="route_hiking_3_name" v="Жел. ст. Самари - Мравињци"/>
+                    <type t="route_hiking_3_network" v="rwn"/>
+                    <type t="route_hiking_3_operator" v="Povlen PK"/>
+                    <type t="route_hiking_3_osmc_background" v="red_round"/>
+                    <type t="route_hiking_3_osmc_stub_name" v="."/>
+                    <type t="route_hiking_3_osmc_text" v="7"/>
+                    <type t="route_hiking_3_osmc_textcolor" v="white"/>
+                    <type t="route_hiking_3_osmc_waycolor" v="red"/>
+                    <type t="route_hiking_3_ref" v="3-14-7"/>
+                    <type t="route_hiking_3_relation_id" v="12481140"/>
+                    <type t="route_hiking_3_roundtrip" v="yes"/>
+                    <type t="route_hiking_3_website" v="https://pss.rs/terenipp/zel-st-samari-s-mravinjci-vrh-maglesa-zel-st-samari/"/>
+                    <type t="route_hiking_1_name:sr" v="Жел. ст. Самари - планинарска кућа ”Повленски кућерак”"/>
+                    <type t="route_hiking_1_name:sr-latn" v="Žel. st. Samari – planinarska kuća “Povlenski kućerak”"/>
+                    <type t="route_hiking_2_name:sr" v="Жел. ст. Самари - Мравињци"/>
+                    <type t="route_hiking_2_name:sr-latn" v="Žel. st. Samari – Mravinjci"/>
+                    <type t="route_hiking_3_name:sr" v="Жел. ст. Самари - Мравињци"/>
+                    <type t="route_hiking_3_name:sr-latn" v="Žel. st. Samari – Mravinjci"/>
+                </osmand:types>
+            </extensions>
+        </trkseg>
+    </trk>
+</gpx>

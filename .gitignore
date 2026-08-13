@@ -14,3 +14,20 @@ ios/.DS_Store
 # Logs
 *.log
 npm-debug.log*
+
+# Claude Code — личное не коммитим; общее (settings.json, commands/, CLAUDE.md) трекается
+.claude/settings.local.json
+
+# Xcode — личные состояния окон, не код
+**/xcuserdata/
+
+# Фото приложения — побайтовая копия www/photos (источник правды),
+# синкается локально перед сборкой. В гите держим одну копию.
+hikingmap/hikingmap/photos/
+hikingmap.zip
+
+# Скрапер PSS: промежуточные выгрузки (~65 МБ). Итог лежит в
+# www/pss_routes_web.geojson и hikingmap/hikingmap/Data/pss_routes.geojson
+pss_scraper/output/
+pss_scraper/.venv/
+**/__pycache__/

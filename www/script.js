@@ -17,9 +17,26 @@ const FIREBASE_CONFIG = {
 
 let _db = null, _auth = null, _fbUser = null;
 
-function _initFirebase() {
+// SDK (~510 КБ) грузим только если Firebase реально настроен — раньше три
+// скрипта качались и разбирались на каждой загрузке страницы вхолостую.
+const FIREBASE_SDK = [
+    'libs/firebase-app-compat.js',
+    'libs/firebase-firestore-compat.js',
+    'libs/firebase-auth-compat.js'
+];
+
+function _loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src; s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+    });
+}
+
+async function _initFirebase() {
     if (FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') return; // not yet configured
     try {
+        for (const src of FIREBASE_SDK) await _loadScript(src);   // порядок важен: app → firestore/auth
         if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
         _db   = firebase.firestore();
         _auth = firebase.auth();
@@ -30,6 +47,39 @@ function _initFirebase() {
 // ── Configuration ─────────────────────────────────────────────────────────────
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidG9jemtpamciLCJhIjoiY21uYWE1dnY0MGdjMTJwcDYwMW9hN3IzbyJ9.z8vVKr9lNliGDfC5Kd8Ttg';
 mapboxgl.accessToken = MAPBOX_TOKEN;
+
+// ── Хитмап троп ───────────────────────────────────────────────────────────────
+// Публичные GPS-треки OpenStreetMap: видно, где люди реально ходят, даже там,
+// где тропа не нарисована. Открытые данные OSM, ключей и прокси не требуют.
+const HEATMAP_SOURCE = {
+    hint:    'публичные GPS-треки OpenStreetMap',
+    maxzoom: 20,
+    tiles:   ['https://gps.tile.openstreetmap.org/lines/{z}/{x}/{y}.png']
+};
+
+let _heatmapOn = false;
+
+function toggleHeatmap(on) {
+    _heatmapOn = on;
+    // Слой кладём под линии маршрутов, а они появляются в обработчике map.on('load').
+    // isStyleLoaded() бывает true ещё до него, поэтому ждём именно линии — иначе
+    // хитмап встанет поверх треков.
+    if (!window.map || !map.getLayer('overview-lines-completed')) return;
+    if (map.getLayer('heatmap-layer')) map.removeLayer('heatmap-layer');
+    if (map.getSource('heatmap-source')) map.removeSource('heatmap-source');
+    if (!on) return;
+
+    map.addSource('heatmap-source', {
+        type: 'raster', tiles: HEATMAP_SOURCE.tiles, tileSize: 256,
+        minzoom: 3, maxzoom: HEATMAP_SOURCE.maxzoom,
+        attribution: '© OpenStreetMap contributors'
+    });
+    // Под линиями маршрутов, чтобы красные треки не терялись в оранжевом.
+    map.addLayer({
+        id: 'heatmap-layer', type: 'raster', source: 'heatmap-source',
+        paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 }
+    }, 'overview-lines-completed');
+}
 
 // ── Route data ─────────────────────────────────────────────────────────────────
 // date: 'YYYY-MM-DD' | description: string | instagramUrl: string|null
@@ -221,6 +271,59 @@ const routesList = [
             'photos/Vrutci Camping/IMG_0616.JPG', 'photos/Vrutci Camping/IMG_0633.JPG',
             'photos/Vrutci Camping/IMG_0665.JPG', 'photos/Vrutci Camping/IMG_0694.JPG',
             'photos/Vrutci Camping/IMG_0710.JPG'
+        ]
+    },
+    // ── Двухдневные маршруты с ночёвкой ────────────────────────────────────────
+    // GPX склеен из дневных треков (www/multiday/) скриптом tools/merge_gpx_days.py:
+    // внутри файла по одному <trk> на день, парсер читает их как единый маршрут.
+    {
+        file: 'Samari - Dren. Kik Camp.gpx', name: 'Samari - Dren. Kik Camp',
+        overrideAscent: 483, overrideDescent: 481,
+        date: '2026-07-19',
+        description: 'Короткий двухдневный выход с ночёвкой на Дрен. Кик — отличный вариант, когда хочется настоящего кемпинга, но без больших километров.\n\n🥾 День 1 (19.07): от станции Самари вверх, 5.4 км и +452 м набора до места ночёвки на высоте ~800 м. Подъём почти без передышки, зато лагерь встаёт на открытой поляне с видом на лесистые холмы Вальевского края.\n\n🌙 Ночёвка: костёр и закат над долиной.\n\n🥾 День 2 (20.07): спуск обратно к Самари другой тропой — 3.1 км и −350 м. Быстрый выход к станции.\n\n📊 Итого за два дня: 8.5 км, набор ≈483 м, верхняя точка 862 м.\n\n💡 Маршрут отлично подходит для первого кемпинга: короткие переходы, вода и станция рядом, всё снаряжение несётся всего 5 км.',
+        instagramUrl: null,
+        photos: [
+            'photos/Samari - Dren. Kik Camp/dren_kik_camp1.JPG', 'photos/Samari - Dren. Kik Camp/dren_kik_camp2.JPG',
+            'photos/Samari - Dren. Kik Camp/dren_kik_camp3.JPG', 'photos/Samari - Dren. Kik Camp/dren_kik_camp4.JPG',
+            'photos/Samari - Dren. Kik Camp/dren_kik_camp5.JPG', 'photos/Samari - Dren. Kik Camp/dren_kik_camp6.JPG',
+            'photos/Samari - Dren. Kik Camp/dren_kik_camp7.JPG', 'photos/Samari - Dren. Kik Camp/dren_kik_camp8.JPG',
+            'photos/Samari - Dren. Kik Camp/dren_kik_camp9.JPG', 'photos/Samari - Dren. Kik Camp/dren_kik_camp10.JPG',
+            'photos/Samari - Dren. Kik Camp/dren_kik_camp11.JPG', 'photos/Samari - Dren. Kik Camp/dren_kik_camp12.JPG',
+            'photos/Samari - Dren. Kik Camp/dren_kik_camp13.JPG'
+        ]
+    },
+    {
+        file: 'Vrutci Camping 2.gpx', name: 'Vrutci Camping 2',
+        overrideAscent: 1078, overrideDescent: 1089,
+        date: '2026-07-25',
+        description: 'Второй заход на кемпинг у озера Врутци — тот же любимый маршрут через каньон Джетиње, но уже летом и в полную жару.\n\n🥾 День 1 (25.07): от Стапари вдоль старой узкоколейки и через скальные тоннели каньона, дальше подъём лесными тропами к озеру Врутци. 11.7 км, +682 м. Лагерь на берегу озера.\n\n🌙 Ночёвка: костёр и дикие берега Врутци.\n\n🥾 День 2 (26.07): возвращение к Стапари другим вариантом тропы — 11.9 км, +396 м, с длинными открытыми участками и видами на холмы вокруг озера.\n\n📊 Итого за два дня: 23.5 км, набор ≈1078 м, верхняя точка 843 м.\n\n⚠️ Летом на маршруте мало тени на верхних участках — берите запас воды; в районе водятся медведи, еду на ночь убирайте.\n\n🚂 Транспорт: поезд «Белград — Стапари».',
+        instagramUrl: null,
+        photos: [
+            'photos/Vrutci Camping 2/vrutci_camping_21.JPG', 'photos/Vrutci Camping 2/vrutci_camping_22.JPG',
+            'photos/Vrutci Camping 2/vrutci_camping_23.JPG', 'photos/Vrutci Camping 2/vrutci_camping_24.JPG',
+            'photos/Vrutci Camping 2/vrutci_camping_25.JPG', 'photos/Vrutci Camping 2/vrutci_camping_26.JPG',
+            'photos/Vrutci Camping 2/vrutci_camping_27.JPG', 'photos/Vrutci Camping 2/vrutci_camping_28.JPG'
+        ]
+    },
+    {
+        file: 'Samari - Taorske Stene Camp.gpx', name: 'Samari - Taorske Stene Camp',
+        overrideAscent: 841, overrideDescent: 842,
+        date: '2026-08-09',
+        description: 'Двухдневный маршрут от станции Самари к Таорским стенам с ночёвкой на гребне — самый «высокий» кемпинг из наших: лагерь стоит выше 1000 м.\n\n🥾 День 1 (09.08): от Самари (480 м) долгий ровный набор через лес и открытые луга — 11.5 км и +713 м до места ночёвки на 1013 м. Вечером с гребня открывается панорама на десятки километров и очень красивый закат.\n\n🌙 Ночёвка: лагерь на верхней поляне, костёр, утром — заросли ежевики прямо у тропы.\n\n🥾 День 2 (10.08): спуск обратно к Самари — 8.2 км, −656 м, короче и быстрее первого дня.\n\n📊 Итого за два дня: 19.7 км, набор ≈841 м, верхняя точка 1013 м.\n\n💡 Воды наверху нет — весь запас на ночёвку нужно поднимать с собой снизу.',
+        instagramUrl: null,
+        photos: [
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp1.JPG',
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp2.JPG',
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp3.JPG',
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp4.JPG',
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp5.JPG',
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp6.JPG',
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp7.JPG',
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp8.JPG',
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp9.JPG',
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp10.JPG',
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp11.JPG',
+            'photos/Samari - Taorske Stene Camp/samari_taorske_stene_camp12.JPG'
         ]
     }
 ];
@@ -532,6 +635,9 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
         map.on('mouseleave', 'route-hitboxes-layer', () => {
             map.getCanvas().style.cursor = ''; hoveredId = null; hoverPopup.remove();
         });
+
+        // Если хитмап успели включить до готовности карты — добавляем сейчас
+        if (_heatmapOn) toggleHeatmap(true);
     });
 } else {
     console.warn('Mapbox token is missing.');
@@ -843,18 +949,20 @@ function showPanelPhoto(idx) {
         vid.classList.add('hidden');
         if (vid.src) { vid.pause(); vid.src = ''; }
         img.classList.remove('hidden');
-        img.src = p.src;
+        img.onerror = () => { img.onerror = null; img.src = p.src; };   // нет копии — берём оригинал
+        img.src = photoMed(p.src);
         if (play) play.classList.add('hidden');
     }
 
     if (counter) counter.textContent = `${_panelPhotoIdx + 1} / ${_panelPhotos.length}`;
 
-    // Highlight active photo point on map
-    if (p.coords && map.getSource('photo-active-source')) {
-        map.getSource('photo-active-source').setData({
-            type: 'FeatureCollection',
-            features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: p.coords }, properties: {} }]
-        });
+    // Highlight active photo point on map (у фото без GPS — просто гасим подсветку,
+    // остальные маркеры маршрута при этом остаются на карте)
+    if (map.getSource('photo-active-source')) {
+        const active = (p.coords && isFinite(p.coords[0]) && isFinite(p.coords[1]))
+            ? [{ type: 'Feature', geometry: { type: 'Point', coordinates: p.coords }, properties: {} }]
+            : [];
+        map.getSource('photo-active-source').setData({ type: 'FeatureCollection', features: active });
     }
 
     document.querySelectorAll('#panel-photos-container .photo-thumb').forEach((t, i) => {
@@ -883,8 +991,8 @@ function renderPhotosInPanel(routeInfo) {
         const thumb = document.createElement('div');
         thumb.className = 'photo-thumb shrink-0 w-12 h-12 rounded-lg overflow-hidden cursor-pointer transition-all';
         thumb.innerHTML = p.isVideo
-            ? `<video src="${p.src}#t=0.001" class="w-full h-full object-cover" muted playsinline></video>`
-            : `<img src="${p.src}" class="w-full h-full object-cover" loading="lazy" alt="">`;
+            ? `<video src="${p.src}#t=0.001" class="w-full h-full object-cover" muted playsinline preload="metadata"></video>`
+            : `<img src="${photoThumb(p.src)}" ${_imgFallback(p.src)} class="w-full h-full object-cover" loading="lazy" decoding="async" alt="">`;
         thumb.onclick = () => showPanelPhoto(i);
         container.appendChild(thumb);
     });
@@ -1261,16 +1369,36 @@ function _initStarPicker() {
     }
 }
 
+// ── Варианты фотографий по размеру ────────────────────────────────────────────
+// Оригиналы — по 2-3 МБ, поэтому в мелких местах показываем уменьшенные копии
+// (их готовит tools/make_photo_variants.sh). Если копии нет — onerror вернёт
+// оригинал, так что новые фото работают и до прогона скрипта.
+function _photoVariant(src, suffix) {
+    if (!src || typeof src !== 'string') return src;
+    return src.replace(/(^|\/)photos\//, `$1photos${suffix}/`);
+}
+const photoThumb = src => _photoVariant(src, '_small');   // 400 px
+const photoMed   = src => _photoVariant(src, '_med');     // 1280 px
+
+// Подстраховка в разметке: если уменьшенной копии нет — грузим оригинал
+function _imgFallback(orig) {
+    return `onerror="this.onerror=null;this.src='${String(orig).replace(/'/g, "\\'")}'"`;
+}
+
 // ── Photo map markers ──────────────────────────────────────────────────────────
 function renderPhotoMapMarkers(routeInfo) {
     const routeData = parsedRouteDataCache[routeInfo.id];
-    const features = (routeData && routeData.photoGeoms)
-        ? routeData.photoGeoms.map((p, i) => ({
+    // Фото без GPS в EXIF пропускаем: Point с coordinates:null — невалидный GeoJSON,
+    // на нём падает разбор всего источника, и тогда на карте не видно НИ ОДНОГО
+    // маркера (кроме активного — он в отдельном источнике photo-active-source).
+    const features = ((routeData && routeData.photoGeoms) || [])
+        .map((p, i) => ({ p, i }))
+        .filter(({ p }) => Array.isArray(p.coords) && isFinite(p.coords[0]) && isFinite(p.coords[1]))
+        .map(({ p, i }) => ({
             type: 'Feature',
             properties: { id: i, src: p.src, routeId: routeInfo.id, isVideo: p.isVideo || false },
             geometry: { type: 'Point', coordinates: p.coords }
-          }))
-        : [];
+        }));
 
     if (!map.getSource('photo-markers-source')) {
         map.addSource('photo-markers-source', { type: 'geojson', data: { type: 'FeatureCollection', features } });
@@ -1297,7 +1425,7 @@ function renderPhotoMapMarkers(routeInfo) {
             const coords = e.features[0].geometry.coordinates.slice();
             const media = props.isVideo
                 ? `<video src="${props.src}#t=0.001" class="max-w-full max-h-full object-cover rounded-lg" muted playsinline></video><div class="absolute inset-0 flex items-center justify-center bg-black/30"><svg class="w-8 h-8 text-white opacity-80" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>`
-                : `<img src="${props.src}" class="max-w-full max-h-full object-cover rounded-lg">`;
+                : `<img src="${photoThumb(props.src)}" ${_imgFallback(props.src)} class="max-w-full max-h-full object-cover rounded-lg">`;
             window.photoHoverPopup.setLngLat(coords)
                 .setHTML(`<div class="p-1 bg-black/80 rounded-xl border border-white/20 overflow-hidden w-32 h-32 flex items-center justify-center relative">${media}</div>`)
                 .addTo(map);
@@ -1320,6 +1448,23 @@ function renderPhotoMapMarkers(routeInfo) {
 }
 
 // ── Lazy EXIF loader ──────────────────────────────────────────────────────────
+// exifr нужен только как запасной путь (когда фото нет в routes_geom.json),
+// поэтому грузим библиотеку по требованию, а не на каждой загрузке страницы.
+let _exifrPromise = null;
+function _ensureExifr() {
+    if (window.exifr) return Promise.resolve(window.exifr);
+    if (!_exifrPromise) {
+        _exifrPromise = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js';
+            s.onload  = () => resolve(window.exifr);
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+    return _exifrPromise;
+}
+
 const _exifPromises = {};
 function loadExifForRoute(routeInfo) {
     if (_exifPromises[routeInfo.id]) return _exifPromises[routeInfo.id];
@@ -1327,19 +1472,39 @@ function loadExifForRoute(routeInfo) {
     if (!routeData || routeData._exifDone) return Promise.resolve();
 
     _exifPromises[routeInfo.id] = (async () => {
-        routeData.photoGeoms = [];
-        if (routeInfo.videos) routeInfo.videos.forEach(v => routeData.photoGeoms.push({ src: v.src, coords: v.coords, isVideo: true }));
-        if (routeInfo.photos && routeInfo.photos.length) {
-            await Promise.all(routeInfo.photos.map(async (src) => {
-                try {
-                    const blob = await (await fetch(src)).blob();
-                    const gps = await exifr.gps(blob);
-                    routeData.photoGeoms.push({ src, coords: gps ? [gps.longitude, gps.latitude] : null });
-                } catch(e) {
-                    routeData.photoGeoms.push({ src, coords: null });
-                }
-            }));
+        const geoms = [];
+        if (routeInfo.videos) routeInfo.videos.forEach(v => geoms.push({ src: v.src, coords: v.coords, isVideo: true }));
+
+        const photos = routeInfo.photos || [];
+        const known  = routeData.photoGps || null;   // из routes_geom.json
+        const missing = photos.filter(src => !known || !(src in known));
+
+        let fallback = {};
+        if (missing.length) {
+            // Раньше здесь качалось КАЖДОЕ фото целиком (в среднем 2.6 МБ) только
+            // ради GPS. exifr, получив URL вместо blob, читает Range-запросом
+            // лишь начало файла, где лежит EXIF.
+            try {
+                const exifr = await _ensureExifr();
+                const found = await Promise.all(missing.map(async (src) => {
+                    try {
+                        const gps = await exifr.gps(src);
+                        return gps ? [gps.longitude, gps.latitude] : null;
+                    } catch(e) { return null; }
+                }));
+                missing.forEach((src, i) => { fallback[src] = found[i]; });
+            } catch(e) {
+                console.warn('exifr не загрузился, фото останутся без маркеров', e);
+            }
         }
+
+        // Порядок = порядок в routesList (раньше зависел от того, что скачалось быстрее)
+        photos.forEach(src => {
+            const coords = (known && src in known) ? known[src] : (fallback[src] || null);
+            geoms.push({ src, coords });
+        });
+
+        routeData.photoGeoms = geoms;
         routeData._exifDone = true;
     })();
     return _exifPromises[routeInfo.id];
@@ -1360,7 +1525,9 @@ function _lightboxShowPhoto(src, coords, isVideo) {
         vid.classList.remove('hidden'); vid.src = src;
     } else {
         vid.classList.add('hidden'); vid.pause(); vid.src = '';
-        img.classList.remove('hidden'); img.src = src;
+        img.classList.remove('hidden');
+        img.onerror = () => { img.onerror = null; img.src = src; };     // нет копии — берём оригинал
+        img.src = photoMed(src);
     }
     btnFly.classList.toggle('hidden', !coords);
 
@@ -1392,8 +1559,8 @@ window.openLightbox = function(src, coords, isVideo) {
             thumb.className = 'lb-thumb shrink-0 rounded-lg overflow-hidden cursor-pointer';
             thumb.style.cssText = 'width:56px;height:56px;outline:2px solid transparent;outline-offset:2px;border-radius:8px;transition:opacity .15s,outline-color .15s;';
             thumb.innerHTML = p.isVideo
-                ? `<video src="${p.src}#t=0.001" class="w-full h-full object-cover" muted playsinline></video>`
-                : `<img src="${p.src}" class="w-full h-full object-cover" loading="lazy" alt="">`;
+                ? `<video src="${p.src}#t=0.001" class="w-full h-full object-cover" muted playsinline preload="metadata"></video>`
+                : `<img src="${photoThumb(p.src)}" ${_imgFallback(p.src)} class="w-full h-full object-cover" loading="lazy" decoding="async" alt="">`;
             thumb.addEventListener('click', () => _lightboxShowPhoto(p.src, p.coords || null, p.isVideo || false));
             strip.appendChild(thumb);
         });
@@ -1632,12 +1799,53 @@ function parseGPX(gpxString) {
     };
 }
 
+// ── Предпосчитанный индекс маршрутов ──────────────────────────────────────────
+// routes_geom.json (собирается `node tools/build_route_index.js`) содержит уже
+// упрощённую геометрию, статистику и GPS фотографий. Без него страница тянула
+// на старте все GPX (~11 МБ) и разбирала их в главном потоке.
+let _geomIndex = null;
+let _geomIndexPromise = null;
+function loadGeomIndex() {
+    if (!_geomIndexPromise) {
+        _geomIndexPromise = fetch('routes_geom.json')
+            .then(r => r.ok ? r.json() : null)
+            .then(j => (_geomIndex = (j && j.routes) ? j : null))
+            .catch(() => null);
+    }
+    return _geomIndexPromise;
+}
+
+// Источники обновляем одним пакетом, а не по разу на каждый маршрут
+let _sourcesFlushQueued = false;
+function _flushRouteSources() {
+    if (_sourcesFlushQueued) return;
+    _sourcesFlushQueued = true;
+    const flush = () => {
+        const markers  = map.getSource('route-markers');
+        const overview = map.getSource('overview-lines');
+        if (!markers || !overview) { setTimeout(flush, 50); return; }
+        markers.setData({ type: 'FeatureCollection', features: routeFeatures });
+        overview.setData({ type: 'FeatureCollection', features: _overviewFeatures });
+        _sourcesFlushQueued = false;
+    };
+    requestAnimationFrame(flush);
+}
+
 // ── Load route data ────────────────────────────────────────────────────────────
 async function loadRouteData(routeInfo) {
     try {
-        const res = await fetch(routeInfo.file);
-        if (!res.ok) throw new Error(`Failed to load ${routeInfo.file}`);
-        const routeData = parseGPX(await res.text());
+        let routeData;
+        const pre = _geomIndex && _geomIndex.routes[routeInfo.id];
+        if (pre && pre.file === routeInfo.file) {
+            routeData = Object.assign({}, pre);
+        } else {
+            // Маршрут добавили, а индекс не пересобрали — разбираем GPX как раньше
+            console.warn(`[routes_geom] ${routeInfo.id} нет в индексе, читаю ${routeInfo.file}. ` +
+                         `Пересобери: node tools/build_route_index.js`);
+            const res = await fetch(routeInfo.file);
+            if (!res.ok) throw new Error(`Failed to load ${routeInfo.file}`);
+            routeData = parseGPX(await res.text());
+        }
 
         routeData.photoGeoms = [];
         routeData._exifDone = false;
@@ -1645,32 +1853,17 @@ async function loadRouteData(routeInfo) {
 
         if (!routeInfo.future) addToKmCounter(routeData.distance);
 
-        const feature = {
+        routeFeatures.push({
             type: 'Feature',
             properties: { id: routeInfo.id, future: routeInfo.future || false },
             geometry: { type: 'Point', coordinates: routeData.peakCoords }
-        };
-        routeFeatures.push(feature);
-
-        // Add to overview lines source (same retry pattern as route-markers)
+        });
         _overviewFeatures.push({
             type: 'Feature',
             properties: { id: routeInfo.id, future: routeInfo.future || false },
             geometry: { type: 'LineString', coordinates: routeData.coordinates }
         });
-        const _updateOverview = () => {
-            const src = map.getSource('overview-lines');
-            if (src) src.setData({ type: 'FeatureCollection', features: _overviewFeatures });
-            else setTimeout(_updateOverview, 50);
-        };
-        _updateOverview();
-
-        const update = () => {
-            const src = map.getSource('route-markers');
-            if (src) src.setData({ type: 'FeatureCollection', features: routeFeatures });
-            else setTimeout(update, 50);
-        };
-        update();
+        _flushRouteSources();
     } catch(err) {
         console.error('Error loading GPX:', err);
     }
@@ -1796,10 +1989,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const completedRoutes = Object.values(routes).filter(r => !r.future);
     const futureRoutes    = Object.values(routes).filter(r => r.future);
 
-    // Load GPX in batches of 3, then open route from URL hash if present
+    // Геометрия берётся из routes_geom.json; GPX читается только если маршрута
+    // в индексе нет (тогда — пачками, чтобы не забить сеть)
     (async () => {
+        await loadGeomIndex();
         const all = Object.values(routes);
-        for (let i = 0; i < all.length; i += 3) await Promise.all(all.slice(i, i+3).map(loadRouteData));
+        for (let i = 0; i < all.length; i += 6) await Promise.all(all.slice(i, i+6).map(loadRouteData));
 
         const hashId = location.hash.slice(1);
         if (hashId && routes[hashId]) {
@@ -1860,7 +2055,21 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'carousel-card relative shrink-0 rounded-2xl overflow-hidden cursor-pointer border border-white/10 shadow-xl';
             card.style.cssText = 'width:176px;height:116px;';
             card.dataset.routeId = route.id;
-            if (cover) { card.style.backgroundImage = `url('${cover}')`; card.style.backgroundSize = 'cover'; card.style.backgroundPosition = 'center'; }
+            if (cover) {
+                // Карточка 176×116 — оригинал на 2-3 МБ здесь ни к чему, берём копию 400 px
+                const setBg = url => {
+                    card.style.backgroundImage = `url('${url}')`;
+                    card.style.backgroundSize = 'cover';
+                    card.style.backgroundPosition = 'center';
+                };
+                const small = photoThumb(cover);
+                setBg(small);
+                if (small !== cover) {
+                    const probe = new Image();
+                    probe.onerror = () => setBg(cover);
+                    probe.src = small;
+                }
+            }
             else { card.style.background = route.future ? 'linear-gradient(140deg,#1a1500,#2d2000,#1a1000)' : 'linear-gradient(140deg,#1c1c2e,#2a1a3e,#111122)'; }
 
             const futureBadge = route.future ? `<div style="position:absolute;top:7px;right:7px;background:rgba(255,140,0,.88);border-radius:5px;padding:2px 7px;display:flex;align-items:center;gap:3px;"><svg style="width:8px;height:8px" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/></svg><span style="color:#fff;font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Plan</span></div>` : '';
@@ -1933,13 +2142,36 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Firebase init
     _initFirebase();
 
-    // ── Layers toggle button
-    document.getElementById('btn-layers-toggle').addEventListener('click', () => {
-        _showLines = !_showLines;
-        _applyMarkerFilter(); // applies lines visibility respecting active filter
-        document.getElementById('btn-layers-toggle').classList.toggle('lines-active', _showLines);
-        document.getElementById('lines-legend').classList.toggle('visible', _showLines);
-    });
+    // ── Layers panel (линии маршрутов + хитмап троп)
+    {
+        const btn     = document.getElementById('btn-layers-toggle');
+        const panel   = document.getElementById('layers-panel');
+        const linesCb = document.getElementById('layer-lines');
+        const heatCb  = document.getElementById('layer-heat');
+
+        document.getElementById('layer-heat-hint').textContent = HEATMAP_SOURCE.hint;
+
+        const syncBtn = () => btn.classList.toggle('lines-active', _showLines || _heatmapOn);
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            panel.classList.toggle('open');
+        });
+        panel.addEventListener('click', e => e.stopPropagation());
+        document.addEventListener('click', () => panel.classList.remove('open'));
+
+        linesCb.addEventListener('change', () => {
+            _showLines = linesCb.checked;
+            _applyMarkerFilter(); // applies lines visibility respecting active filter
+            document.getElementById('lines-legend').classList.toggle('visible', _showLines);
+            syncBtn();
+        });
+
+        heatCb.addEventListener('change', () => {
+            toggleHeatmap(heatCb.checked);
+            syncBtn();
+        });
+    }
 
     // ── Panel collapse/expand toggle
     document.getElementById('panel-toggle-btn').addEventListener('click', () => {
