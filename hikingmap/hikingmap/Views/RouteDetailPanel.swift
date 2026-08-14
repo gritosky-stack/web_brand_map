@@ -498,21 +498,10 @@ private struct PhotoCell: View {
 
     private func loadImage() {
         guard image == nil else { return }
-        let key = path as NSString
-        if let cached = photoCache.object(forKey: key) {
-            image = cached
-            return
-        }
+        // В ленте хватает превью из бандла — крупную версию тянуть незачем
         Task.detached(priority: .background) {
-            if let url = Bundle.main.url(forResource: path, withExtension: nil) ??
-                         Bundle.main.url(forResource: (path as NSString).lastPathComponent,
-                                        withExtension: nil,
-                                        subdirectory: (path as NSString).deletingLastPathComponent),
-               let data = try? Data(contentsOf: url),
-               let img  = UIImage(data: data) {
-                photoCache.setObject(img, forKey: key, cost: data.count)
-                await MainActor.run { self.image = img }
-            }
+            let img = PhotoStore.thumbnail(path)
+            await MainActor.run { self.image = img }
         }
     }
 }
@@ -636,15 +625,11 @@ struct PhotoFullscreenView: View {
 
     private func loadImage(path: String) {
         guard images[path] == nil else { return }
-        Task.detached(priority: .userInitiated) {
-            if let url = Bundle.main.url(forResource: path, withExtension: nil) ??
-                         Bundle.main.url(forResource: (path as NSString).lastPathComponent,
-                                        withExtension: nil,
-                                        subdirectory: (path as NSString).deletingLastPathComponent),
-               let data = try? Data(contentsOf: url),
-               let img  = UIImage(data: data) {
-                await MainActor.run { self.images[path] = img }
-            }
+        // Сначала прилетит превью из бандла, следом — версия 1280 px из R2,
+        // если она есть на диске или доступна сеть
+        PhotoStore.large(path) { img in
+            guard let img else { return }
+            DispatchQueue.main.async { self.images[path] = img }
         }
     }
 }

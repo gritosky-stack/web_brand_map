@@ -1,10 +1,12 @@
 import SwiftUI
 import CoreLocation
 import UniformTypeIdentifiers
+import MapboxMaps
 
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var offlineManager = OfflineMapManager.shared
+    @ObservedObject private var topoDownloader = TopoTilesDownloader.shared
 
     @State private var showGPXImporter   = false
     @State private var showMapTools      = false
@@ -21,6 +23,11 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             MapboxMapView()
+                .ignoresSafeArea()
+
+            // Флажки станций живут поверх карты, но под всем интерфейсом
+            StationFlagsLayer()
+                .environmentObject(appState)
                 .ignoresSafeArea()
 
             // Live Track HUD — full screen, slides up from bottom
@@ -86,7 +93,7 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.22), value: appState.isConstructorMode)
         .animation(.spring(response: 0.32, dampingFraction: 0.78), value: showZoomOut)
         #if DEBUG
-        .overlay(alignment: .top) { DebugHUD().environmentObject(appState) }
+        .overlay(alignment: .leading) { DebugHUD().environmentObject(appState) }
         #endif
         .onAppear { appState.preloadAllStats() }
         .sheet(isPresented: $appState.showAIAssistant) {
@@ -123,7 +130,28 @@ struct ContentView: View {
     private var bottomPanel: some View {
         VStack(spacing: 0) {
             Spacer()
-            if let route = appState.selectedRoute, appState.showDetailPanel {
+            // Пещера идёт первой: по ней тапают, когда на экране уже открыт
+            // маршрут, и её карточка должна лечь поверх. Закрыли пещеру —
+            // ветка ниже сама вернёт карточку маршрута, камеру никто не трогает.
+            if let cave = appState.selectedCave, appState.showCaveDetail {
+                CaveDetailPanel(
+                    cave: cave,
+                    onClose: { appState.selectedCave = nil; appState.showCaveDetail = false },
+                    onCollapse: { appState.showCaveDetail = false },
+                    onShowOnMap: { appState.caveFlyCameraRequest.send(cave.clCoordinate) }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.75)
+
+            } else if let cave = appState.selectedCave {
+                CollapsedCaveBar(
+                    cave: cave,
+                    onExpand: { appState.showCaveDetail = true },
+                    onClose: { appState.selectedCave = nil }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+
+            } else if let route = appState.selectedRoute, appState.showDetailPanel {
                 RouteDetailPanel(
                     route:      route,
                     stats:      appState.routeStats[route.id],
@@ -156,24 +184,6 @@ struct ContentView: View {
                     route:    custom,
                     onExpand: { appState.showCustomRouteDetail = true },
                     onClose:  { appState.deselectCustomRoute() }
-                )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-
-            } else if let cave = appState.selectedCave, appState.showCaveDetail {
-                CaveDetailPanel(
-                    cave: cave,
-                    onClose: { appState.selectedCave = nil; appState.showCaveDetail = false },
-                    onCollapse: { appState.showCaveDetail = false },
-                    onShowOnMap: { appState.caveFlyCameraRequest.send(cave.clCoordinate) }
-                )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.75)
-
-            } else if let cave = appState.selectedCave {
-                CollapsedCaveBar(
-                    cave: cave,
-                    onExpand: { appState.showCaveDetail = true },
-                    onClose: { appState.selectedCave = nil }
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
 
@@ -490,11 +500,20 @@ struct ContentView: View {
 
             Divider().background(DS.border).padding(.vertical, 2)
 
+            railwaysRow
+
+            Divider().background(DS.border).padding(.vertical, 2)
+
             heatmapRow
 
             Divider().background(DS.border).padding(.vertical, 2)
 
             offlineRow
+
+            #if DEBUG
+            Divider().background(DS.border).padding(.vertical, 2)
+            offlineModeRow
+            #endif
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -567,6 +586,52 @@ struct ContentView: View {
         .buttonStyle(.plain)
     }
 
+    #if DEBUG
+    /// Отладочный тумблер: рубит сетевой стек Mapbox, чтобы проверять офлайн
+    /// без авиарежима (в симуляторе его нет) и без выключения сети всему маку.
+    /// В релизных сборках этой строки нет.
+    private var offlineModeRow: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            // Состояние живёт в AppState: оно же гасит хитмап, который без сети
+            // превращается в размытые пятна
+            Toggle(isOn: Binding(
+                get: { appState.forcedOffline },
+                set: { on in
+                    appState.forcedOffline = on
+                    OfflineSwitch.shared.isMapboxStackConnected = !on
+                }
+            )) {
+                Text("✈️ Режим без сети")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(appState.forcedOffline ? DS.accent : DS.textSecondary)
+            }
+            .toggleStyle(SwitchToggleStyle(tint: DS.accent))
+
+            Text("Только для отладки: карта перестаёт ходить в сеть")
+                .font(.system(size: 10))
+                .foregroundColor(DS.textSecondary.opacity(0.75))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+    #endif
+
+    /// Тоггл железных дорог и станций.
+    private var railwaysRow: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Toggle(isOn: $appState.showRailways) {
+                Text("🚂 Железные дороги")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(appState.showRailways ? DS.accent : DS.textSecondary)
+            }
+            .toggleStyle(SwitchToggleStyle(tint: DS.accent))
+
+            Text("Действующие пути и станции — часто это начало маршрута")
+                .font(.system(size: 10))
+                .foregroundColor(DS.textSecondary.opacity(0.75))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     /// Тоггл хитмапа троп — публичные GPS-треки OpenStreetMap.
     private var heatmapRow: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -576,8 +641,16 @@ struct ContentView: View {
                     .foregroundColor(appState.showTrailsHeatmap ? DS.accent : DS.textSecondary)
             }
             .toggleStyle(SwitchToggleStyle(tint: DS.accent))
+            .disabled(!appState.isOnline && !topoDownloader.isReady)
+            .opacity(appState.isOnline || topoDownloader.isReady ? 1 : 0.45)
 
-            Text("GPS-треки OpenStreetMap — где реально ходят")
+            // Тайлы чужие (OpenStreetMap), в офлайн-регион Mapbox они не кладутся —
+            // предупреждаем честно, а не делаем вид, что слой сломался
+            Text(topoDownloader.isReady
+                 ? "GPS-треки OpenStreetMap — где реально ходят. Работает офлайн"
+                 : appState.isOnline
+                   ? "GPS-треки OpenStreetMap — где реально ходят"
+                   : "Без сети нужен скачанный офлайн-набор")
                 .font(.system(size: 10))
                 .foregroundColor(DS.textSecondary.opacity(0.75))
                 .fixedSize(horizontal: false, vertical: true)
@@ -1088,20 +1161,18 @@ struct DebugHUD: View {
     @State private var memoryMB: Double = 0
     private let timer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
 
+    // Цифры прижаты к левому краю и почти прозрачны: видно, но не мешает
+    // ни взгляду, ни пальцу — сквозь плашку проходят все тапы и жесты карты.
     var body: some View {
-        HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 1) {
             Text(String(format: "z %.2f", appState.mapZoom))
-            Text("·").opacity(0.5)
             Text(String(format: "%.0f MB", memoryMB))
+            Text("ст \(appState.stationMarkers.count)")
         }
-        .font(.system(size: 11, weight: .medium, design: .monospaced))
-        .foregroundColor(.white)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.black.opacity(0.7))
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.5))
-        .padding(.top, 8)      // прямо под status bar
+        .font(.system(size: 9, weight: .medium, design: .monospaced))
+        .foregroundColor(.white.opacity(0.45))
+        .shadow(color: .black.opacity(0.6), radius: 1.5)
+        .padding(.leading, 4)
         .allowsHitTesting(false)
         .onReceive(timer) { _ in memoryMB = Self.residentMemoryMB() }
         .onAppear { memoryMB = Self.residentMemoryMB() }

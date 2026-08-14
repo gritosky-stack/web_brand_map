@@ -1,8 +1,20 @@
 import SwiftUI
 import MapboxMaps
 
+/// Фоновая загрузка тайлов доживает до конца, даже если приложение свернули.
+/// Система будит его этим методом — без него докачанный файл остался бы
+/// незамеченным до следующего запуска вручную.
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     handleEventsForBackgroundURLSession identifier: String,
+                     completionHandler: @escaping () -> Void) {
+        TopoTilesDownloader.shared.backgroundCompletionHandler = completionHandler
+    }
+}
+
 @main
 struct hikingmapApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState()
 
     init() {

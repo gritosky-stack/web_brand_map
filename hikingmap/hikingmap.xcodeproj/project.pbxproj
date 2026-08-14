@@ -15,13 +15,20 @@
 		94A41467C83D63F25CC6B286 /* TrackRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4C4AFA6B4264344FEFC8315 /* TrackRecording.swift */; };
 		A1B23C45D67E890F12345678 /* CustomRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C34D56E78F901A23456789 /* CustomRoute.swift */; };
 		A2B3C4D5E6F7890123456789 /* SaveRouteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C4D5E6F78901234567890A /* SaveRouteSheet.swift */; };
+		CC3344556677889900B101 /* StationFlagsLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900B102 /* StationFlagsLayer.swift */; };
 		AA1122334455667788990001 /* TrailSnapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788990002 /* TrailSnapService.swift */; };
+		CC3344556677889900E101 /* RailwayStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900E102 /* RailwayStore.swift */; };
+		CC3344556677889900D101 /* TopoTilesDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900D102 /* TopoTilesDownloader.swift */; };
+		CC3344556677889900C101 /* PhotoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900C102 /* PhotoStore.swift */; };
+		CC3344556677889900A101 /* TopoTiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900A102 /* TopoTiles.swift */; };
 		CC2233445566778899000201 /* OfflineMapsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2233445566778899000202 /* OfflineMapsView.swift */; };
 		CC2233445566778899000101 /* OfflineMapManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2233445566778899000102 /* OfflineMapManager.swift */; };
 		AA1122334455667788990003 /* pss_routes.geojson in Resources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788990004 /* pss_routes.geojson */; };
 		B0FC5952E62D4BA782C49823 /* AIAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A4E24CE58414FEAB939ED38 /* AIAssistantView.swift */; };
 		BB2233445566778899001101 /* caves.geojson in Resources */ = {isa = PBXBuildFile; fileRef = BB2233445566778899001102 /* caves.geojson */; };
 		CC1122334455667788990001 /* serbia_region.geojson in Resources */ = {isa = PBXBuildFile; fileRef = CC1122334455667788990002 /* serbia_region.geojson */; };
+		CC3344556677889900E201 /* railways.geojson in Resources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900E202 /* railways.geojson */; };
+		CC3344556677889900A201 /* topo_style.json in Resources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900A202 /* topo_style.json */; };
 		C3D45E67F890A12B34567890 /* CustomRouteCarousel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E56F78901B23C45678901A /* CustomRouteCarousel.swift */; };
 		C4D5E6F7890123456789AB01 /* CustomRouteDetailPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E6F789012345678901BC12 /* CustomRouteDetailPanel.swift */; };
 		C7E2DC1742C4DBBF49FB07B1 /* CaveDetailPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38F5EC656030B72F80CD259 /* CaveDetailPanel.swift */; };
@@ -79,13 +86,20 @@
 		9E87534EABC744978B086D59 /* RouteConstructorView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RouteConstructorView.swift; sourceTree = "<group>"; };
 		A4C4AFA6B4264344FEFC8315 /* TrackRecording.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackRecording.swift; sourceTree = "<group>"; };
 		AA1122334455667788990002 /* TrailSnapService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrailSnapService.swift; sourceTree = "<group>"; };
+		CC3344556677889900E102 /* RailwayStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RailwayStore.swift; sourceTree = "<group>"; };
+		CC3344556677889900D102 /* TopoTilesDownloader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TopoTilesDownloader.swift; sourceTree = "<group>"; };
+		CC3344556677889900C102 /* PhotoStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PhotoStore.swift; sourceTree = "<group>"; };
+		CC3344556677889900A102 /* TopoTiles.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TopoTiles.swift; sourceTree = "<group>"; };
 		CC2233445566778899000202 /* OfflineMapsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OfflineMapsView.swift; sourceTree = "<group>"; };
 		CC2233445566778899000102 /* OfflineMapManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OfflineMapManager.swift; sourceTree = "<group>"; };
 		AA1122334455667788990004 /* pss_routes.geojson */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = pss_routes.geojson; sourceTree = "<group>"; };
 		B2C34D56E78F901A23456789 /* CustomRoute.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CustomRoute.swift; sourceTree = "<group>"; };
 		B3C4D5E6F78901234567890A /* SaveRouteSheet.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SaveRouteSheet.swift; sourceTree = "<group>"; };
+		CC3344556677889900B102 /* StationFlagsLayer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StationFlagsLayer.swift; sourceTree = "<group>"; };
 		BB2233445566778899001102 /* caves.geojson */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = caves.geojson; sourceTree = "<group>"; };
 		CC1122334455667788990002 /* serbia_region.geojson */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = serbia_region.geojson; sourceTree = "<group>"; };
+		CC3344556677889900E202 /* railways.geojson */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = railways.geojson; sourceTree = "<group>"; };
+		CC3344556677889900A202 /* topo_style.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = topo_style.json; sourceTree = "<group>"; };
 		C8DF3C120F8A43C0B4EDAE1E /* FitnessMatchView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FitnessMatchView.swift; sourceTree = "<group>"; };
 		CE0B84A82F9E365600D0AF82 /* hikingmap.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = hikingmap.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE0B84AB2F9E365600D0AF82 /* hikingmapApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hikingmapApp.swift; sourceTree = "<group>"; };
@@ -225,6 +239,7 @@
 				9E87534EABC744978B086D59 /* RouteConstructorView.swift */,
 				D4E56F78901B23C45678901A /* CustomRouteCarousel.swift */,
 				B3C4D5E6F78901234567890A /* SaveRouteSheet.swift */,
+				CC3344556677889900B102 /* StationFlagsLayer.swift */,
 				CC2233445566778899000202 /* OfflineMapsView.swift */,
 				D5E6F789012345678901BC12 /* CustomRouteDetailPanel.swift */,
 				FA001122334455667788990D /* RouteListSheet.swift */,
@@ -253,9 +268,12 @@
 			isa = PBXGroup;
 			children = (
 				CE6B92472F9E3ED30076358C /* RouteStore.swift */,
+				CC3344556677889900E102 /* RailwayStore.swift */,
 				AA1122334455667788990004 /* pss_routes.geojson */,
 				BB2233445566778899001102 /* caves.geojson */,
 				CC1122334455667788990002 /* serbia_region.geojson */,
+				CC3344556677889900E202 /* railways.geojson */,
+				CC3344556677889900A202 /* topo_style.json */,
 				FA001122334455667788BB02 /* routes_index.json */,
 			);
 			path = Data;
@@ -266,6 +284,9 @@
 			children = (
 				F6789012B3C4D5E6F7890123 /* ElevationService.swift */,
 				AA1122334455667788990002 /* TrailSnapService.swift */,
+				CC3344556677889900D102 /* TopoTilesDownloader.swift */,
+				CC3344556677889900C102 /* PhotoStore.swift */,
+				CC3344556677889900A102 /* TopoTiles.swift */,
 				CC2233445566778899000102 /* OfflineMapManager.swift */,
 				2174F1E76377A349A2BB1F7F /* TrackRecorder.swift */,
 			);
@@ -390,6 +411,8 @@
 				AA1122334455667788990003 /* pss_routes.geojson in Resources */,
 				BB2233445566778899001101 /* caves.geojson in Resources */,
 				CC1122334455667788990001 /* serbia_region.geojson in Resources */,
+				CC3344556677889900E201 /* railways.geojson in Resources */,
+				CC3344556677889900A201 /* topo_style.json in Resources */,
 				FA001122334455667788BB01 /* routes_index.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -434,9 +457,14 @@
 				C3D45E67F890A12B34567890 /* CustomRouteCarousel.swift in Sources */,
 				E5F67890A1B2C3D4E5F67890 /* ElevationService.swift in Sources */,
 				A2B3C4D5E6F7890123456789 /* SaveRouteSheet.swift in Sources */,
+				CC3344556677889900B101 /* StationFlagsLayer.swift in Sources */,
 				CC2233445566778899000201 /* OfflineMapsView.swift in Sources */,
 				C4D5E6F7890123456789AB01 /* CustomRouteDetailPanel.swift in Sources */,
 				AA1122334455667788990001 /* TrailSnapService.swift in Sources */,
+				CC3344556677889900E101 /* RailwayStore.swift in Sources */,
+				CC3344556677889900D101 /* TopoTilesDownloader.swift in Sources */,
+				CC3344556677889900C101 /* PhotoStore.swift in Sources */,
+				CC3344556677889900A101 /* TopoTiles.swift in Sources */,
 				CC2233445566778899000101 /* OfflineMapManager.swift in Sources */,
 				FA001122334455667788990A /* PSSRoute.swift in Sources */,
 				FA001122334455667788AA01 /* RouteMatcher.swift in Sources */,

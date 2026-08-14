@@ -4,6 +4,7 @@ import SwiftUI
 struct OfflineMapsView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var manager = OfflineMapManager.shared
+    @ObservedObject private var downloader = TopoTilesDownloader.shared
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -16,6 +17,7 @@ struct OfflineMapsView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 16) {
+                        topoCard
                         regionCard
                         satelliteNote
                         diskRow
@@ -60,18 +62,120 @@ struct OfflineMapsView: View {
         .padding(.vertical, 14)
     }
 
+    // MARK: - Своя топокарта
+
+    /// Основной набор: наши векторные тайлы Сербии с горизонталями,
+    /// тропами и железными дорогами. Без него офлайн-карта пустая.
+    private var topoCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Text("🗺️").font(.system(size: 26))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Топокарта Сербии")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(DS.textPrimary)
+                    Text("Горизонтали, тропы, железные дороги и станции, вершины с высотами — до 14-го зума")
+                        .font(.system(size: 11))
+                        .foregroundColor(DS.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+
+            topoStatus
+            topoActions
+        }
+        .padding(14)
+        .background(DS.surface)
+        .clipShape(RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous)
+                .stroke(downloader.isReady ? DS.accent.opacity(0.4) : DS.border, lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private var topoStatus: some View {
+        switch downloader.stage {
+        case .downloading(let progress, let bytes, let total):
+            VStack(alignment: .leading, spacing: 6) {
+                ProgressView(value: progress).tint(DS.accent)
+                HStack {
+                    Text("Скачивание · \(Int(progress * 100)) %")
+                    Spacer()
+                    Text("\(OfflineMapManager.format(bytes: bytes)) из \(OfflineMapManager.format(bytes: total))")
+                }
+                .font(.system(size: 11))
+                .foregroundColor(DS.textSecondary)
+            }
+
+        case .unpacking(let progress):
+            VStack(alignment: .leading, spacing: 6) {
+                ProgressView(value: progress).tint(DS.accent)
+                Text("Распаковка · \(Int(progress * 100)) % · не закрывайте приложение")
+                    .font(.system(size: 11))
+                    .foregroundColor(DS.textSecondary)
+            }
+
+        case .readyToUnpack:
+            label("Загрузка завершена, начинаю распаковку…", color: DS.textSecondary)
+
+        case .failed(let message):
+            label(message, color: DS.diffHard)
+
+        case .done, .idle:
+            if let m = TopoTiles.manifest {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(DS.pinStart)
+                    Text("Скачано · \(OfflineMapManager.format(bytes: m.bytes)) · \(m.tiles) тайлов")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(DS.textPrimary)
+                }
+            } else {
+                label("Не скачано · около 565 МБ, на устройстве займёт ~650 МБ",
+                      color: DS.textSecondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var topoActions: some View {
+        switch downloader.stage {
+        case .downloading:
+            button("Отменить", filled: false) { downloader.cancel() }
+        case .unpacking, .readyToUnpack:
+            EmptyView()
+        default:
+            HStack(spacing: 8) {
+                if downloader.isReady {
+                    if appState.baseStyle != .topo {
+                        button("Включить топооснову", filled: true) {
+                            appState.topoAlpha = 0
+                            appState.baseStyle = .topo
+                        }
+                    }
+                    button("Удалить", filled: false) { downloader.delete() }
+                } else {
+                    button("Скачать", filled: true) { downloader.start() }
+                }
+            }
+        }
+    }
+
     // MARK: - Карточка региона
 
     private var regionCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 10) {
-                Text("🇷🇸")
+                Text("⛰️")
                     .font(.system(size: 26))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Србија + Косово")
+                    Text("Рельеф Сербии")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(DS.textPrimary)
-                    Text("Топооснова: тропы, дороги, подписи и отмывка рельефа до 14-го зума")
+                    Text("Данные высот Mapbox: отмывка и объёмный рельеф. Нужны отдельно — своих высот у нас нет")
                         .font(.system(size: 11))
                         .foregroundColor(DS.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -120,9 +224,6 @@ struct OfflineMapsView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(DS.textPrimary)
                 }
-                if let packs = manager.requiredPacks {
-                    label(packsLine(packs), color: DS.textTertiary)
-                }
             }
 
         case .failed(let message):
@@ -140,13 +241,7 @@ struct OfflineMapsView: View {
         } else {
             line = manager.isEstimating ? "Не скачано · считаем размер…" : "Не скачано"
         }
-        if let packs = manager.requiredPacks { line += "\n" + packsLine(packs) }
         return line
-    }
-
-    /// Лимит пачек — узкое место офлайна у Mapbox, поэтому показываем его явно.
-    private func packsLine(_ packs: UInt64) -> String {
-        "\(packs) из \(OfflineMapManager.packLimit) пачек тайлов"
     }
 
     @ViewBuilder
@@ -156,15 +251,7 @@ struct OfflineMapsView: View {
             button("Отменить", filled: false) { manager.cancel() }
 
         case .ready:
-            HStack(spacing: 8) {
-                if appState.baseStyle != .topo {
-                    button("Включить топооснову", filled: true) {
-                        appState.topoAlpha = 0
-                        appState.baseStyle = .topo
-                    }
-                }
-                button("Удалить", filled: false) { manager.delete() }
-            }
+            button("Удалить", filled: false) { manager.delete() }
 
         case .unknown, .notDownloaded, .failed:
             button("Скачать", filled: true) { manager.download() }
@@ -183,12 +270,12 @@ struct OfflineMapsView: View {
             }
             .foregroundColor(DS.textSecondary)
 
-            Text("Спутниковые снимки офлайн не сохраняются: на Сербию это несколько гигабайт и весь лимит офлайн-тайлов Mapbox. Без связи переключайтесь на топооснову — она уже на устройстве.")
+            Text("Спутниковые снимки офлайн не сохраняются: на Сербию это несколько гигабайт и весь лимит офлайн-тайлов Mapbox. Без связи переключайтесь на топооснову.")
                 .font(.system(size: 11))
                 .foregroundColor(DS.textSecondary.opacity(0.8))
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("Линий горизонталей офлайн тоже не будет — они в отдельном тайлсете, а он удваивает расход лимита. Вместо них рельеф показывает отмывка.")
+            Text("Горизонтали, тропы и станции лежат в топокарте выше — она собрана из OpenStreetMap и данных высот Copernicus, лимитов Mapbox не касается.")
                 .font(.system(size: 11))
                 .foregroundColor(DS.textSecondary.opacity(0.8))
                 .fixedSize(horizontal: false, vertical: true)

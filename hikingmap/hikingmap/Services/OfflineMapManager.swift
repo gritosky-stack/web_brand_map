@@ -77,9 +77,9 @@ final class OfflineMapManager: ObservableObject {
     static let regionId = "serbia-kosovo-v2"
     private static let legacyRegionIds = ["serbia-kosovo-v1"]
 
-    /// Стиль, которым рисуем офлайн-карту (его JSON, спрайты и шрифты кладём
-    /// в style pack). Тайлы качаем отдельно и не все его — см. комментарий выше.
-    static let styleURI: StyleURI = .outdoors
+    /// Пакеты стилей Mapbox мы больше не заводим — свой стиль лежит в бандле,
+    /// а глифы растеризуются на устройстве. Прежние только занимают место.
+    private static let legacyStyleURIs: [StyleURI] = [.outdoors, .satelliteStreets]
 
     private static let streetsTileset = "mapbox://mapbox.mapbox-streets-v8"
     private static let demTileset     = "mapbox://mapbox.mapbox-terrain-dem-v1"
@@ -95,31 +95,32 @@ final class OfflineMapManager: ObservableObject {
         for id in Self.legacyRegionIds {
             tileStore.removeRegion(forId: id) { _ in }
         }
+        // Стиль офлайна менялся — пакет от прежнего только занимает место
+        for style in Self.legacyStyleURIs {
+            offlineManager.removeStylePack(for: style)
+        }
         refresh()
     }
 
     // MARK: - Публичное API
 
-    /// Перечитывает состояние из TileStore — регион переживает перезапуск приложения.
+    /// Перечитывает состояние — оно переживает перезапуск приложения.
     func refresh() {
         updateFreeDisk()
         tileStore.tileRegion(forId: Self.regionId) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
                 if self.state.isBusy { return }
-                switch result {
-                case .success(let region):
-                    // Недокачанный регион показываем как «не скачано»: повторный
-                    // download() докачает недостающие пачки, а не начнёт с нуля.
-                    if region.requiredResourceCount > 0,
-                       region.completedResourceCount >= region.requiredResourceCount {
-                        self.state = .ready(bytes: region.completedResourceSize)
-                    } else {
-                        self.state = .notDownloaded
-                    }
-                case .failure:
+                // Недокачанный регион показываем как «не скачано»: повторный
+                // download() докачает недостающее, а не начнёт с нуля.
+                guard case .success(let region) = result,
+                      region.requiredResourceCount > 0,
+                      region.completedResourceCount >= region.requiredResourceCount
+                else {
                     self.state = .notDownloaded
+                    return
                 }
+                self.state = .ready(bytes: region.completedResourceSize)
             }
         }
     }
@@ -174,31 +175,12 @@ final class OfflineMapManager: ObservableObject {
         isEstimating = false
         state = .downloading(progress: 0, bytes: 0)
 
-        // Пакет стиля — сам JSON стиля, спрайты и шрифты. Без него офлайн-карта
-        // не отрисуется вообще: тайлы есть, а рисовать их нечем. Он маленький,
-        // поэтому качаем его первым и только потом беремся за тайлы.
-        guard let stylePackOptions = StylePackLoadOptions(
-            glyphsRasterizationMode: .ideographsRasterizedLocally,
-            metadata: ["region": Self.regionId]
-        ) else {
-            state = .failed("Не удалось собрать запрос на стиль")
-            return
-        }
-
-        stylePackCancelable = offlineManager.loadStylePack(
-            for: Self.styleURI,
-            loadOptions: stylePackOptions
-        ) { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.stylePackCancelable = nil
-                if case .failure(let error) = result {
-                    if !Self.isCanceled(error) { self.state = .failed(error.localizedDescription) }
-                    return
-                }
-                self.loadTiles(options)
-            }
-        }
+        // Пакет стиля отсюда убран намеренно. Раньше он качался первым, и пока
+        // канал занимала загрузка своих тайлов, его запрос не отвечал — вся
+        // цепочка стояла на нуле. А нужен он только спутнику, который офлайн
+        // всё равно не работает: свой стиль лежит в бандле, глифы растеризуются
+        // на устройстве. Здесь остаются только высоты и границы.
+        loadTiles(options)
     }
 
     private func loadTiles(_ options: TileRegionLoadOptions) {
@@ -254,7 +236,7 @@ final class OfflineMapManager: ObservableObject {
         stylePackCancelable?.cancel()
         stylePackCancelable = nil
         tileStore.removeRegion(forId: Self.regionId) { _ in }
-        offlineManager.removeStylePack(for: Self.styleURI)
+        for style in Self.legacyStyleURIs { offlineManager.removeStylePack(for: style) }
         DispatchQueue.main.async {
             self.state = .notDownloaded
             self.estimatedBytes = nil
@@ -267,9 +249,10 @@ final class OfflineMapManager: ObservableObject {
     private func loadOptions() -> TileRegionLoadOptions? {
         guard let geometry = Self.regionGeometry() else { return nil }
 
+        // streets-v8 отсюда ушёл: тропы, дороги и подписи теперь дают свои
+        // тайлы из R2 — они полнее и не тратят лимит пачек Mapbox. Здесь
+        // остаётся только то, чего у нас своего нет.
         let descriptors = [
-            // Тропы, дороги, подписи, лес и вода — всё, по чему ориентируются в походе
-            descriptor(tileset: Self.streetsTileset, maxZoom: 14),
             // Рельеф: 3D-подложка и отмывка. Схема батчей у DEM своя, 10–12 —
             // последняя, которую мы можем себе позволить (~150 пачек)
             descriptor(tileset: Self.demTileset, maxZoom: 12),

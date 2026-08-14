@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import CoreLocation
+import Network
 import UIKit
 import SwiftUI
 
@@ -15,6 +16,21 @@ struct SelectedPhotoInfo: Identifiable {
     let id = UUID()
     let routeId: String
     let index: Int
+}
+
+/// Железнодорожная станция на экране: точка привязки на карте плюс уже
+/// пересчитанная позиция в пикселях — интерфейсу остаётся только нарисовать.
+struct StationMarker: Identifiable, Equatable {
+    let id: String
+    let name: String
+    /// Вокзал (`station`) против остановки или полустанка — рисуются по-разному
+    let isMajor: Bool
+    let coordinate: CLLocationCoordinate2D
+    var screen: CGPoint
+
+    static func == (a: StationMarker, b: StationMarker) -> Bool {
+        a.id == b.id && a.screen == b.screen
+    }
 }
 
 /// Основа карты. Спутник красивее, но его тайлы живут только онлайн:
@@ -70,8 +86,23 @@ final class AppState: ObservableObject {
         didSet { UserDefaults.standard.set(baseStyle.rawValue, forKey: AppState.baseStyleKey) }
     }
     @Published var showOfflineMaps = false
+    /// Железные дороги и станции — свой слой в топооснове (тоггл в «Слоях»)
+    @Published var showRailways = true
+    /// Станции, попавшие в кадр. Их рисует интерфейс, а не стиль карты:
+    /// так у флажков есть анимация появления, а считаем мы только видимое.
+    @Published var stationMarkers: [StationMarker] = []
     /// Хитмап троп — публичные GPS-треки OpenStreetMap (тоггл в «Слоях»)
     @Published var showTrailsHeatmap = false
+    /// Есть ли сеть. Нужно хитмапу: его тайлы чужие и офлайн не сохраняются,
+    /// а без них Mapbox растягивает старые с мелкого зума — получается мыло.
+    @Published private(set) var isOnline = true
+    /// Отладочный «режим без сети». Держим здесь, а не в отдельном @State,
+    /// чтобы он влиял на isOnline: сама ОС при этом остаётся онлайн, и
+    /// NWPathMonitor о выключении сетевого стека Mapbox ничего не знает.
+    @Published var forcedOffline = false {
+        didSet { updateOnlineState() }
+    }
+    private var networkAvailable = true
     @Published var routeListExpanded = false
     @Published var mapZoom: Double = 6.5
 
@@ -216,6 +247,31 @@ final class AppState: ObservableObject {
                 if cave != nil { self?.showCaveDetail = true }
             }
             .store(in: &cancellables)
+
+        startNetworkMonitor()
+    }
+
+    private let networkMonitor = NWPathMonitor()
+
+    /// Следим за связью и гасим хитмап, когда её нет: его тайлы приходят
+    /// из сети, и без неё слой превращается в размытые пятна поверх карты.
+    private func startNetworkMonitor() {
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            let available = path.status == .satisfied
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.networkAvailable = available
+                self.updateOnlineState()
+            }
+        }
+        networkMonitor.start(queue: DispatchQueue(label: "network-monitor"))
+    }
+
+    private func updateOnlineState() {
+        let online = networkAvailable && !forcedOffline
+        guard online != isOnline else { return }
+        isOnline = online
+        if !online { showTrailsHeatmap = false }
     }
 
     func startRecording(linkedRouteId: String? = nil) {

@@ -14,7 +14,15 @@ struct MapboxMapView: UIViewRepresentable {
         // Фиксируем pixelRatio — иначе при SwiftUI-анимациях layout'а
         // Mapbox пересчитывает contentScale и спамит
         // "MetalView content scale factor 3.0000000000000004".
-        let mapOptions  = MapOptions(pixelRatio: UIScreen.main.scale)
+        // Глифы растеризуем на устройстве: своя топооснова использует шрифты,
+        // которых нет ни в одном стиле Mapbox, а значит скачать их было бы
+        // неоткуда — и офлайн подписи просто не собрались бы.
+        let mapOptions = MapOptions(
+            pixelRatio: UIScreen.main.scale,
+            glyphsRasterizationOptions: GlyphsRasterizationOptions(
+                rasterizationMode: .allGlyphsRasterizedLocally
+            )
+        )
         let initOptions = MapInitOptions(mapOptions: mapOptions,
                                          styleURI: Coordinator.styleURI(for: appState.baseStyle))
         let mapView     = MapView(frame: .zero, mapInitOptions: initOptions)
@@ -35,6 +43,7 @@ struct MapboxMapView: UIViewRepresentable {
         ))
 
         context.coordinator.mapView = mapView
+        context.coordinator.loadBaseStyle(appState.baseStyle, on: mapView)
 
         // Именно observe, а не observeNext: событие приходит и при смене основы карты,
         // когда стиль перезагружается и все наши слои нужно ставить заново.
@@ -42,13 +51,26 @@ struct MapboxMapView: UIViewRepresentable {
             c?.onStyleLoaded()
         }.store(in: &context.coordinator.cancellables)
 
-        mapView.mapboxMap.onCameraChanged.observeNext { [weak c = context.coordinator, weak mapView] _ in
+        // observe, а не observeNext: observeNext срабатывает ровно один раз,
+        // из-за чего зум в отладочной плашке навсегда застревал на стартовом
+        mapView.mapboxMap.onCameraChanged.observe { [weak c = context.coordinator, weak mapView] _ in
             let zoom = Double(mapView?.mapboxMap.cameraState.zoom ?? 6.5)
             // Публикуем только заметное изменение — иначе @Published летит
             // на каждый кадр камеры и триггерит re-render всех подписчиков.
             guard let coord = c, abs(zoom - coord.lastPublishedZoom) >= 0.1 else { return }
             coord.lastPublishedZoom = zoom
             DispatchQueue.main.async { coord.appState.mapZoom = zoom }
+        }.store(in: &context.coordinator.cancellables)
+
+        // Позиции флажков станций пересчитываем на каждом кадре камеры — иначе
+        // они будут отставать от карты. Сам список станций обновляется реже,
+        // по окончании движения: запрос к тайлам куда дороже проекции точки.
+        mapView.mapboxMap.onCameraChanged.observe { [weak c = context.coordinator] _ in
+            c?.repositionStations()
+        }.store(in: &context.coordinator.cancellables)
+
+        mapView.mapboxMap.onMapIdle.observe { [weak c = context.coordinator] _ in
+            c?.refreshStations()
         }.store(in: &context.coordinator.cancellables)
 
         let tap = UITapGestureRecognizer(target: context.coordinator,
@@ -78,12 +100,35 @@ final class Coordinator: NSObject {
     /// основы карты — нет, иначе камера прыгает под руками.
     var isFirstStyleLoad = true
 
+    /// У каждой основы свой стиль — это важно не только для вида.
+    ///
+    /// Раньше обе грузили `satellite-streets`, а топооснова была его перекраской.
+    /// Mapbox на повторную загрузку того же стиля не делает ничего: `onStyleLoaded`
+    /// не срабатывал, слои не пересобирались, а сброшенный флаг `isStyleLoaded`
+    /// глушил заодно тропы, ПСС и пещеры. Переключение просто зависало.
+    ///
+    /// Перекраска была нужна ради офлайна: у satellite-streets `composite` состоит
+    /// из одного тайлсета, и скачанные пачки к нему подходили. Сейчас офлайн живёт
+    /// на своих тайлах, так что запасной основе можно быть обычным Outdoors.
     static func styleURI(for base: BaseMapStyle) -> StyleURI {
         switch base {
         case .satellite: return .satelliteStreets
-        // Outdoors — это готовая топокарта: горизонтали, отмывка рельефа, тропы.
-        // И, в отличие от OpenTopoMap, её тайлы можно скачать в офлайн легально.
         case .topo:      return .outdoors
+        }
+    }
+
+    /// Грузит основу карты. На топооснове предпочитаем свои тайлы, если они
+    /// скачаны: там есть горизонтали и куда больше троп, чем в streets-v8.
+    /// Если своих тайлов нет — откатываемся на перекрашенный satellite-streets.
+    var usesOwnTopoTiles: Bool {
+        appState.baseStyle == .topo && TopoTiles.isAvailable
+    }
+
+    func loadBaseStyle(_ base: BaseMapStyle, on mapView: MapView) {
+        if base == .topo, let json = TopoTiles.styleJSON() {
+            mapView.mapboxMap.loadStyle(json)
+        } else {
+            mapView.mapboxMap.loadStyle(Coordinator.styleURI(for: base))
         }
     }
 
@@ -260,6 +305,29 @@ final class Coordinator: NSObject {
             .sink { [weak self] route in self?.onSelectedPSSRouteChanged(route) }
             .store(in: &cancellables)
 
+        appState.$showRailways
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] show in
+                guard let self, let mapView, isStyleLoaded else { return }
+                toggleRailways(show, on: mapView)
+                refreshStations()
+            }
+            .store(in: &cancellables)
+
+        // Тайлы докачались или их удалили — стиль надо перезагрузить: до этого
+        // карта работала на запасной основе и ни горизонталей, ни железных дорог
+        // в ней не было
+        TopoTilesDownloader.shared.$isReady
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self, let mapView, appState.baseStyle == .topo else { return }
+                isStyleLoaded = false
+                loadBaseStyle(appState.baseStyle, on: mapView)
+            }
+            .store(in: &cancellables)
+
         appState.$baseStyle
             .removeDuplicates()
             .dropFirst()                       // стартовый стиль уже задан в makeUIView
@@ -268,7 +336,7 @@ final class Coordinator: NSObject {
                 guard let self, let mapView else { return }
                 // Стиль сносит все наши слои и источники — onStyleLoaded соберёт их заново
                 isStyleLoaded = false
-                mapView.mapboxMap.loadStyle(Coordinator.styleURI(for: base))
+                loadBaseStyle(base, on: mapView)
             }
             .store(in: &cancellables)
     }
@@ -301,8 +369,11 @@ final class Coordinator: NSObject {
 
         // Возвращаем состояние тумблеров: подписки срабатывают только на изменение,
         // а стиль мы могли перезагрузить с уже включёнными слоями.
+        addRailwayLayers(mapView)
         toggleLayer(id: "osm-hiking-trails", visible: appState.showOSMTrails, on: mapView)
         toggleCaveLayer(appState.showCaveLayer, on: mapView)
+        toggleRailways(appState.showRailways, on: mapView)
+        refreshStations()
         updateTopoOpacity(appState.topoAlpha)
         restoreLiveTrack()
     }
@@ -459,6 +530,10 @@ final class Coordinator: NSObject {
         sym.iconAnchor   = .constant(.center)
         sym.iconAllowOverlap = .constant(false)
         sym.textField    = .expression(Exp(.get) { "name" })
+        // Шрифт обязательно из тех, что использует сам стиль. Иначе глифы для него
+        // никто не скачает (style pack тянет только шрифты слоёв стиля), и офлайн
+        // подпись не соберётся — а вместе с ней не отрисуется и вся точка.
+        sym.textFont     = .constant(["DIN Pro Medium", "Arial Unicode MS Regular"])
         sym.textSize     = .constant(10)
         sym.textColor    = .constant(StyleColor(.white))
         sym.textHaloColor = .constant(StyleColor(.black))
@@ -468,6 +543,157 @@ final class Coordinator: NSObject {
         sym.textOptional = .constant(true)
         sym.visibility   = .constant(.none)
         try? mapView.mapboxMap.addLayer(sym)
+    }
+
+    // MARK: - Железные дороги
+
+    /// Пути из бандла — одинаково на спутнике и на топооснове, и до того,
+    /// как пользователь скачает тайлы.
+    private func addRailwayLayers(_ mapView: MapView) {
+        guard let geoJSON = RailwayStore.geoJSONString else { return }
+        let map: MapboxMap = mapView.mapboxMap
+        guard !map.sourceExists(withId: "railways-src") else { return }
+
+        var src = GeoJSONSource(id: "railways-src")
+        src.data = .string(geoJSON)
+        try? map.addSource(src)
+
+        let onlyLines = Exp(.eq) { Exp(.get) { "kind" }; "rail" }
+        let visible = appState.showRailways
+
+        // Тёмное полотно
+        var line = LineLayer(id: "railway-line", source: "railways-src")
+        line.filter    = onlyLines
+        line.lineColor = .constant(StyleColor(DS.railInkUI))
+        line.lineJoin  = .constant(.round)
+        line.lineWidth = .expression(
+            Exp(.interpolate) {
+                Exp(.linear); Exp(.zoom)
+                6.0;  1.6
+                10.0; 3.0
+                14.0; 5.5
+                17.0; 9.0
+            }
+        )
+        line.lineOpacity = .constant(visible ? 1 : 0)
+        // Под маркерами маршрутов: наши треки важнее железной дороги
+        if map.layerExists(withId: "route-hitboxes") {
+            try? map.addLayer(line, layerPosition: .below("route-hitboxes"))
+        } else {
+            try? map.addLayer(line)
+        }
+
+        // Белые засечки поверх — та самая «лесенка», по которой ж/д и узнают
+        var hatch = LineLayer(id: "railway-hatch", source: "railways-src")
+        hatch.filter    = onlyLines
+        hatch.minZoom   = 8
+        hatch.lineColor = .constant(StyleColor(UIColor.white))
+        hatch.lineDasharray = .constant([0.55, 1.4])
+        hatch.lineWidth = .expression(
+            Exp(.interpolate) {
+                Exp(.linear); Exp(.zoom)
+                8.0;  1.0
+                14.0; 3.4
+                17.0; 5.6
+            }
+        )
+        hatch.lineOpacity = .constant(visible ? 1 : 0)
+        try? map.addLayer(hatch, layerPosition: .above("railway-line"))
+    }
+
+    // MARK: - Станции
+
+    /// С какого зума показываем станции
+    private static let stationsMinZoom = 8.5
+    /// Предохранитель от совсем уж плотных мест — рисуем всё, что попало в кадр
+    private static let stationsLimit = 150
+
+    /// Пересобирает список станций в кадре. Данные лежат в памяти (1023 точки
+    /// из бандла), поэтому это просто фильтр по экрану — никаких запросов к тайлам.
+    func refreshStations() {
+        guard let mapView, isStyleLoaded, appState.showRailways,
+              mapView.mapboxMap.cameraState.zoom >= Self.stationsMinZoom
+        else {
+            if !appState.stationMarkers.isEmpty { appState.stationMarkers = [] }
+            return
+        }
+
+        let map: MapboxMap = mapView.mapboxMap
+
+        // Отбираем по географии, а не по экранным координатам. Проекция точки,
+        // лежащей далеко за кадром, возвращает что угодно, и проверка «попал ли
+        // в bounds» пропускала станции со всей страны — список упирался в лимит,
+        // а на экран попадали случайные. Границы кадра SDK считает сам, с учётом
+        // наклона камеры.
+        let view = mapView.bounds.isEmpty ? UIScreen.main.bounds : mapView.bounds
+        let box = map.coordinateBounds(for: view)
+        // Запас в четверть кадра: флажок рисуется выше точки привязки, да и при
+        // лёгком сдвиге камеры метки не должны мигать на краях
+        let padLat = (box.north - box.south) * 0.25
+        let padLon = (box.east - box.west) * 0.25
+        let south = box.south - padLat, north = box.north + padLat
+        let west = box.west - padLon, east = box.east + padLon
+
+        // Вокзалы вперёд: у одной станции в OSM нередко два узла с одним именем
+        // (`station` и `stop` в паре десятков метров), и оставить нужно главный
+        let candidates = RailwayStore.stations
+            .filter { s in
+                s.coordinate.latitude >= south && s.coordinate.latitude <= north &&
+                s.coordinate.longitude >= west && s.coordinate.longitude <= east
+            }
+            .sorted { ($0.isMajor ? 0 : 1, $0.name) < ($1.isMajor ? 0 : 1, $1.name) }
+
+        var markers: [StationMarker] = []
+        var placed: [String: [CGPoint]] = [:]
+        var usedIDs = Set<String>()
+
+        for station in candidates {
+            let screen = map.point(for: station.coordinate)
+
+            // Тёзка ближе 120 точек — тот же объект. Дальше — другая станция
+            let twins = placed[station.name] ?? []
+            if twins.contains(where: { hypot($0.x - screen.x, $0.y - screen.y) < 120 }) { continue }
+            placed[station.name, default: []].append(screen)
+
+            // Идентификатор переживает движение камеры, иначе SwiftUI сочтёт метку
+            // новой и заново проиграет анимацию. При совпадении разводим суффиксом:
+            // два одинаковых id в списке — и часть меток не рисуется вовсе.
+            var key = "\(station.name)|\(Int(station.coordinate.latitude * 200))|\(Int(station.coordinate.longitude * 200))"
+            var suffix = 2
+            while usedIDs.contains(key) {
+                key = "\(key)#\(suffix)"
+                suffix += 1
+            }
+            usedIDs.insert(key)
+
+            markers.append(StationMarker(id: key, name: station.name, isMajor: station.isMajor,
+                                         coordinate: station.coordinate, screen: screen))
+            if markers.count >= Self.stationsLimit { break }
+        }
+
+        appState.stationMarkers = markers
+    }
+
+    /// Пересчёт экранных позиций — это только проекция координат, дёшево.
+    func repositionStations() {
+        guard let mapView, !appState.stationMarkers.isEmpty else { return }
+        var markers = appState.stationMarkers
+        for i in markers.indices {
+            markers[i].screen = mapView.mapboxMap.point(for: markers[i].coordinate)
+        }
+        appState.stationMarkers = markers
+    }
+
+    /// Пути лежат в бандле и есть на любой основе, поэтому тумблер работает
+    /// и на спутнике. Гасим прозрачностью, а не видимостью: так слой остаётся
+    /// на своём месте в порядке отрисовки.
+    private func toggleRailways(_ visible: Bool, on mapView: MapView) {
+        let map: MapboxMap = mapView.mapboxMap
+        for id in ["railway-line", "railway-hatch"] where map.layerExists(withId: id) {
+            try? map.updateLayer(withId: id, type: LineLayer.self) { layer in
+                layer.lineOpacity = .constant(visible ? 1 : 0)
+            }
+        }
     }
 
     private func toggleCaveLayer(_ visible: Bool, on mapView: MapView) {
@@ -648,17 +874,6 @@ final class Coordinator: NSObject {
         terrain.exaggeration = .constant(1.1)
         try? mapView.mapboxMap.setTerrain(terrain)
 
-        // На топооснове рельеф — единственная топографическая подсказка: линии
-        // горизонталей живут в terrain-v2, а его в офлайн-пакет не берём (удваивает
-        // число пачек). Отмывка считается из того же DEM, лишних тайлов не просит.
-        if appState.baseStyle == .topo {
-            var hillshade = HillshadeLayer(id: "dem-hillshade", source: "mapbox-dem")
-            hillshade.hillshadeExaggeration    = .constant(0.45)
-            hillshade.hillshadeShadowColor     = .constant(StyleColor(UIColor(white: 0.15, alpha: 1)))
-            hillshade.hillshadeHighlightColor  = .constant(StyleColor(UIColor(white: 1, alpha: 1)))
-            hillshade.hillshadeAccentColor     = .constant(StyleColor(UIColor(white: 0.35, alpha: 1)))
-            try? mapView.mapboxMap.addLayer(hillshade)
-        }
 
         var countrySource = VectorSource(id: "country-boundaries")
         countrySource.url = "mapbox://mapbox.country-boundaries-v1"
@@ -713,8 +928,15 @@ final class Coordinator: NSObject {
             Exp(.eq) { Exp(.get) { "class" }; "track" }
         }
 
-        var layer = LineLayer(id: "osm-hiking-trails", source: "composite")
-        layer.sourceLayer = "road"
+        // У Mapbox тропы лежат в composite/road, у своих тайлов — в topo/transportation.
+        // Спрашиваем сам стиль: состояние приложения и загруженный стиль в момент
+        // переключения расходятся, и слой уезжал к несуществующему источнику.
+        let hasOwnTiles = mapView.mapboxMap.sourceExists(withId: "topo")
+        let source      = hasOwnTiles ? "topo" : "composite"
+        let sourceLayer = hasOwnTiles ? "transportation" : "road"
+
+        var layer = LineLayer(id: "osm-hiking-trails", source: source)
+        layer.sourceLayer = sourceLayer
         layer.filter    = osmFilter
         layer.lineColor = .constant(StyleColor(UIColor(red: 0.35, green: 0.85, blue: 0.42, alpha: 1)))
         layer.lineWidth = .constant(1.6)
@@ -725,8 +947,8 @@ final class Coordinator: NSObject {
         try? mapView.mapboxMap.addLayer(layer)
 
         // Shimmer overlay
-        var shimmer = LineLayer(id: "osm-hiking-shimmer", source: "composite")
-        shimmer.sourceLayer = "road"
+        var shimmer = LineLayer(id: "osm-hiking-shimmer", source: source)
+        shimmer.sourceLayer = sourceLayer
         shimmer.filter    = osmFilter
         shimmer.lineColor = .constant(StyleColor(UIColor.white.withAlphaComponent(0.18)))
         shimmer.lineWidth = .constant(2.0)
@@ -782,6 +1004,19 @@ final class Coordinator: NSObject {
     /// лениво: с opacity=0 Mapbox всё равно качал бы тайлы.
     private func updateTrailsHeatmap(_ show: Bool) {
         guard isStyleLoaded, let mapView else { return }
+
+        // На своих тайлах хитмап уже внутри — это векторный слой `heat`,
+        // собранный из публичных GPS-треков OSM. Он работает офлайн, не мылит
+        // и не вылезает за Сербию, поэтому чужой растр здесь не нужен вовсе.
+        if mapView.mapboxMap.layerExists(withId: "heat-core") {
+            removeTrailsHeatmap(from: mapView)
+            let v: Value<MapboxMaps.Visibility> = .constant(show ? .visible : .none)
+            for id in ["heat-glow", "heat-core"] {
+                try? mapView.mapboxMap.updateLayer(withId: id, type: LineLayer.self) { $0.visibility = v }
+            }
+            return
+        }
+
         removeTrailsHeatmap(from: mapView)
         guard show else { return }
 
@@ -796,14 +1031,26 @@ final class Coordinator: NSObject {
         var layer = RasterLayer(id: "trails-heat-layer", source: "trails-heat-source")
         layer.rasterOpacity      = .constant(0.75)
         layer.rasterFadeDuration = .constant(0)
-        let anchor = mapView.mapboxMap.layerExists(withId: "osm-hiking-trails")
-            ? "osm-hiking-trails" : "world-mask"
-        try? mapView.mapboxMap.addLayer(layer, layerPosition: .below(anchor))
+        // Строго под маску: тайлы хитмапа глобальные, и выше маски он заливал
+        // разноцветной кашей всю Венгрию с Румынией. Слой троп добавляется
+        // позже маски, поэтому «под тропами» означало «над маской».
+        try? mapView.mapboxMap.addLayer(layer, layerPosition: .below("world-mask"))
+        // Полупрозрачной маски мало — сквозь 75 % черноты яркие треки всё
+        // равно читаются. На время хитмапа делаем её почти непрозрачной.
+        setWorldMaskOpacity(0.96, on: mapView)
+    }
+
+    private func setWorldMaskOpacity(_ value: Double, on mapView: MapView) {
+        guard mapView.mapboxMap.layerExists(withId: "world-mask") else { return }
+        try? mapView.mapboxMap.updateLayer(withId: "world-mask", type: FillLayer.self) { layer in
+            layer.fillOpacity = .constant(value)
+        }
     }
 
     private func removeTrailsHeatmap(from mapView: MapView) {
         try? mapView.mapboxMap.removeLayer(withId: "trails-heat-layer")
         try? mapView.mapboxMap.removeSource(withId: "trails-heat-source")
+        setWorldMaskOpacity(0.75, on: mapView)
     }
 
     // Interpolate trail colors to contrast with topo map's orange/brown/yellow/green palette

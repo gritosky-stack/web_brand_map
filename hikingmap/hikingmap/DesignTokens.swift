@@ -38,6 +38,28 @@ enum DS {
     static let diffHard      = Color(red: 0.957, green: 0.263, blue: 0.212) // #F44336
     static let diffExpert    = Color(red: 0.612, green: 0.153, blue: 0.690) // #9C27B0
 
+    // MARK: - Топооснова
+    // Палитра бумажной топокарты: ею перекрашивается satellite-streets,
+    // см. applyTopoStyle в MapboxMapView.
+    static let topoPaperUI      = UIColor(red: 0.949, green: 0.937, blue: 0.902, alpha: 1) // #F2EFE6
+    static let topoWoodUI       = UIColor(red: 0.784, green: 0.863, blue: 0.706, alpha: 1) // #C8DCB4
+    static let topoScrubUI      = UIColor(red: 0.855, green: 0.898, blue: 0.780, alpha: 1) // #DAE5C7
+    static let topoGrassUI      = UIColor(red: 0.878, green: 0.925, blue: 0.808, alpha: 1) // #E0ECCE
+    static let topoFieldUI      = UIColor(red: 0.937, green: 0.918, blue: 0.839, alpha: 1) // #EFEAD6
+    static let topoRockUI       = UIColor(red: 0.878, green: 0.867, blue: 0.847, alpha: 1) // #E0DDD8
+    static let topoSandUI       = UIColor(red: 0.949, green: 0.925, blue: 0.851, alpha: 1) // #F2ECD9
+    static let topoWaterUI      = UIColor(red: 0.639, green: 0.808, blue: 0.890, alpha: 1) // #A3CEE3
+    static let topoRoadUI       = UIColor(red: 1.0,   green: 0.988, blue: 0.965, alpha: 1) // #FFFCF6
+    static let topoRoadCasingUI = UIColor(red: 0.639, green: 0.612, blue: 0.565, alpha: 1) // #A39C90
+    static let topoTrailUI      = UIColor(red: 0.545, green: 0.353, blue: 0.169, alpha: 1) // #8B5A2B
+    static let topoTextUI       = UIColor(red: 0.204, green: 0.192, blue: 0.169, alpha: 1) // #34312B
+    static let topoAdminUI      = UIColor(red: 0.545, green: 0.478, blue: 0.545, alpha: 1) // #8B7A8B
+
+    /// Цвет железнодорожной графики — общий для путей на карте и флажков станций
+    static let railInk       = Color(red: 0.122, green: 0.110, blue: 0.094)  // #1F1C18
+    static let railInkUI     = UIColor(red: 0.122, green: 0.110, blue: 0.094, alpha: 1)
+    static let topoTextColor = Color(red: 0.204, green: 0.192, blue: 0.169)  // #34312B
+
     // MARK: - Structural
     static let border        = Color(white: 1, opacity: 0.08)
     static let borderFocus   = Color(white: 1, opacity: 0.18)
