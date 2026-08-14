@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
+    @ObservedObject private var offlineManager = OfflineMapManager.shared
 
     @State private var showGPXImporter   = false
     @State private var showMapTools      = false
@@ -90,6 +91,9 @@ struct ContentView: View {
         .onAppear { appState.preloadAllStats() }
         .sheet(isPresented: $appState.showAIAssistant) {
             AIAssistantView().environmentObject(appState)
+        }
+        .sheet(isPresented: $appState.showOfflineMaps) {
+            OfflineMapsView().environmentObject(appState)
         }
         .fileImporter(
             isPresented: $showGPXImporter,
@@ -460,25 +464,37 @@ struct ContentView: View {
 
     private var layersSlider: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("🗺️ Топо")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(DS.textSecondary)
-                Spacer()
-                Text("🛰️ Спутник")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(DS.textSecondary)
-            }
+            baseStylePicker
 
-            Slider(value: Binding(
-                get: { 1.0 - appState.topoAlpha },
-                set: { appState.topoAlpha = 1.0 - $0 }
-            ), in: 0...1)
-            .tint(DS.accent)
+            // Подложка OpenTopoMap имеет смысл только поверх спутника — на топооснове
+            // горизонтали и отмывка уже нарисованы, а её тайлы ещё и требуют сети.
+            if appState.baseStyle == .satellite {
+                Divider().background(DS.border).padding(.vertical, 2)
+
+                HStack {
+                    Text("🗺️ OpenTopoMap")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(DS.textSecondary)
+                    Spacer()
+                    Text("🛰️ Спутник")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(DS.textSecondary)
+                }
+
+                Slider(value: Binding(
+                    get: { 1.0 - appState.topoAlpha },
+                    set: { appState.topoAlpha = 1.0 - $0 }
+                ), in: 0...1)
+                .tint(DS.accent)
+            }
 
             Divider().background(DS.border).padding(.vertical, 2)
 
             heatmapRow
+
+            Divider().background(DS.border).padding(.vertical, 2)
+
+            offlineRow
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -487,6 +503,68 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(DS.border, lineWidth: 1))
         .frame(width: 250)
+    }
+
+    /// Основа карты. Топооснова — единственная, что умеет работать без сети.
+    private var baseStylePicker: some View {
+        HStack(spacing: 6) {
+            ForEach(BaseMapStyle.allCases) { style in
+                let isOn = appState.baseStyle == style
+                Button {
+                    guard !isOn else { return }
+                    // На топооснове растровая подложка не нужна — гасим, чтобы
+                    // не тянуть тайлы OpenTopoMap впустую
+                    if style == .topo { appState.topoAlpha = 0 }
+                    withAnimation(.easeInOut(duration: 0.2)) { appState.baseStyle = style }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: style.icon)
+                            .font(.system(size: 10, weight: .medium))
+                        Text(style.title)
+                            .font(.system(size: 11, weight: .medium))
+                        if style.supportsOffline && offlineReady {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.system(size: 9))
+                                .foregroundColor(DS.pinStart)
+                        }
+                    }
+                    .foregroundColor(isOn ? .black : DS.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 7)
+                    .background(isOn ? DS.accent : DS.glass)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var offlineReady: Bool { offlineManager.state.isReady }
+
+    /// Вход в экран офлайн-карты.
+    private var offlineRow: some View {
+        Button {
+            appState.showOfflineMaps = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: offlineReady ? "arrow.down.circle.fill" : "arrow.down.circle")
+                    .font(.system(size: 12))
+                    .foregroundColor(offlineReady ? DS.pinStart : DS.textSecondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Офлайн-карта")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(DS.textSecondary)
+                    Text(offlineReady ? "Сербия на устройстве" : "Скачать Сербию на устройство")
+                        .font(.system(size: 10))
+                        .foregroundColor(DS.textSecondary.opacity(0.75))
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(DS.textTertiary)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     /// Тоггл хитмапа троп — публичные GPS-треки OpenStreetMap.

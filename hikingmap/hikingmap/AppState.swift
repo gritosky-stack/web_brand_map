@@ -17,6 +17,32 @@ struct SelectedPhotoInfo: Identifiable {
     let index: Int
 }
 
+/// Основа карты. Спутник красивее, но его тайлы живут только онлайн:
+/// офлайн-пакет собирается на топооснове Mapbox Outdoors.
+enum BaseMapStyle: String, CaseIterable, Identifiable {
+    case satellite
+    case topo
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .satellite: return "Спутник"
+        case .topo:      return "Топо"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .satellite: return "globe.europe.africa.fill"
+        case .topo:      return "map.fill"
+        }
+    }
+
+    /// Работает ли основа без интернета (при скачанном офлайн-пакете).
+    var supportsOffline: Bool { self == .topo }
+}
+
 final class AppState: ObservableObject {
     @Published var selectedRoute: Route?
     @Published var routeStats: [String: RouteStats] = [:]
@@ -39,6 +65,11 @@ final class AppState: ObservableObject {
     @Published var showPSSRouteDetail = false
     @Published var topoAlpha: Double = 0.0
     @Published var showLayersPanel = false
+    /// Основа карты — выбор пользователя переживает перезапуск
+    @Published var baseStyle: BaseMapStyle = AppState.storedBaseStyle {
+        didSet { UserDefaults.standard.set(baseStyle.rawValue, forKey: AppState.baseStyleKey) }
+    }
+    @Published var showOfflineMaps = false
     /// Хитмап троп — публичные GPS-треки OpenStreetMap (тоггл в «Слоях»)
     @Published var showTrailsHeatmap = false
     @Published var routeListExpanded = false
@@ -53,6 +84,11 @@ final class AppState: ObservableObject {
     @Published var showCaveDetail: Bool = false
     @Published var showCaveLayer = false
     lazy var trackRecorder: TrackRecorder = TrackRecorder()
+
+    private static let baseStyleKey = "baseMapStyle"
+    private static var storedBaseStyle: BaseMapStyle {
+        BaseMapStyle(rawValue: UserDefaults.standard.string(forKey: baseStyleKey) ?? "") ?? .satellite
+    }
 
     let customRouteStore  = CustomRouteStore.shared
     let cameraFlyRequest     = PassthroughSubject<CLLocationCoordinate2D, Never>()
