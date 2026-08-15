@@ -125,13 +125,27 @@ struct OfflineMapsView: View {
 
         case .done, .idle:
             if let m = TopoTiles.manifest {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(DS.pinStart)
-                    Text("Скачано · \(OfflineMapManager.format(bytes: m.bytes)) · \(m.tiles) тайлов")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(DS.textPrimary)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(DS.pinStart)
+                        Text("Скачано · \(OfflineMapManager.format(bytes: m.bytes)) · \(m.tiles) тайлов")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(DS.textPrimary)
+                    }
+                    if TopoTiles.isStale {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(DS.accent)
+                            Text("Данные устарели (\(m.version) → \(TopoTilesDownloader.version)). "
+                                 + "Удалите и скачайте заново")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(DS.accent)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                 }
             } else {
                 label("Не скачано · около 565 МБ, на устройстве займёт ~650 МБ",

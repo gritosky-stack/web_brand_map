@@ -69,16 +69,28 @@ enum GPXLoader {
         let name   = route.gpxFile
         let subdir = route.gpxSubdir.map { "GPX/\($0)" } ?? "GPX"
 
-        if let url = bundle.url(forResource: name, withExtension: "gpx", subdirectory: subdir) {
+        for dir in [subdir, nil] {
+            guard let url = bundle.url(forResource: name, withExtension: "gpx",
+                                       subdirectory: dir) else { continue }
             do { return try Data(contentsOf: url) } catch {
-                print("[GPX] Ошибка чтения \(subdir)/\(name).gpx: \(error)")
+                print("[GPX] Ошибка чтения \(dir ?? "")/\(name).gpx: \(error)")
             }
         }
-        if let url = bundle.url(forResource: name, withExtension: "gpx") {
+
+        // Поиск по имени спотыкается о форму Юникода: `Bundle.url(forResource:)`
+        // приводит запрос к декомпозированной форме (наследие HFS+) и сравнивает
+        // байты, а файлы в репозитории лежат в композированной. Разница вылезает
+        // только на разложимых буквах — во всём наборе это одна «й» (и + краткая),
+        // из-за неё «Хайдучка…» не находилась ни в какой форме запроса.
+        // Перечисление отдаёт имена как есть, а сравнение строк в Swift
+        // каноническое — оно от формы не зависит и находит файл.
+        if let urls = bundle.urls(forResourcesWithExtension: "gpx", subdirectory: subdir),
+           let url = urls.first(where: { $0.deletingPathExtension().lastPathComponent == name }) {
             do { return try Data(contentsOf: url) } catch {
-                print("[GPX] Ошибка чтения \(name).gpx: \(error)")
+                print("[GPX] Ошибка чтения \(url.lastPathComponent): \(error)")
             }
         }
+
         print("[GPX] Файл не найден в бандле: \(name).gpx (subdir: \(subdir))")
         return nil
     }

@@ -599,6 +599,29 @@ final class Coordinator: NSObject {
         )
         hatch.lineOpacity = .constant(visible ? 1 : 0)
         try? map.addLayer(hatch, layerPosition: .above("railway-line"))
+
+        // Невидимый «резерв» места под флажки станций.
+        //
+        // Сами флажки — SwiftUI поверх карты, и о них движок ничего не знает:
+        // подписи вершин и посёлков спокойно рисуются ровно под табличкой.
+        // Поэтому кладём на те же точки настоящий символьный слой с тем же
+        // текстом, но полностью прозрачный. Прозрачность — это paint-свойство,
+        // на раскладку оно не влияет, поэтому символ продолжает участвовать в
+        // разрешении коллизий и вытесняет чужие подписи, ничего не рисуя сам.
+        // Слой кладём последним: при конфликте выигрывает тот, что выше.
+        var reserve = SymbolLayer(id: "station-reserve", source: "railways-src")
+        reserve.filter        = Exp(.eq) { Exp(.get) { "kind" }; "station" }
+        reserve.minZoom       = Self.stationsMinZoom
+        reserve.textField     = .expression(Exp(.get) { "name" })
+        reserve.textFont      = .constant(["DIN Pro Medium", "Arial Unicode MS Regular"])
+        reserve.textSize      = .constant(12)
+        // Табличка висит над точкой привязки, смещение — в кеглях
+        reserve.textOffset    = .constant([0, -3])
+        reserve.textPadding   = .constant(6)
+        reserve.textAllowOverlap = .constant(false)
+        reserve.textOpacity   = .constant(0)
+        reserve.visibility    = .constant(visible ? .visible : .none)
+        try? map.addLayer(reserve)
     }
 
     // MARK: - Станции
@@ -607,6 +630,35 @@ final class Coordinator: NSObject {
     private static let stationsMinZoom = 8.5
     /// Предохранитель от совсем уж плотных мест — рисуем всё, что попало в кадр
     private static let stationsLimit = 150
+
+    /// Ширина таблички зависит от текста, а мерить шрифт на каждом кадре дорого.
+    /// Названий всего тысяча, и они не меняются — считаем один раз.
+    private static var plateWidths: [String: CGFloat] = [:]
+
+    private static func plateWidth(_ name: String, isMajor: Bool) -> CGFloat {
+        let key = (isMajor ? "M|" : "m|") + name
+        if let w = plateWidths[key] { return w }
+        // Те же параметры, что у таблички в `StationFlagsLayer`
+        let font = UIFont.systemFont(ofSize: isMajor ? 12 : 10.5,
+                                     weight: isMajor ? .semibold : .medium)
+        let w = ceil((name as NSString).size(withAttributes: [.font: font]).width) + 14
+        plateWidths[key] = w
+        return w
+    }
+
+    /// Габариты флажка на экране: якорь — кружок на путях, всё остальное растёт
+    /// вверх от него (табличка, древко, кружок — как во вьюхе).
+    private static func flagBox(at point: CGPoint, name: String, isMajor: Bool) -> CGRect {
+        let dot: CGFloat = isMajor ? 13 : 9
+        let pole: CGFloat = isMajor ? 20 : 15
+        let plate: CGFloat = isMajor ? 20 : 17
+        let width = plateWidth(name, isMajor: isMajor)
+        return CGRect(x: point.x - width / 2,
+                      y: point.y - plate - pole - dot / 2,
+                      width: width,
+                      height: plate + pole + dot)
+            .insetBy(dx: -2, dy: -2)      // немного воздуха между соседями
+    }
 
     /// Пересобирает список станций в кадре. Данные лежат в памяти (1023 точки
     /// из бандла), поэтому это просто фильтр по экрану — никаких запросов к тайлам.
@@ -646,6 +698,7 @@ final class Coordinator: NSObject {
         var markers: [StationMarker] = []
         var placed: [String: [CGPoint]] = [:]
         var usedIDs = Set<String>()
+        var boxes: [CGRect] = []
 
         for station in candidates {
             let screen = map.point(for: station.coordinate)
@@ -654,6 +707,14 @@ final class Coordinator: NSObject {
             let twins = placed[station.name] ?? []
             if twins.contains(where: { hypot($0.x - screen.x, $0.y - screen.y) < 120 }) { continue }
             placed[station.name, default: []].append(screen)
+
+            // Флажки не должны налезать друг на друга: раскладываем жадно, по
+            // порядку важности, и пропускаем тот, чья табличка перекрывает уже
+            // поставленную. Порядок (вокзалы, дальше по алфавиту) от кадра
+            // не зависит, поэтому при движении камеры набор не мигает.
+            let box = Self.flagBox(at: screen, name: station.name, isMajor: station.isMajor)
+            if boxes.contains(where: { $0.intersects(box) }) { continue }
+            boxes.append(box)
 
             // Идентификатор переживает движение камеры, иначе SwiftUI сочтёт метку
             // новой и заново проиграет анимацию. При совпадении разводим суффиксом:
@@ -692,6 +753,13 @@ final class Coordinator: NSObject {
         for id in ["railway-line", "railway-hatch"] where map.layerExists(withId: id) {
             try? map.updateLayer(withId: id, type: LineLayer.self) { layer in
                 layer.lineOpacity = .constant(visible ? 1 : 0)
+            }
+        }
+        // Резерв гасим по-настоящему: он невидим, но место занимает, и с
+        // выключенными дорогами продолжал бы выдавливать подписи карты
+        if map.layerExists(withId: "station-reserve") {
+            try? map.updateLayer(withId: "station-reserve", type: SymbolLayer.self) { layer in
+                layer.visibility = .constant(visible ? .visible : .none)
             }
         }
     }

@@ -42,7 +42,7 @@ final class TopoTilesDownloader: NSObject, ObservableObject {
 
     /// Версия набора. Меняется вместе с данными — так на устройстве видно,
     /// что лежит старое, и можно предложить обновление.
-    static let version = "v6"
+    static let version = "v7"
     private static let base = "https://pub-46dba1bca6754d2499a2a5aa9d5c879f.r2.dev"
     private var remoteURL: URL { URL(string: "\(Self.base)/maps/serbia-topo-\(Self.version).mbtiles")! }
 
