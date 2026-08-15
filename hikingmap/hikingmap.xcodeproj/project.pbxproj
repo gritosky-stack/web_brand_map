@@ -18,7 +18,7 @@
 		CC3344556677889900B101 /* StationFlagsLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900B102 /* StationFlagsLayer.swift */; };
 		AA1122334455667788990001 /* TrailSnapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788990002 /* TrailSnapService.swift */; };
 		CC3344556677889900E101 /* RailwayStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900E102 /* RailwayStore.swift */; };
-		CC3344556677889900D101 /* TopoTilesDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900D102 /* TopoTilesDownloader.swift */; };
+		CC3344556677889900D101 /* TileSetDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900D102 /* TileSetDownloader.swift */; };
 		CC3344556677889900C101 /* PhotoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900C102 /* PhotoStore.swift */; };
 		CC3344556677889900A101 /* TopoTiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900A102 /* TopoTiles.swift */; };
 		CC2233445566778899000201 /* OfflineMapsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2233445566778899000202 /* OfflineMapsView.swift */; };
@@ -87,7 +87,7 @@
 		A4C4AFA6B4264344FEFC8315 /* TrackRecording.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackRecording.swift; sourceTree = "<group>"; };
 		AA1122334455667788990002 /* TrailSnapService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrailSnapService.swift; sourceTree = "<group>"; };
 		CC3344556677889900E102 /* RailwayStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RailwayStore.swift; sourceTree = "<group>"; };
-		CC3344556677889900D102 /* TopoTilesDownloader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TopoTilesDownloader.swift; sourceTree = "<group>"; };
+		CC3344556677889900D102 /* TileSetDownloader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TileSetDownloader.swift; sourceTree = "<group>"; };
 		CC3344556677889900C102 /* PhotoStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PhotoStore.swift; sourceTree = "<group>"; };
 		CC3344556677889900A102 /* TopoTiles.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TopoTiles.swift; sourceTree = "<group>"; };
 		CC2233445566778899000202 /* OfflineMapsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OfflineMapsView.swift; sourceTree = "<group>"; };
@@ -284,7 +284,7 @@
 			children = (
 				F6789012B3C4D5E6F7890123 /* ElevationService.swift */,
 				AA1122334455667788990002 /* TrailSnapService.swift */,
-				CC3344556677889900D102 /* TopoTilesDownloader.swift */,
+				CC3344556677889900D102 /* TileSetDownloader.swift */,
 				CC3344556677889900C102 /* PhotoStore.swift */,
 				CC3344556677889900A102 /* TopoTiles.swift */,
 				CC2233445566778899000102 /* OfflineMapManager.swift */,
@@ -462,7 +462,7 @@
 				C4D5E6F7890123456789AB01 /* CustomRouteDetailPanel.swift in Sources */,
 				AA1122334455667788990001 /* TrailSnapService.swift in Sources */,
 				CC3344556677889900E101 /* RailwayStore.swift in Sources */,
-				CC3344556677889900D101 /* TopoTilesDownloader.swift in Sources */,
+				CC3344556677889900D101 /* TileSetDownloader.swift in Sources */,
 				CC3344556677889900C101 /* PhotoStore.swift in Sources */,
 				CC3344556677889900A101 /* TopoTiles.swift in Sources */,
 				CC2233445566778899000101 /* OfflineMapManager.swift in Sources */,

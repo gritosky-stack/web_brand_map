@@ -8,7 +8,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      handleEventsForBackgroundURLSession identifier: String,
                      completionHandler: @escaping () -> Void) {
-        TopoTilesDownloader.shared.backgroundCompletionHandler = completionHandler
+        // Наборов два, у каждого своя фоновая сессия — иначе система не
+        // разберёт, чью загрузку она возобновляет
+        TileSetDownloader.all
+            .first { $0.spec.sessionIdentifier == identifier }?
+            .backgroundCompletionHandler = completionHandler
     }
 }
 

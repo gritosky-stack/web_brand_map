@@ -216,6 +216,11 @@ final class Coordinator: NSObject {
             .sink { [weak self] show in self?.updateTrailsHeatmap(show) }
             .store(in: &cancellables)
 
+        appState.$showHistMap
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] show in self?.updateHistMap(show) }
+            .store(in: &cancellables)
+
         appState.$isRecording
             .receive(on: DispatchQueue.main)
             .sink { [weak self] recording in
@@ -317,7 +322,7 @@ final class Coordinator: NSObject {
         // Тайлы докачались или их удалили — стиль надо перезагрузить: до этого
         // карта работала на запасной основе и ни горизонталей, ни железных дорог
         // в ней не было
-        TopoTilesDownloader.shared.$isReady
+        TileSetDownloader.topo.$isReady
             .removeDuplicates()
             .dropFirst()
             .receive(on: DispatchQueue.main)
@@ -325,6 +330,19 @@ final class Coordinator: NSObject {
                 guard let self, let mapView, appState.baseStyle == .topo else { return }
                 isStyleLoaded = false
                 loadBaseStyle(appState.baseStyle, on: mapView)
+            }
+            .store(in: &cancellables)
+
+        // Набор мог докачаться при включённом слое: тогда источник всё ещё
+        // смотрит в сеть, хотя тайлы уже лежат на диске. Пересобираем слой,
+        // чтобы он переключился на file:// (и наоборот — после удаления).
+        TileSetDownloader.histmap.$isReady
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self, appState.showHistMap else { return }
+                updateHistMap(true)
             }
             .store(in: &cancellables)
 
@@ -365,6 +383,7 @@ final class Coordinator: NSObject {
 
         updateAllTrails(showAll: appState.showAllTrails, stats: appState.routeStats)
         updateTrailsHeatmap(appState.showTrailsHeatmap)
+        updateHistMap(appState.showHistMap)
         loadCaveLayer(mapView)
 
         // Возвращаем состояние тумблеров: подписки срабатывают только на изменение,
@@ -1106,6 +1125,53 @@ final class Coordinator: NSObject {
         // Полупрозрачной маски мало — сквозь 75 % черноты яркие треки всё
         // равно читаются. На время хитмапа делаем её почти непрозрачной.
         setWorldMaskOpacity(0.96, on: mapView)
+    }
+
+    // MARK: - Историческая карта
+
+    /// Австро-венгерская «Спецкарта» 1:75 000 (1900-е–1910-е) растром поверх основы.
+    ///
+    /// Тайлы свои: собраны из сканов Library of Congress (public domain), лежат
+    /// в R2 и, если пользователь скачал набор, читаются с диска по `file://`.
+    /// Поэтому источник заводится по `HistMapTiles.tilesURL`, а не по
+    /// фиксированному адресу.
+    ///
+    /// Как и топо с хитмапом, слой добавляется **лениво**: при `opacity = 0`
+    /// Mapbox всё равно качал бы тайлы.
+    ///
+    /// Кладём под маску мира: она гасит всё за границей Сербии, а тайлы у нас
+    /// ровно по стране. Маршруты, тропы и станции добавляются позже, поэтому
+    /// остаются поверх гравюры.
+    private func updateHistMap(_ show: Bool) {
+        guard isStyleLoaded, let mapView else { return }
+
+        removeHistMap(from: mapView)
+        guard show else { return }
+
+        var src = RasterSource(id: "histmap-source")
+        src.tiles = [HistMapTiles.tilesURL]
+        src.tileSize = 256
+        src.minzoom = 8
+        src.maxzoom = 14
+        src.attribution = "Library of Congress · k.u.k. Militärgeographisches Institut"
+        try? mapView.mapboxMap.addSource(src)
+
+        var layer = RasterLayer(id: "histmap-layer", source: "histmap-source")
+        layer.rasterOpacity = .constant(0.92)
+        layer.rasterFadeDuration = .constant(0)
+        // Набор кончается на z14, дальше SDK растягивает родительский тайл.
+        // Сглаженная интерполяция на гравюре выглядит как бумага под лупой,
+        // а `.nearest` дал бы лестницы на штрихах.
+        layer.rasterResampling = .constant(.linear)
+        try? mapView.mapboxMap.addLayer(layer, layerPosition: .below("world-mask"))
+        // Современные подписи, горизонтали и железные дороги сознательно
+        // оставляем поверх: на проверке в симуляторе они не спорят с гравюрой,
+        // а работают ориентирами — по ним видно, где ты на старой карте.
+    }
+
+    private func removeHistMap(from mapView: MapView) {
+        try? mapView.mapboxMap.removeLayer(withId: "histmap-layer")
+        try? mapView.mapboxMap.removeSource(withId: "histmap-source")
     }
 
     private func setWorldMaskOpacity(_ value: Double, on mapView: MapView) {

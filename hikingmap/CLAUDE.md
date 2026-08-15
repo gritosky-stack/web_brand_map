@@ -15,9 +15,18 @@
 ## Сборка и запуск (симулятор)
 ```
 xcodebuild -scheme hikingmap -sdk iphonesimulator \
-  -destination 'platform=iOS Simulator,name=iPhone 16' -configuration Debug build
+  -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+  -configuration Debug CODE_SIGNING_ALLOWED=NO build
 ```
-Запуск/установку на симулятор делать через `xcrun simctl`.
+`CODE_SIGNING_ALLOWED=NO` обязателен: автоподпись в проекте выключена, и без
+этого флага сборка падает на «No profiles for com.totskii.hikingmap» ещё до
+компиляции — даже для симулятора. Имя устройства сверять с
+`xcrun simctl list devices available`.
+
+Запуск/установку на симулятор делать через `xcrun simctl`. Собранный бандл
+лежит в `~/Library/Developer/Xcode/DerivedData/hikingmap-*/Build/Products/
+Debug-iphonesimulator/hikingmap.app` — каталогов там несколько, брать самый
+свежий по времени бинаря.
 
 ## Офлайн-карта
 `Services/OfflineMapManager.swift` + экран `Views/OfflineMapsView.swift`
@@ -66,6 +75,26 @@ xcodebuild -scheme hikingmap -sdk iphonesimulator \
 
 Источник `country-boundaries` ограничен `maxzoom = 8`: дальше маска
 дорисовывается растягиванием родительского тайла, зато пакет крошечный.
+
+## Историческая карта (слой)
+`Services/TopoTiles.swift` → `HistMapTiles` + строка «🗺 Историческая карта»
+в панели «Слои», карточка докачки в `OfflineMapsView`, растровый слой
+`updateHistMap` в `MapboxMapView`.
+
+Данные — австро-венгерская «Спецкарта» 1:75 000 из Library of Congress,
+собранные нами тайлы z8–z14 в R2 (конвейер и грабли — `tools/tiles/README.md`).
+Слой работает без скачивания, пока есть сеть: `HistMapTiles.tilesURL` отдаёт
+либо `file://` скачанного набора, либо адрес в R2.
+
+Загрузчик общий с топоосновой: `TileSetDownloader` параметризован
+`TileSetSpec` (версия, адрес, каталог, расширение тайла). Растровые тайлы
+в MBTiles не gzip-нуты — отдельной ветки для этого не нужно, `gunzip`
+возвращает nil и данные пишутся как есть. Фоновая `URLSession` у каждого
+набора своя, иначе система не разберёт, чью загрузку возобновляет.
+
+Слой добавляется **лениво**, как топо и хитмап: при `rasterOpacity = 0`
+Mapbox всё равно качал бы тайлы. Кладём под `world-mask`, но современные
+подписи и горизонтали оставляем поверх — они работают ориентирами.
 
 ## Конвенции
 - Состояние — через `@Published` в `AppState`, не плодить параллельные источники истины.

@@ -93,6 +93,10 @@ final class AppState: ObservableObject {
     @Published var stationMarkers: [StationMarker] = []
     /// Хитмап троп — публичные GPS-треки OpenStreetMap (тоггл в «Слоях»)
     @Published var showTrailsHeatmap = false
+
+    /// Историческая карта 1:75 000 (австро-венгерская «Спецкарта», 1900-е–1910-е).
+    /// Растровый слой поверх основы — тоггл в «Слоях».
+    @Published var showHistMap = false
     /// Есть ли сеть. Нужно хитмапу: его тайлы чужие и офлайн не сохраняются,
     /// а без них Mapbox растягивает старые с мелкого зума — получается мыло.
     @Published private(set) var isOnline = true

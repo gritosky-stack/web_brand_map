@@ -31,3 +31,8 @@ hikingmap.zip
 pss_scraper/output/
 pss_scraper/.venv/
 **/__pycache__/
+
+# Рабочий каталог конвейера тайлов: сканы «Спецкарты» (8 ГБ), DEM (1.2 ГБ),
+# готовые mbtiles и кэш Overpass. Всё восстановимо скриптами из tools/tiles/
+tools/tiles/work/
+tools/tiles/histindex/

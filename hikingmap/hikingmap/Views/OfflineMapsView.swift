@@ -4,7 +4,8 @@ import SwiftUI
 struct OfflineMapsView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var manager = OfflineMapManager.shared
-    @ObservedObject private var downloader = TopoTilesDownloader.shared
+    @ObservedObject private var downloader = TileSetDownloader.topo
+    @ObservedObject private var histmap = TileSetDownloader.histmap
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -18,6 +19,7 @@ struct OfflineMapsView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 16) {
                         topoCard
+                        histMapCard
                         regionCard
                         satelliteNote
                         diskRow
@@ -139,7 +141,7 @@ struct OfflineMapsView: View {
                             Image(systemName: "arrow.down.circle.fill")
                                 .font(.system(size: 12))
                                 .foregroundColor(DS.accent)
-                            Text("Данные устарели (\(m.version) → \(TopoTilesDownloader.version)). "
+                            Text("Данные устарели (\(m.version) → \(TopoTiles.version)). "
                                  + "Удалите и скачайте заново")
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(DS.accent)
@@ -173,6 +175,119 @@ struct OfflineMapsView: View {
                     button("Удалить", filled: false) { downloader.delete() }
                 } else {
                     button("Скачать", filled: true) { downloader.start() }
+                }
+            }
+        }
+    }
+
+    // MARK: - Историческая карта
+
+    private var histMapCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Text("🏞").font(.system(size: 26))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Историческая карта")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(DS.textPrimary)
+                    Text("Австро-венгерская «Спецкарта» 1:75 000, снятая в 1900-х: "
+                         + "старые тропы, мельницы, исчезнувшие сёла")
+                        .font(.system(size: 11))
+                        .foregroundColor(DS.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+
+            histMapStatus
+            histMapActions
+        }
+        .padding(14)
+        .background(DS.surface)
+        .clipShape(RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous)
+                .stroke(histmap.isReady ? DS.accent.opacity(0.4) : DS.border, lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private var histMapStatus: some View {
+        switch histmap.stage {
+        case .downloading(let progress, let bytes, let total):
+            VStack(alignment: .leading, spacing: 6) {
+                ProgressView(value: progress).tint(DS.accent)
+                HStack {
+                    Text("Скачивание · \(Int(progress * 100)) %")
+                    Spacer()
+                    Text("\(OfflineMapManager.format(bytes: bytes)) из \(OfflineMapManager.format(bytes: total))")
+                }
+                .font(.system(size: 11))
+                .foregroundColor(DS.textSecondary)
+            }
+
+        case .unpacking(let progress):
+            VStack(alignment: .leading, spacing: 6) {
+                ProgressView(value: progress).tint(DS.accent)
+                Text("Распаковка · \(Int(progress * 100)) % · не закрывайте приложение")
+                    .font(.system(size: 11))
+                    .foregroundColor(DS.textSecondary)
+            }
+
+        case .readyToUnpack:
+            label("Загрузка завершена, начинаю распаковку…", color: DS.textSecondary)
+
+        case .failed(let message):
+            label(message, color: DS.diffHard)
+
+        case .done, .idle:
+            if let m = HistMapTiles.manifest {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(DS.pinStart)
+                        Text("Скачано · \(OfflineMapManager.format(bytes: m.bytes)) · \(m.tiles) тайлов")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(DS.textPrimary)
+                    }
+                    if HistMapTiles.isStale {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(DS.accent)
+                            Text("Данные устарели (\(m.version) → \(HistMapTiles.version)). "
+                                 + "Удалите и скачайте заново")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(DS.accent)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            } else {
+                // Без набора слой всё равно работает — просто тянет тайлы из сети
+                label("Не скачано · \(HistMapTiles.approxSize). Слой работает и без "
+                      + "скачивания, пока есть связь", color: DS.textSecondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var histMapActions: some View {
+        switch histmap.stage {
+        case .downloading:
+            button("Отменить", filled: false) { histmap.cancel() }
+        case .unpacking, .readyToUnpack:
+            EmptyView()
+        default:
+            HStack(spacing: 8) {
+                if histmap.isReady {
+                    if !appState.showHistMap {
+                        button("Показать на карте", filled: true) { appState.showHistMap = true }
+                    }
+                    button("Удалить", filled: false) { histmap.delete() }
+                } else {
+                    button("Скачать", filled: true) { histmap.start() }
                 }
             }
         }

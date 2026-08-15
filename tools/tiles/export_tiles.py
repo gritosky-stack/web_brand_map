@@ -7,7 +7,8 @@
 
 Две тонкости:
   • MBTiles хранит y по схеме TMS (снизу вверх), а тайловые шаблоны ждут XYZ;
-  • тайлы внутри лежат gzip-сжатыми, а при чтении по file:// заголовков нет
+  • тайлы внутри лежат gzip-сжатыми (у растровых наборов — нет, и тогда
+    распаковка пропускается сама), а при чтении по file:// заголовков нет
     и распаковать их некому — поэтому распаковываем заранее.
 
     python export_tiles.py out/serbia-topo.mbtiles out/tiles [--maxzoom 14]
@@ -24,6 +25,10 @@ def main():
     ap.add_argument("mbtiles")
     ap.add_argument("out_dir")
     ap.add_argument("--maxzoom", type=int, default=None)
+    ap.add_argument("--ext", default="pbf", help="pbf у векторных наборов, jpg у растровых")
+    ap.add_argument("--manifest", action="store_true",
+                    help="дописать manifest.json — по нему приложение считает набор готовым")
+    ap.add_argument("--version", default="v1")
     args = ap.parse_args()
 
     db = sqlite3.connect(args.mbtiles)
@@ -43,13 +48,18 @@ def main():
 
         folder = os.path.join(args.out_dir, str(z), str(x))
         os.makedirs(folder, exist_ok=True)
-        with open(os.path.join(folder, f"{y}.pbf"), "wb") as f:
+        with open(os.path.join(folder, f"{y}.{args.ext}"), "wb") as f:
             f.write(data)
 
         done += 1
         bytes_out += len(data)
         if done % 10000 == 0:
             print(f"  {done}/{total} ({bytes_out/1048576:.0f} МБ)", flush=True)
+
+    if args.manifest:
+        import json
+        with open(os.path.join(args.out_dir, "manifest.json"), "w") as f:
+            json.dump({"version": args.version, "tiles": done, "bytes": bytes_out}, f)
 
     print(f"готово: {done} тайлов, {bytes_out/1048576:.0f} МБ в {args.out_dir}")
 

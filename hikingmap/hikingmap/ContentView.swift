@@ -6,7 +6,8 @@ import MapboxMaps
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var offlineManager = OfflineMapManager.shared
-    @ObservedObject private var topoDownloader = TopoTilesDownloader.shared
+    @ObservedObject private var topoDownloader = TileSetDownloader.topo
+    @ObservedObject private var histMapDownloader = TileSetDownloader.histmap
 
     @State private var showGPXImporter   = false
     @State private var showMapTools      = false
@@ -508,6 +509,10 @@ struct ContentView: View {
 
             Divider().background(DS.border).padding(.vertical, 2)
 
+            histMapRow
+
+            Divider().background(DS.border).padding(.vertical, 2)
+
             offlineRow
 
             #if DEBUG
@@ -656,6 +661,31 @@ struct ContentView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
+
+    /// Тоггл исторической карты — австро-венгерская «Спецкарта» 1:75 000.
+    private var histMapRow: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Toggle(isOn: $appState.showHistMap) {
+                Text("🗺 Историческая карта")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(appState.showHistMap ? DS.accent : DS.textSecondary)
+            }
+            .toggleStyle(SwitchToggleStyle(tint: DS.accent))
+            .disabled(!appState.isOnline && !histMapReady)
+            .opacity(appState.isOnline || histMapReady ? 1 : 0.45)
+
+            Text(histMapReady
+                 ? "Австро-Венгрия 1:75 000, 1900-е. Работает офлайн"
+                 : appState.isOnline
+                   ? "Австро-Венгрия 1:75 000, 1900-е — старые тропы, мельницы, сёла"
+                   : "Без сети нужен скачанный набор")
+                .font(.system(size: 10))
+                .foregroundColor(DS.textSecondary.opacity(0.75))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var histMapReady: Bool { histMapDownloader.isReady }
 
     // MARK: - Map tool buttons
 
