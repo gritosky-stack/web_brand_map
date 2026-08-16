@@ -64,16 +64,28 @@ struct MapboxMapView: UIViewRepresentable {
         // по окончании движения: запрос к тайлам куда дороже проекции точки.
         mapView.mapboxMap.onCameraChanged.observe { [weak c = context.coordinator] _ in
             c?.repositionStations()
+            // «Резинка» до прицела тянется за камерой — считаем каждый кадр
+            c?.updateConstructorAim()
         }.store(in: &context.coordinator.cancellables)
 
         mapView.mapboxMap.onMapIdle.observe { [weak c = context.coordinator] _ in
             c?.refreshStations()
+            // Пока рисуют маршрут — подбираем тропы из тайлов под новым кадром
+            c?.refreshTileTrailSegments()
         }.store(in: &context.coordinator.cancellables)
 
         let tap = UITapGestureRecognizer(target: context.coordinator,
                                          action: #selector(Coordinator.handleTap(_:)))
         tap.cancelsTouchesInView = false
+        // Двойной тап и «щипок» зумом тоже кончаются касанием — без этого
+        // приближение по двойному тапу ставило бы точку, да ещё и две
+        tap.require(toFail: mapView.gestures.doubleTapToZoomInGestureRecognizer)
+        tap.require(toFail: mapView.gestures.doubleTouchToZoomOutGestureRecognizer)
+        tap.require(toFail: mapView.gestures.quickZoomGestureRecognizer)
         mapView.addGestureRecognizer(tap)
+        // Остальные жесты (сдвиг, зум, поворот, наклон) отслеживаем сами:
+        // после них система всё равно шлёт одиночный тап
+        mapView.gestures.delegate = context.coordinator
 
         return mapView
     }
@@ -95,6 +107,25 @@ final class Coordinator: NSObject {
     var scrubberManager: PointAnnotationManager?
     var sightingManager: PointAnnotationManager?
     var pssSnapSegments: [TrailSnapService.Segment] = []
+    /// Тропы из загруженных векторных тайлов. Их же используем и для
+    /// притяжения точки, и как офлайн-граф для прокладки по тропам.
+    var osmTrailSegments: [TrailSnapService.Segment] = []
+    /// PSS и тайловые тропы вместе — то, что видит роутер
+    var routingSegments: [TrailSnapService.Segment] = []
+    /// Поколение набора: по нему кэшируется собранный граф
+    var routingSegmentsToken = 0
+    var lastTrailQueryCenter: CLLocationCoordinate2D?
+    var lastTrailQueryZoom: Double = 0
+    var lastTrailQueryTime = Date.distantPast
+    /// Сколько жестов карты идёт прямо сейчас и когда закончился последний.
+    /// Тап, прилетевший на их фоне, точку не ставит.
+    var activeGestures = 0
+    var lastGestureEnd = Date.distantPast
+    /// Камера сейчас едет к бегунку — второй раз не дёргаем
+    var isFramingScrub = false
+    /// Сколько раз подряд тайлы ответили пусто
+    var trailQueryRetries = 0
+    static let maxTrailQueryRetries = 6
     var liveTrackCoords: [CLLocationCoordinate2D] = []
     var lastPublishedZoom: Double = 6.5
     /// Моя локация: пак включаем лениво, при первом запросе с разрешением
@@ -151,6 +182,28 @@ final class Coordinator: NSObject {
     init(appState: AppState) {
         self.appState = appState
         super.init()
+
+        // Тропы для прокладки живут здесь, у карты: PSS из бандла плюс то,
+        // что нашлось в загруженных тайлах
+        appState.trailSegmentsProvider = { [weak self] in
+            guard let self else { return ([], 0) }
+            return (self.routingSegments, self.routingSegmentsToken)
+        }
+
+        // Высоты для набора/сброса в конструкторе — с того же DEM, что под рельефом
+        appState.terrainElevationProvider = { [weak self] coordinate in
+            self?.mapView?.mapboxMap.elevation(at: coordinate)
+        }
+
+        appState.$scrubberCoordinate
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.keepScrubberVisible() }
+            .store(in: &cancellables)
+
+        appState.constructorStepRequest
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.placeWaypointAtAim() }
+            .store(in: &cancellables)
 
         appState.$selectedRoute
             .removeDuplicates()
@@ -294,8 +347,12 @@ final class Coordinator: NSObject {
             .store(in: &cancellables)
 
         appState.$constructorWaypoints
+            .combineLatest(appState.$constructorLegs)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] waypoints in self?.updateConstructorPolyline(waypoints) }
+            .sink { [weak self] waypoints, legs in
+                self?.updateConstructorPolyline(waypoints: waypoints, legs: legs)
+                self?.updateConstructorAim()
+            }
             .store(in: &cancellables)
 
         appState.$isConstructorMode
@@ -306,8 +363,13 @@ final class Coordinator: NSObject {
                     // Flat pitch for accurate screen-to-coordinate tap mapping
                     mapView?.camera.ease(to: CameraOptions(pitch: 0), duration: 0.35,
                                          curve: .easeInOut, completion: nil)
+                    // Тропы под камерой нужны сразу: по ним пойдёт и притяжение,
+                    // и прокладка, если сети не окажется
+                    refreshTileTrailSegments(force: true)
+                    updateConstructorAim()
                 } else {
-                    updateConstructorPolyline([])
+                    updateConstructorPolyline(waypoints: [], legs: [])
+                    appState.constructorAnchorScreen = nil
                 }
             }
             .store(in: &cancellables)
@@ -429,6 +491,11 @@ final class Coordinator: NSObject {
         refreshStations()
         updateTopoOpacity(appState.topoAlpha)
         restoreLiveTrack()
+        // Нарисованный маршрут переживает смену основы карты. Тропы для
+        // притяжения тоже перезапрашиваем: источник у новой основы другой.
+        updateConstructorPolyline(waypoints: appState.constructorWaypoints,
+                                  legs: appState.constructorLegs)
+        refreshTileTrailSegments(force: true)
     }
 
     /// После смены стиля живой трек нужно нарисовать заново.
@@ -894,7 +961,12 @@ final class Coordinator: NSObject {
     private func onSelectedRouteChanged(_ route: Route?) {
         guard isStyleLoaded, let mapView else { return }
         clearActiveRoute(on: mapView)
-        guard let route else { flyToOverview(on: mapView); return }
+        guard let route else {
+            // Кнопка «Нарисовать» снимает выбор маршрута. Улетать при этом на
+            // обзор нельзя: рисовать собираются ровно там, куда смотрят.
+            if !appState.isConstructorMode { flyToOverview(on: mapView) }
+            return
+        }
         if let stats = appState.routeStats[route.id] {
             showRoute(route, stats: stats, on: mapView, fly: true)
         }
@@ -913,18 +985,23 @@ final class Coordinator: NSObject {
     // MARK: - Tap handler
     @objc func handleTap(_ gesture: UITapGestureRecognizer) {
         guard let mapView else { return }
+        // Жест не должен ставить точку: сдвиг, зум и поворот заканчиваются
+        // касанием, и карта в этот момент ещё едет по инерции
+        guard activeGestures == 0,
+              Date().timeIntervalSince(lastGestureEnd) > 0.35 else { return }
         let point = gesture.location(in: mapView)
 
-        // Constructor mode: add waypoint, optionally snapping to nearest PSS trail segment
+        // Конструктор: ставим точку, притянув её к ближайшей тропе. Путь от
+        // предыдущей точки прокладывает AppState — он уже по тропам, не по прямой.
         if appState.isConstructorMode {
             let tapped = mapView.mapboxMap.coordinate(for: point)
+            var placed = tapped
             if appState.isSnapEnabled,
-               let snapped = TrailSnapService.findSnapInMemory(near: tapped, segments: pssSnapSegments) {
+               let snapped = TrailSnapService.findSnapInMemory(near: tapped, segments: routingSegments) {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                DispatchQueue.main.async { self.appState.constructorWaypoints.append(snapped) }
-            } else {
-                DispatchQueue.main.async { self.appState.constructorWaypoints.append(tapped) }
+                placed = snapped
             }
+            DispatchQueue.main.async { self.appState.addConstructorWaypoint(placed) }
             return
         }
 
@@ -975,6 +1052,11 @@ final class Coordinator: NSObject {
             // Route dot taps
             for qf in features {
                 guard let props = qf.queriedFeature.feature.properties else { continue }
+                if case .string(let cid) = props["customId"],
+                   let route = self.appState.customRouteStore.routes.first(where: { $0.id == cid }) {
+                    DispatchQueue.main.async { self.appState.selectCustomRoute(route) }
+                    return
+                }
                 if case .string(let rid) = props["routeId"],
                    let route = RouteStore.all.first(where: { $0.id == rid }) {
                     DispatchQueue.main.async { self.appState.select(route) }
@@ -1431,6 +1513,7 @@ final class Coordinator: NSObject {
             DispatchQueue.main.async { [weak self] in
                 guard let self, let mapView = self.mapView else { return }
                 self.pssSnapSegments = segments
+                self.rebuildRoutingSegments()
                 self.appState.pssRoutes = pssRoutes
 
                 var src = GeoJSONSource(id: "pss-trails-source")
@@ -1598,6 +1681,8 @@ final class Coordinator: NSObject {
             }
         )
         circles.circleColor = .expression(Exp(.switchCase) {
+            Exp(.eq) { Exp(.get) { "type" }; "custom" }
+            Exp(.rgba) { 122.0; 94.0; 166.0; 1.0 }
             Exp(.eq) { Exp(.get) { "type" }; "planned" }
             Exp(.rgba) { 255.0; 215.0; 0.0; 1.0 }
             Exp(.rgba) { 255.0; 77.0; 77.0; 1.0 }
@@ -1611,7 +1696,7 @@ final class Coordinator: NSObject {
     }
 
     private func markerFeatures() -> [Feature] {
-        appState.filteredRoutes.compactMap { route -> Feature? in
+        var features = appState.filteredRoutes.compactMap { route -> Feature? in
             guard let stats = appState.routeStats[route.id] else { return nil }
             var f = Feature(geometry: .point(Point(stats.midpointCoord)))
             f.properties = [
@@ -1620,6 +1705,25 @@ final class Coordinator: NSObject {
             ]
             return f
         }
+
+        // Свои маршруты — там же, где показывается их линия: в «Мои» и в «Все».
+        // Середину берём прямо из сохранённых массивов: собирать ради точки
+        // весь список координат (а это тысячи точек на маршрут) незачем.
+        if appState.filter == .mine || appState.filter == .all {
+            for route in appState.customRouteStore.routes {
+                let mid = route.waypointLats.count / 2
+                guard route.waypointLats.indices.contains(mid),
+                      route.waypointLons.indices.contains(mid) else { continue }
+                var f = Feature(geometry: .point(Point(CLLocationCoordinate2D(
+                    latitude: route.waypointLats[mid], longitude: route.waypointLons[mid]))))
+                f.properties = [
+                    "customId": .string(route.id),
+                    "type":     .string("custom")
+                ]
+                features.append(f)
+            }
+        }
+        return features
     }
 
     private func refreshMarkers() {
@@ -1783,10 +1887,12 @@ final class Coordinator: NSObject {
         let selectionChanged = shownCustomRouteId != selected?.id
         // Закрыли карточку своего маршрута — камера отъезжает на обзор, как и
         // после обычного маршрута (`onSelectedRouteChanged(nil)`).
-        if selectionChanged, selected == nil, shownCustomRouteId != nil {
+        if selectionChanged, selected == nil, shownCustomRouteId != nil,
+           !appState.isConstructorMode {
             flyToOverview(on: mapView)
         }
         shownCustomRouteId = selected?.id
+        refreshMarkers()
 
         // Clear previous layers
         try? mapView.mapboxMap.removeLayer(withId: "custom-all-lines")
@@ -1855,25 +1961,289 @@ final class Coordinator: NSObject {
         }
     }
 
+    // MARK: - Тропы из тайлов
+
+    /// Вытаскивает тропы из загруженных векторных тайлов. Нужны и для
+    /// притяжения точки (в PSS лежат только именованные маршруты), и как
+    /// граф для офлайн-прокладки. Запрос идёт по тайлам, которые уже есть
+    /// у карты, — то есть по тому куску, на который сейчас смотрит рисующий.
+    func refreshTileTrailSegments(force: Bool = false) {
+        guard let mapView, isStyleLoaded, appState.isConstructorMode else { return }
+        let camera = mapView.mapboxMap.cameraState
+        // Ниже z11 троп в тайлах просто нет — незачем и спрашивать
+        guard camera.zoom >= 11 else { return }
+        let now = Date()
+        if !force {
+            guard now.timeIntervalSince(lastTrailQueryTime) >= 2 else { return }
+            if let last = lastTrailQueryCenter,
+               abs(camera.zoom - lastTrailQueryZoom) < 1,
+               TrailRouter.meters(last, camera.center) < 1500 { return }
+            trailQueryRetries = 0
+        }
+        lastTrailQueryTime = now
+        let queriedCenter = camera.center
+        let queriedZoom   = camera.zoom
+
+        // У Mapbox тропы лежат в composite/road, у своих тайлов — в topo/transportation
+        let hasOwnTiles = mapView.mapboxMap.sourceExists(withId: "topo")
+        let sourceId    = hasOwnTiles ? "topo" : "composite"
+        let sourceLayer = hasOwnTiles ? "transportation" : "road"
+        let classes     = ["path", "track", "footway", "steps", "pedestrian"]
+        let filter: [Any] = ["match", ["get", "class"], classes, true, false]
+
+        _ = mapView.mapboxMap.querySourceFeatures(
+            for: sourceId,
+            options: SourceQueryOptions(sourceLayerIds: [sourceLayer], filter: filter)
+        ) { [weak self] result in
+            guard case .success(let features) = result, !features.isEmpty else {
+                // Сразу после переезда камеры тайлы ещё едут, и ответ приходит
+                // пустой. Событий карты на это не будет — она уже «в покое»,
+                // — так что переспрашиваем сами.
+                self?.retryTileTrailQuery()
+                return
+            }
+            DispatchQueue.global(qos: .userInitiated).async {
+                var segments: [TrailSnapService.Segment] = []
+                for queried in features {
+                    let feature = queried.queriedFeature.feature
+                    // Класс проверяем и сами: фильтр уезжает в ядро сырым JSON
+                    if case .string(let cls)? = feature.properties?["class"] ?? nil,
+                       !classes.contains(cls) { continue }
+                    let lines: [[CLLocationCoordinate2D]]
+                    switch feature.geometry {
+                    case .lineString(let ls):       lines = [ls.coordinates]
+                    case .multiLineString(let mls): lines = mls.coordinates
+                    default: continue
+                    }
+                    for coords in lines where coords.count >= 2 {
+                        segments.append(contentsOf: zip(coords, coords.dropFirst()).map { ($0, $1) })
+                    }
+                }
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    // Кадр запоминаем только когда тропы реально приехали
+                    self.lastTrailQueryCenter = queriedCenter
+                    self.lastTrailQueryZoom   = queriedZoom
+                    self.trailQueryRetries    = 0
+                    self.osmTrailSegments     = segments
+                    self.rebuildRoutingSegments()
+                }
+            }
+        }
+    }
+
+    private func retryTileTrailQuery() {
+        guard appState.isConstructorMode,
+              trailQueryRetries < Coordinator.maxTrailQueryRetries else { return }
+        trailQueryRetries += 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            self?.refreshTileTrailSegments(force: true)
+        }
+    }
+
+    /// Пересобирает общий набор отрезков и двигает поколение — по нему
+    /// `TrailGraphCache` понимает, что собранный граф устарел.
+    func rebuildRoutingSegments() {
+        routingSegments = pssSnapSegments + osmTrailSegments
+        routingSegmentsToken &+= 1
+    }
+
+    // MARK: - Бегунок по профилю
+
+    /// Свободная часть экрана, пока ведут ползунок: сверху шкала, снизу блок
+    /// профиля — под них прятать точку маршрута нельзя.
+    private func scrubSafeRect(in bounds: CGRect) -> CGRect {
+        let profile = appState.profileBlockFrame
+        let bottomInset = profile.height > 0
+            ? max(0, bounds.maxY - profile.minY) + 16
+            : bounds.height * 0.38
+        return bounds.inset(by: UIEdgeInsets(top: 130, left: 24, bottom: bottomInset, right: 24))
+    }
+
+    /// Уехал бегунок из видимой части — переносим камеру так, чтобы стало
+    /// видно и его, и весь маршрут. Зум при этом подбирается под свободный
+    /// кусок экрана, а не под весь кадр.
+    func keepScrubberVisible() {
+        guard let mapView, appState.isScrubbingProfile, !isFramingScrub,
+              let marker = appState.scrubberCoordinate else { return }
+        let bounds = mapView.bounds.isEmpty ? UIScreen.main.bounds : mapView.bounds
+        let safe = scrubSafeRect(in: bounds)
+        guard safe.width > 40, safe.height > 40 else { return }
+
+        let viewCenter = CGPoint(x: bounds.midX, y: bounds.midY)
+        let markerPoint = unclampedPoint(for: marker, on: mapView, viewCenter: viewCenter)
+        guard !safe.contains(markerPoint) else { return }
+
+        let map: MapboxMap = mapView.mapboxMap
+        let bearing = map.cameraState.bearing
+        let route = appState.scrubRouteCoordinates.isEmpty ? [marker] : appState.scrubRouteCoordinates
+
+        // Зум под весь кадр, потом ужимаем под свободный прямоугольник
+        let fitted = map.camera(for: route, padding: .zero, bearing: bearing, pitch: 0)
+        guard let fittedCenter = fitted.center, let fittedZoom = fitted.zoom else { return }
+        let shrink = min(safe.width / bounds.width, safe.height / bounds.height)
+        let zoom = min(17.5, max(5.0, fittedZoom + log2(Double(shrink))))
+
+        // Центр сдвигаем так, чтобы маршрут встал в середину свободной части,
+        // а не кадра: иначе половина уедет под карточку
+        let offset = CGPoint(x: viewCenter.x - safe.midX, y: viewCenter.y - safe.midY)
+        let center = coordinate(from: fittedCenter, offsetPixels: offset, zoom: zoom, bearing: bearing)
+
+        isFramingScrub = true
+        stopFollowing()
+        mapView.camera.ease(
+            to: CameraOptions(center: center, padding: .zero, zoom: zoom, bearing: bearing, pitch: 0),
+            duration: 0.45, curve: .easeInOut
+        ) { [weak self] _ in self?.isFramingScrub = false }
+    }
+
+    /// Координата, сдвинутая от базовой на столько-то экранных точек.
+    /// Обратная к `unclampedPoint`: та же меркаторова арифметика.
+    private func coordinate(from base: CLLocationCoordinate2D,
+                            offsetPixels: CGPoint,
+                            zoom: Double,
+                            bearing: Double) -> CLLocationCoordinate2D {
+        let worldSize = 512.0 * pow(2.0, zoom)
+        let b = bearing * .pi / 180
+        let dx = Double(offsetPixels.x) * cos(b) - Double(offsetPixels.y) * sin(b)
+        let dy = Double(offsetPixels.x) * sin(b) + Double(offsetPixels.y) * cos(b)
+
+        let clamped = min(max(base.latitude, -85.051129), 85.051129)
+        let sinLat = sin(clamped * .pi / 180)
+        let x = (base.longitude + 180) / 360 + dx / worldSize
+        let y = 0.5 - log((1 + sinLat) / (1 - sinLat)) / (4 * .pi) + dy / worldSize
+
+        let lon = x * 360 - 180
+        let lat = atan(sinh(.pi * (1 - 2 * y))) * 180 / .pi
+        return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+    }
+
+    // MARK: - Жесты карты
+
+    /// Одиночный тап не считаем жестом: он и есть то, чем ставят точку.
+    private func isMapGesture(_ type: GestureType) -> Bool { type != .singleTap }
+
+    // MARK: - Прицел в центре кадра
+
+    /// Ставит точку туда, куда смотрит прицел — в центр карты. Тем же путём,
+    /// что и тап: с притяжением к тропе и прокладкой от предыдущей точки.
+    private func placeWaypointAtAim() {
+        guard let mapView, appState.isConstructorMode else { return }
+        var placed = mapView.mapboxMap.cameraState.center
+        if appState.isSnapEnabled,
+           let snapped = TrailSnapService.findSnapInMemory(near: placed, segments: routingSegments) {
+            placed = snapped
+        }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        appState.addConstructorWaypoint(placed)
+    }
+
+    /// Экранные координаты последней опоры и центра карты: от первой ко второму
+    /// интерфейс тянет пунктирную «резинку».
+    func updateConstructorAim() {
+        guard let mapView, appState.isConstructorMode else {
+            if appState.constructorAnchorScreen != nil { appState.constructorAnchorScreen = nil }
+            return
+        }
+        let bounds = mapView.bounds.isEmpty ? UIScreen.main.bounds : mapView.bounds
+        let center = CGPoint(x: bounds.midX, y: bounds.midY)
+        if appState.mapCenterScreen != center { appState.mapCenterScreen = center }
+
+        guard let last = appState.constructorWaypoints.last else {
+            if appState.constructorAnchorScreen != nil { appState.constructorAnchorScreen = nil }
+            return
+        }
+        let projected = anchorPoint(for: last, on: mapView, bounds: bounds, viewCenter: center)
+        if appState.constructorAnchorScreen != projected { appState.constructorAnchorScreen = projected }
+    }
+
+    /// Экранная точка опоры, годная и за пределами кадра.
+    ///
+    /// `point(for:)` снаружи вида прижимает результат к краю — «резинка»
+    /// прыгала в угол экрана, стоило последней точке уехать за кадр. Пока
+    /// точка в кадре, берём ответ SDK: он учитывает параллакс рельефа
+    /// (пара пунктов разницы). Как только она вышла — считаем сами.
+    private func anchorPoint(for coordinate: CLLocationCoordinate2D,
+                             on mapView: MapView,
+                             bounds: CGRect,
+                             viewCenter: CGPoint) -> CGPoint {
+        let flat = unclampedPoint(for: coordinate, on: mapView, viewCenter: viewCenter)
+        return bounds.contains(flat) ? mapView.mapboxMap.point(for: coordinate) : flat
+    }
+
+    /// Проекция без оглядки на кадр: при нулевом наклоне это обычная
+    /// Меркаторова арифметика, с наклоном (в конструкторе его нет) — SDK.
+    private func unclampedPoint(for coordinate: CLLocationCoordinate2D,
+                                on mapView: MapView,
+                                viewCenter: CGPoint) -> CGPoint {
+        let camera = mapView.mapboxMap.cameraState
+        guard camera.pitch < 1 else { return mapView.mapboxMap.point(for: coordinate) }
+
+        func mercator(_ c: CLLocationCoordinate2D) -> (x: Double, y: Double) {
+            let clamped = min(max(c.latitude, -85.051129), 85.051129)
+            let sinLat  = sin(clamped * .pi / 180)
+            return ((c.longitude + 180) / 360,
+                    0.5 - log((1 + sinLat) / (1 - sinLat)) / (4 * .pi))
+        }
+
+        // Мир при zoom = z шириной 512 · 2^z точек — это соглашение Mapbox
+        let worldSize = 512.0 * pow(2.0, camera.zoom)
+        let target = mercator(coordinate)
+        let origin = mercator(camera.center)
+        let dx = (target.x - origin.x) * worldSize
+        let dy = (target.y - origin.y) * worldSize
+
+        let bearing = camera.bearing * .pi / 180
+        let cosB = cos(bearing), sinB = sin(bearing)
+        return CGPoint(x: viewCenter.x + dx * cosB + dy * sinB,
+                       y: viewCenter.y - dx * sinB + dy * cosB)
+    }
+
     // MARK: - Constructor polyline
-    func updateConstructorPolyline(_ waypoints: [CLLocationCoordinate2D]) {
+    func updateConstructorPolyline(waypoints: [CLLocationCoordinate2D], legs: [ConstructorLeg]) {
         guard isStyleLoaded, let mapView else { return }
 
         try? mapView.mapboxMap.removeLayer(withId: "constructor-line")
         try? mapView.mapboxMap.removeSource(withId: "constructor-src")
+        try? mapView.mapboxMap.removeLayer(withId: "constructor-straight-line")
+        try? mapView.mapboxMap.removeSource(withId: "constructor-straight-src")
         try? mapView.mapboxMap.removeLayer(withId: "constructor-dots-layer")
         try? mapView.mapboxMap.removeSource(withId: "constructor-dots-src")
 
         guard !waypoints.isEmpty else { return }
 
-        if waypoints.count >= 2 {
+        // Тропы рисуем сплошной линией, прямые куски — пунктиром: сразу видно,
+        // где маршрут лёг на тропу, а где пошёл напрямик
+        var onTrail: [Feature] = []
+        var direct:  [Feature] = []
+        for leg in legs where leg.path.count >= 2 {
+            let feature = Feature(geometry: .lineString(LineString(leg.path)))
+            if leg.kind == .trail { onTrail.append(feature) } else { direct.append(feature) }
+        }
+
+        let accent = UIColor(red: 1.0, green: 0.55, blue: 0.1, alpha: 1)
+
+        if !onTrail.isEmpty {
             var src = GeoJSONSource(id: "constructor-src")
-            src.data = .geometry(.lineString(LineString(waypoints)))
+            src.data = .featureCollection(FeatureCollection(features: onTrail))
             try? mapView.mapboxMap.addSource(src)
 
             var layer = LineLayer(id: "constructor-line", source: "constructor-src")
-            layer.lineColor     = .constant(StyleColor(UIColor(red: 1.0, green: 0.55, blue: 0.1, alpha: 1)))
-            layer.lineWidth     = .constant(3.5)
+            layer.lineColor = .constant(StyleColor(accent))
+            layer.lineWidth = .constant(4.0)
+            layer.lineCap   = .constant(.round)
+            layer.lineJoin  = .constant(.round)
+            try? mapView.mapboxMap.addLayer(layer)
+        }
+
+        if !direct.isEmpty {
+            var src = GeoJSONSource(id: "constructor-straight-src")
+            src.data = .featureCollection(FeatureCollection(features: direct))
+            try? mapView.mapboxMap.addSource(src)
+
+            var layer = LineLayer(id: "constructor-straight-line", source: "constructor-straight-src")
+            layer.lineColor     = .constant(StyleColor(accent.withAlphaComponent(0.75)))
+            layer.lineWidth     = .constant(3.0)
             layer.lineCap       = .constant(.round)
             layer.lineJoin      = .constant(.round)
             layer.lineDasharray = .constant([4, 3])
@@ -2060,5 +2430,27 @@ final class Coordinator: NSObject {
             let b = UIBezierPath(ovalIn: CGRect(x: c-r-1.5, y: c-r-1.5, width: (r+1.5)*2, height: (r+1.5)*2))
             b.lineWidth = 1.5; b.stroke()
         }
+    }
+}
+
+// MARK: - GestureManagerDelegate
+
+/// Пока карту двигают, тап по ней ничего не ставит: после сдвига, зума,
+/// поворота и наклона система всё равно присылает одиночное касание.
+extension Coordinator: GestureManagerDelegate {
+    func gestureManager(_ gestureManager: GestureManager, didBegin gestureType: GestureType) {
+        guard isMapGesture(gestureType) else { return }
+        activeGestures += 1
+    }
+
+    func gestureManager(_ gestureManager: GestureManager, didEnd gestureType: GestureType, willAnimate: Bool) {
+        guard isMapGesture(gestureType) else { return }
+        activeGestures = max(0, activeGestures - 1)
+        lastGestureEnd = Date()
+    }
+
+    func gestureManager(_ gestureManager: GestureManager, didEndAnimatingFor gestureType: GestureType) {
+        guard isMapGesture(gestureType) else { return }
+        lastGestureEnd = Date()
     }
 }

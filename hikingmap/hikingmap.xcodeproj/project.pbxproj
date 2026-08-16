@@ -12,6 +12,7 @@
 		D1A0000000000000000000B1 /* MyLocationButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000000B2 /* MyLocationButton.swift */; };
 		D1A0000000000000000000C1 /* MapboxMapView+MyLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000000C2 /* MapboxMapView+MyLocation.swift */; };
 		D1A0000000000000000001A1 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000001A2 /* SupabaseConfig.swift */; };
+		BB1122334455667788990041 /* AuthStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1122334455667788990042 /* AuthStorage.swift */; };
 		D1A0000000000000000001B1 /* AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000001B2 /* AccountService.swift */; };
 		D1A0000000000000000001C1 /* RouteSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000001C2 /* RouteSync.swift */; };
 		D1A0000000000000000001D1 /* AccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000001D2 /* AccountSheet.swift */; };
@@ -20,11 +21,14 @@
 		2AD726D4254F88B2543E45CD /* TrackRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2174F1E76377A349A2BB1F7F /* TrackRecorder.swift */; };
 		3F5CE64B59540BF79EC8B121 /* LiveTrackHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 354C631697992D9F609E2694 /* LiveTrackHUD.swift */; };
 		3F7165C73E5F9CA47A4E71BF /* CavePoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF5E1403A6BF6871AD3028E /* CavePoint.swift */; };
+		BB1122334455667788990031 /* ConstructorAimLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1122334455667788990032 /* ConstructorAimLayer.swift */; };
 		8BC474299305472586500DDB /* RouteConstructorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E87534EABC744978B086D59 /* RouteConstructorView.swift */; };
 		94A41467C83D63F25CC6B286 /* TrackRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4C4AFA6B4264344FEFC8315 /* TrackRecording.swift */; };
 		A1B23C45D67E890F12345678 /* CustomRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C34D56E78F901A23456789 /* CustomRoute.swift */; };
 		A2B3C4D5E6F7890123456789 /* SaveRouteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C4D5E6F78901234567890A /* SaveRouteSheet.swift */; };
 		CC3344556677889900B101 /* StationFlagsLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900B102 /* StationFlagsLayer.swift */; };
+		BB1122334455667788990011 /* TrailGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1122334455667788990012 /* TrailGraph.swift */; };
+		BB1122334455667788990021 /* TrailRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1122334455667788990022 /* TrailRouter.swift */; };
 		AA1122334455667788990001 /* TrailSnapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788990002 /* TrailSnapService.swift */; };
 		CC3344556677889900E101 /* RailwayStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900E102 /* RailwayStore.swift */; };
 		CC3344556677889900D101 /* TileSetDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900D102 /* TileSetDownloader.swift */; };
@@ -93,6 +97,7 @@
 		D1A0000000000000000000B2 /* MyLocationButton.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "MyLocationButton.swift"; sourceTree = "<group>"; };
 		D1A0000000000000000000C2 /* MapboxMapView+MyLocation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "MapboxMapView+MyLocation.swift"; sourceTree = "<group>"; };
 		D1A0000000000000000001A2 /* SupabaseConfig.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Account/SupabaseConfig.swift"; sourceTree = "<group>"; };
+		BB1122334455667788990042 /* AuthStorage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Account/AuthStorage.swift"; sourceTree = "<group>"; };
 		D1A0000000000000000001B2 /* AccountService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Account/AccountService.swift"; sourceTree = "<group>"; };
 		D1A0000000000000000001C2 /* RouteSync.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Account/RouteSync.swift"; sourceTree = "<group>"; };
 		D1A0000000000000000001D2 /* AccountSheet.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Account/AccountSheet.swift"; sourceTree = "<group>"; };
@@ -103,8 +108,11 @@
 		2703ACB415474911AFCECF20 /* SmartTimeView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SmartTimeView.swift; sourceTree = "<group>"; };
 		354C631697992D9F609E2694 /* LiveTrackHUD.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LiveTrackHUD.swift; sourceTree = "<group>"; };
 		5A4E24CE58414FEAB939ED38 /* AIAssistantView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AIAssistantView.swift; sourceTree = "<group>"; };
+		BB1122334455667788990032 /* ConstructorAimLayer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConstructorAimLayer.swift; sourceTree = "<group>"; };
 		9E87534EABC744978B086D59 /* RouteConstructorView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RouteConstructorView.swift; sourceTree = "<group>"; };
 		A4C4AFA6B4264344FEFC8315 /* TrackRecording.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackRecording.swift; sourceTree = "<group>"; };
+		BB1122334455667788990012 /* TrailGraph.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrailGraph.swift; sourceTree = "<group>"; };
+		BB1122334455667788990022 /* TrailRouter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrailRouter.swift; sourceTree = "<group>"; };
 		AA1122334455667788990002 /* TrailSnapService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrailSnapService.swift; sourceTree = "<group>"; };
 		CC3344556677889900E102 /* RailwayStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RailwayStore.swift; sourceTree = "<group>"; };
 		CC3344556677889900D102 /* TileSetDownloader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TileSetDownloader.swift; sourceTree = "<group>"; };
@@ -258,6 +266,7 @@
 				C8DF3C120F8A43C0B4EDAE1E /* FitnessMatchView.swift */,
 				5A4E24CE58414FEAB939ED38 /* AIAssistantView.swift */,
 				9E87534EABC744978B086D59 /* RouteConstructorView.swift */,
+				BB1122334455667788990032 /* ConstructorAimLayer.swift */,
 				D4E56F78901B23C45678901A /* CustomRouteCarousel.swift */,
 				B3C4D5E6F78901234567890A /* SaveRouteSheet.swift */,
 				CC3344556677889900B102 /* StationFlagsLayer.swift */,
@@ -310,6 +319,8 @@
 			children = (
 				F6789012B3C4D5E6F7890123 /* ElevationService.swift */,
 				AA1122334455667788990002 /* TrailSnapService.swift */,
+				BB1122334455667788990022 /* TrailRouter.swift */,
+				BB1122334455667788990012 /* TrailGraph.swift */,
 				CC3344556677889900D102 /* TileSetDownloader.swift */,
 				CC3344556677889900C102 /* PhotoStore.swift */,
 				CC3344556677889900A102 /* TopoTiles.swift */,
@@ -318,6 +329,7 @@
 							D1A0000000000000000000A2 /* LocationPermission.swift */,
 							D1A0000000000000000001A2 /* SupabaseConfig.swift */,
 							D1A0000000000000000001B2 /* AccountService.swift */,
+							BB1122334455667788990042 /* AuthStorage.swift */,
 							D1A0000000000000000001C2 /* RouteSync.swift */,
 			);
 			path = Services;
@@ -487,6 +499,7 @@
 				19DC715431D44B8F88E99A11 /* FitnessMatchView.swift in Sources */,
 				B0FC5952E62D4BA782C49823 /* AIAssistantView.swift in Sources */,
 				8BC474299305472586500DDB /* RouteConstructorView.swift in Sources */,
+				BB1122334455667788990031 /* ConstructorAimLayer.swift in Sources */,
 				A1B23C45D67E890F12345678 /* CustomRoute.swift in Sources */,
 				C3D45E67F890A12B34567890 /* CustomRouteCarousel.swift in Sources */,
 				E5F67890A1B2C3D4E5F67890 /* ElevationService.swift in Sources */,
@@ -495,6 +508,8 @@
 				CC2233445566778899000201 /* OfflineMapsView.swift in Sources */,
 				C4D5E6F7890123456789AB01 /* CustomRouteDetailPanel.swift in Sources */,
 				AA1122334455667788990001 /* TrailSnapService.swift in Sources */,
+				BB1122334455667788990021 /* TrailRouter.swift in Sources */,
+				BB1122334455667788990011 /* TrailGraph.swift in Sources */,
 				CC3344556677889900E101 /* RailwayStore.swift in Sources */,
 				CC3344556677889900D101 /* TileSetDownloader.swift in Sources */,
 				CC3344556677889900C101 /* PhotoStore.swift in Sources */,
@@ -510,6 +525,7 @@
 				D1A0000000000000000000C1 /* MapboxMapView+MyLocation.swift in Sources */,
 				D1A0000000000000000001A1 /* SupabaseConfig.swift in Sources */,
 				D1A0000000000000000001B1 /* AccountService.swift in Sources */,
+				BB1122334455667788990041 /* AuthStorage.swift in Sources */,
 				D1A0000000000000000001C1 /* RouteSync.swift in Sources */,
 				D1A0000000000000000001D1 /* AccountSheet.swift in Sources */,
 				D1A0000000000000000003A1 /* HistMapSliderBar.swift in Sources */,

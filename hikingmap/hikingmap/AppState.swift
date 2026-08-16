@@ -18,6 +18,49 @@ struct SelectedPhotoInfo: Identifiable {
     let index: Int
 }
 
+/// Отрезок рисуемого маршрута: путь от предыдущей опорной точки к следующей.
+/// По тропам, если роутер их нашёл, иначе по прямой.
+struct ConstructorLeg: Identifiable, Equatable {
+    enum Kind {
+        /// Роутер ещё думает — на карте пока прямая
+        case pending
+        /// Легло на тропы
+        case trail
+        /// Троп рядом нет, идём напрямик
+        case straight
+    }
+
+    let id = UUID()
+    /// Включая обе опорные точки
+    var path: [CLLocationCoordinate2D]
+    var kind: Kind
+    var distanceMeters: Double
+    /// Высоты по точкам `path`. От BRouter приезжают вместе с геометрией,
+    /// иначе снимаем с рельефа карты. nil — высот нет, набор не показываем.
+    var elevations: [Double]?
+
+    /// Геометрию сравниваем по длине: она меняется вместе с путём, а
+    /// `CLLocationCoordinate2D` сам по себе не `Equatable`.
+    static func == (lhs: ConstructorLeg, rhs: ConstructorLeg) -> Bool {
+        lhs.id == rhs.id && lhs.kind == rhs.kind && lhs.distanceMeters == rhs.distanceMeters
+    }
+}
+
+/// Что показывает верхняя шкала, пока ведут ползунок по профилю высот.
+struct ScrubberReadout: Equatable {
+    let elevationM: Double
+    let distanceKm: Double
+    let totalKm: Double
+}
+
+/// Снимок конструктора для «отменить/вернуть». Храним состояние целиком:
+/// отрезков немного, зато откат не зависит от того, какое действие его
+/// породило, — а значит и новые действия не придётся учить откатываться.
+struct ConstructorSnapshot {
+    let waypoints: [CLLocationCoordinate2D]
+    let legs: [ConstructorLeg]
+}
+
 /// Железнодорожная станция на экране: точка привязки на карте плюс уже
 /// пересчитанная позиция в пикселях — интерфейсу остаётся только нарисовать.
 struct StationMarker: Identifiable, Equatable {
@@ -76,12 +119,39 @@ final class AppState: ObservableObject {
     @Published var filter: RouteFilter = .all
     @Published var isLoadingRoute = false
     @Published var scrubberCoordinate: CLLocationCoordinate2D?
+    /// Ползунок по профилю высот ведут прямо сейчас. Пока ведут — интерфейс
+    /// сверху прячется, а карточка становится почти прозрачной: иначе не
+    /// видно, где эта точка на карте, а смотрят именно на неё.
+    @Published var isScrubbingProfile = false
+    @Published var scrubberReadout: ScrubberReadout?
+    /// Где на экране блок профиля — карта не должна прятать бегунок под ним
+    @Published var profileBlockFrame: CGRect = .zero
+    /// Прореженная геометрия маршрута, по которому ведут: по ней карта
+    /// подбирает кадр, когда бегунок уезжает из видимой части
+    var scrubRouteCoordinates: [CLLocationCoordinate2D] = []
+
+    /// Конец скраба: снять и метку с карты, и режим прозрачности
+    func endProfileScrub() {
+        isScrubbingProfile = false
+        scrubberReadout    = nil
+        scrubberCoordinate = nil
+    }
     @Published var showDetailPanel = false
     @Published var showAllTrails = false
     @Published var selectedPhotoInfo: SelectedPhotoInfo?
     @Published var showAIAssistant = false
     @Published var isConstructorMode = false
+    /// Опорные точки — то, куда ткнули пальцем (с поправкой на притяжение)
     @Published var constructorWaypoints: [CLLocationCoordinate2D] = []
+    /// Что между ними проложено. `constructorLegs[i]` ведёт из точки `i` в `i+1`.
+    @Published var constructorLegs: [ConstructorLeg] = []
+    /// История для «отменить» и, после отката, для «вернуть»
+    @Published private(set) var constructorUndoStack: [ConstructorSnapshot] = []
+    @Published private(set) var constructorRedoStack: [ConstructorSnapshot] = []
+    /// Экранная точка последней опоры и центра карты — от них рисуется
+    /// «резинка» до прицела. Обновляет карта на каждом кадре камеры.
+    @Published var constructorAnchorScreen: CGPoint?
+    @Published var mapCenterScreen: CGPoint?
     @Published var selectedCustomRoute: CustomRoute?
     @Published var showCustomRouteDetail = false
     @Published var showOSMTrails = false
@@ -207,6 +277,226 @@ final class AppState: ObservableObject {
     func deselect() {
         selectedRoute = nil
         showDetailPanel = false
+    }
+
+    // MARK: - Конструктор маршрута
+
+    /// Отрезки троп для офлайн-прокладки и притяжения точки: маршруты PSS из
+    /// бандла плюс тропы из загруженных тайлов. Держит их карта, отдаёт
+    /// замыканием вместе с «поколением» — копировать сотню тысяч пар
+    /// в состояние на каждый тап незачем.
+    var trailSegmentsProvider: (() -> ([TrailSnapService.Segment], Int))?
+
+    /// Высота рельефа под точкой — отдаёт карта (DEM, тот же, что под `setTerrain`)
+    var terrainElevationProvider: ((CLLocationCoordinate2D) -> Double?)?
+
+    /// Нажали «Шаг»: точку ставит карта — по прицелу в центре кадра
+    let constructorStepRequest = PassthroughSubject<Void, Never>()
+
+    /// Вся нарисованная линия — склейка отрезков, а не опорные точки.
+    var constructorPath: [CLLocationCoordinate2D] {
+        guard !constructorLegs.isEmpty else { return constructorWaypoints }
+        var path: [CLLocationCoordinate2D] = []
+        for leg in constructorLegs {
+            path.append(contentsOf: path.isEmpty ? leg.path : Array(leg.path.dropFirst()))
+        }
+        return path
+    }
+
+    var constructorDistanceKm: Double {
+        constructorLegs.reduce(0) { $0 + $1.distanceMeters } / 1000
+    }
+
+    /// Хоть один отрезок ещё прокладывается
+    var constructorIsRouting: Bool { constructorLegs.contains { $0.kind == .pending } }
+
+    /// Хоть один отрезок лёг по прямой — троп там не нашлось
+    var constructorHasStraightLegs: Bool { constructorLegs.contains { $0.kind == .straight } }
+
+    /// Высоты вдоль всей нарисованной линии. nil, если хоть у одного отрезка
+    /// их нет: показывать набор по половине маршрута — врать.
+    var constructorElevationProfile: [Double]? {
+        guard !constructorLegs.isEmpty else { return nil }
+        var profile: [Double] = []
+        for leg in constructorLegs {
+            guard let elevations = leg.elevations, elevations.count == leg.path.count else { return nil }
+            profile.append(contentsOf: profile.isEmpty ? elevations : Array(elevations.dropFirst()))
+        }
+        return profile.count >= 2 ? profile : nil
+    }
+
+    var constructorAscentM: Double? { AppState.climb(constructorElevationProfile)?.ascent }
+    var constructorDescentM: Double? { AppState.climb(constructorElevationProfile)?.descent }
+
+    /// Набор и сброс по профилю. Сглаживаем скользящим средним и режем мелочь,
+    /// как `GPXParser`: и рельеф карты, и высоты роутера шумят на пару метров,
+    /// а из этого шума за десять километров набирается лишняя сотня.
+    static func climb(_ profile: [Double]?) -> (ascent: Double, descent: Double)? {
+        guard let profile, profile.count >= 2 else { return nil }
+        let half = 4
+        let smoothed = profile.indices.map { i -> Double in
+            let lo = max(0, i - half), hi = min(profile.count - 1, i + half)
+            return profile[lo...hi].reduce(0, +) / Double(hi - lo + 1)
+        }
+        var ascent = 0.0, descent = 0.0
+        for i in 1..<smoothed.count {
+            let d = smoothed[i] - smoothed[i - 1]
+            if d > 0.3 { ascent += d } else if d < -0.3 { descent -= d }
+        }
+        return (ascent, descent)
+    }
+
+    // MARK: Действия конструктора
+
+    var canUndoConstructor: Bool { !constructorUndoStack.isEmpty }
+    var canRedoConstructor: Bool { !constructorRedoStack.isEmpty }
+
+    /// Ставит точку и сразу прокладывает к ней путь от предыдущей. Пока роутер
+    /// думает, отрезок показывается прямой — ждать ответа с пустой картой хуже.
+    func addConstructorWaypoint(_ point: CLLocationCoordinate2D) {
+        recordConstructorHistory()
+        let previous = constructorWaypoints.last
+        constructorWaypoints.append(point)
+        guard let previous else { return }
+
+        let straight = [previous, point]
+        let leg = ConstructorLeg(path: straight,
+                                 kind: isSnapEnabled ? .pending : .straight,
+                                 distanceMeters: TrailRouter.length(of: straight))
+        constructorLegs.append(leg)
+        guard isSnapEnabled else {
+            fillLegElevations(at: constructorLegs.count - 1)
+            return
+        }
+        routeLeg(leg.id, from: previous, to: point)
+    }
+
+    private func routeLeg(_ id: UUID, from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) {
+        let (segments, token) = trailSegmentsProvider?() ?? ([], 0)
+        let online = isOnline
+        Task { [weak self] in
+            let outcome = await TrailRouter.route(from: from, to: to,
+                                                  segments: segments, segmentsToken: token,
+                                                  allowNetwork: online)
+            guard let self else { return }
+            await MainActor.run { self.applyLegOutcome(id, outcome, from: from, to: to) }
+        }
+    }
+
+    /// Откат последнего действия. Текущее состояние уезжает в «вернуть».
+    func undoConstructor() {
+        guard let previous = constructorUndoStack.popLast() else { return }
+        constructorRedoStack.append(currentConstructorSnapshot())
+        apply(previous)
+    }
+
+    func redoConstructor() {
+        guard let next = constructorRedoStack.popLast() else { return }
+        constructorUndoStack.append(currentConstructorSnapshot())
+        apply(next)
+    }
+
+    func resetConstructor() {
+        constructorWaypoints  = []
+        constructorLegs       = []
+        constructorUndoStack  = []
+        constructorRedoStack  = []
+        constructorAnchorScreen = nil
+    }
+
+    /// Глубину истории ограничиваем: маршрут на сотню точек с геометрией
+    /// каждого отрезка — уже мегабайты, а дальше десятого шага никто не откатывает.
+    private static let maxConstructorHistory = 60
+
+    private func currentConstructorSnapshot() -> ConstructorSnapshot {
+        ConstructorSnapshot(waypoints: constructorWaypoints, legs: constructorLegs)
+    }
+
+    /// Запоминает состояние перед изменением. Любое новое действие обрубает
+    /// «вперёд» — как в любом редакторе.
+    private func recordConstructorHistory() {
+        constructorUndoStack.append(currentConstructorSnapshot())
+        if constructorUndoStack.count > AppState.maxConstructorHistory {
+            constructorUndoStack.removeFirst()
+        }
+        constructorRedoStack.removeAll()
+    }
+
+    private func apply(_ snapshot: ConstructorSnapshot) {
+        constructorWaypoints = snapshot.waypoints
+        constructorLegs      = snapshot.legs
+        // В снимок мог попасть отрезок, который тогда ещё прокладывался.
+        // Задача, считавшая его, давно завершилась и в это состояние уже
+        // не вернётся — просим маршрут заново.
+        for leg in constructorLegs where leg.kind == .pending {
+            guard let from = leg.path.first, let to = leg.path.last else { continue }
+            routeLeg(leg.id, from: from, to: to)
+        }
+    }
+
+    private func applyLegOutcome(_ id: UUID, _ outcome: TrailRouteOutcome,
+                                 from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) {
+        // Отрезок могли отменить или начать заново, пока роутер думал
+        guard let idx = constructorLegs.firstIndex(where: { $0.id == id }) else { return }
+
+        switch outcome {
+        case .straight:
+            constructorLegs[idx].path = [from, to]
+            constructorLegs[idx].kind = .straight
+            constructorLegs[idx].elevations = nil
+
+        case .trails(var geometry, var elevations):
+            guard let head = geometry.first, let tail = geometry.last else {
+                constructorLegs[idx].path = [from, to]
+                constructorLegs[idx].kind = .straight
+                constructorLegs[idx].elevations = nil
+                return
+            }
+            if elevations?.count != geometry.count { elevations = nil }
+            // Начало отрезка не двигаем: на нём уже висит предыдущий. Первую
+            // точку маршрута — можно, к ней ничего не пришито.
+            if idx == 0, TrailRouter.meters(head, from) <= TrailRouter.anchorSnapMeters {
+                constructorWaypoints[0] = head
+            } else if TrailRouter.meters(head, from) > 1 {
+                geometry.insert(from, at: 0)
+                // У «подводки» своей высоты нет — берём соседнюю: это метры
+                // до тропы, на набор они не влияют.
+                if let first = elevations?.first { elevations?.insert(first, at: 0) }
+            }
+            // Конец: роутер сел на тропу рядом — принимаем притяжение, это оно
+            // и есть. Далеко или отрезок уже не последний — дотягиваем прямой.
+            let endIndex = idx + 1
+            let isLastLeg = idx == constructorLegs.count - 1
+                && endIndex == constructorWaypoints.count - 1
+            if isLastLeg, TrailRouter.meters(tail, to) <= TrailRouter.anchorSnapMeters {
+                constructorWaypoints[endIndex] = tail
+            } else if TrailRouter.meters(tail, to) > 1 {
+                geometry.append(to)
+                if let last = elevations?.last { elevations?.append(last) }
+            }
+            constructorLegs[idx].path = geometry
+            constructorLegs[idx].kind = .trail
+            constructorLegs[idx].elevations = elevations
+        }
+        constructorLegs[idx].distanceMeters = TrailRouter.length(of: constructorLegs[idx].path)
+        fillLegElevations(at: idx)
+    }
+
+    /// Высоты, которых не дал роутер, снимаем с рельефа карты — того же DEM,
+    /// на котором стоит `setTerrain`. Если хоть одна точка не прогружена,
+    /// оставляем nil: набор по кускам всё равно врёт.
+    private func fillLegElevations(at index: Int) {
+        guard constructorLegs.indices.contains(index),
+              constructorLegs[index].elevations == nil,
+              let sample = terrainElevationProvider
+        else { return }
+        var elevations: [Double] = []
+        elevations.reserveCapacity(constructorLegs[index].path.count)
+        for coordinate in constructorLegs[index].path {
+            guard let value = sample(coordinate) else { return }
+            elevations.append(value)
+        }
+        constructorLegs[index].elevations = elevations
     }
 
     /// Нажатие на кнопку «моя локация». Разрешение спрашиваем здесь, а не на

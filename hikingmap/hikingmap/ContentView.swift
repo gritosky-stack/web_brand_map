@@ -42,11 +42,34 @@ struct ContentView: View {
                     .zIndex(100)
             }
 
+            // Шкала на время ведения ползунка по профилю — единственное, что
+            // остаётся сверху, когда интерфейс уходит
+            if appState.isScrubbingProfile, let readout = appState.scrubberReadout {
+                ScrubberReadoutBar(readout: readout)
+                    .padding(.top, 56)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .allowsHitTesting(false)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .zIndex(90)
+            }
+
             if appState.isConstructorMode {
                 RouteConstructorView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .ignoresSafeArea()
                     .transition(.opacity)
+
+                // Слои, основа карты и тумблеры троп нужны и при рисовании —
+                // не нужен только импорт GPX: он рисование бы и оборвал
+                mapToolsRow(drawing: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Отступ считаем от самого верха экрана, как у плашки
+                    // «РИСУЮ МАРШРУТ» (92 + её высота): без этого он шёл от
+                    // safe area и ряд уезжал на полсотни точек ниже
+                    .padding(.top, 150)
+                    .padding(.horizontal, 14)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .ignoresSafeArea(edges: .top)
             } else if !appState.recordingEntryVisible {
                 // Top bar
                 VStack(alignment: .leading, spacing: 8) {
@@ -55,12 +78,14 @@ struct ContentView: View {
                         Spacer()
                         kmBadge
                     }
-                    mapToolsRow
+                    mapToolsRow()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 56)
                 .padding(.horizontal, 14)
                 .frame(maxHeight: .infinity, alignment: .top)
+                .opacity(appState.isScrubbingProfile ? 0 : 1)
+                .allowsHitTesting(!appState.isScrubbingProfile)
 
                 // Bottom panel
                 bottomPanel
@@ -507,7 +532,9 @@ struct ContentView: View {
         appState.topoAlpha > 0.01 || appState.showTrailsHeatmap
     }
 
-    private var mapToolsRow: some View {
+    /// `drawing` — режим рисования: те же слои и настройки, но без импорта
+    /// GPX и кнопки «Нарисовать».
+    private func mapToolsRow(drawing: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 // Карта button
@@ -577,9 +604,11 @@ struct ContentView: View {
                         pssTrailsButton
                         caveLayerButton
                     }
-                    HStack(spacing: 6) {
-                        importGPXButton
-                        constructorButton
+                    if !drawing {
+                        HStack(spacing: 6) {
+                            importGPXButton
+                            constructorButton
+                        }
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -1369,3 +1398,42 @@ struct DebugHUD: View {
     }
 }
 #endif
+
+// MARK: - Шкала скраба
+
+/// Пока ведут ползунок по профилю высот, весь интерфейс сверху прячется,
+/// а вместо него остаётся эта полоска: высота и пройденный километр.
+private struct ScrubberReadoutBar: View {
+    let readout: ScrubberReadout
+
+    var body: some View {
+        HStack(spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Image(systemName: "mountain.2.fill")
+                    .font(.system(size: 11))
+                    .foregroundColor(DS.accent)
+                Text("\(Int(readout.elevationM))")
+                    .font(.system(size: 17, weight: .bold, design: .monospaced))
+                    .foregroundColor(DS.textPrimary)
+                Text("м").font(.system(size: 11)).foregroundColor(DS.textSecondary)
+            }
+
+            Divider().background(DS.border).frame(height: 18)
+
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(String(format: "%.1f", readout.distanceKm))
+                    .font(.system(size: 17, weight: .bold, design: .monospaced))
+                    .foregroundColor(DS.textPrimary)
+                Text(String(format: "/ %.1f км", readout.totalKm))
+                    .font(.system(size: 11))
+                    .foregroundColor(DS.textSecondary)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 9)
+        .background(.ultraThinMaterial)
+        .background(Color(red: 0.04, green: 0.04, blue: 0.04).opacity(0.75))
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(DS.accent.opacity(0.35), lineWidth: 1))
+        .shadow(color: .black.opacity(0.4), radius: 8)
+    }
+}

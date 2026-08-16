@@ -11,34 +11,58 @@ struct CustomRouteDetailPanel: View {
     @EnvironmentObject var appState: AppState
     @GestureState private var dragOffset: CGFloat = 0
     @State private var showDeleteAlert = false
+    /// Всё, что стоит O(n) по точкам маршрута. Тело панели пересобирается на
+    /// каждом кадре перетаскивания, а нарисованный по тропам маршрут — это
+    /// тысячи точек: считать их заново каждый кадр панель не переживала.
+    @State private var derived: DerivedRouteData?
+
+    /// Меняется, когда приехали высоты или поменялась геометрия
+    private var derivedKey: String {
+        "\(route.id)-\(route.waypointLats.count)-\(route.elevations?.count ?? 0)"
+    }
+
+    /// Пока ведут ползунок по профилю — прячем всё, кроме самого профиля,
+    /// и почти растворяем карточку: смотрят в этот момент на карту.
+    /// Именно прячем прозрачностью, а не убираем: иначе график уехал бы
+    /// из-под пальца.
+    private var scrubbing: Bool { appState.isScrubbingProfile }
 
     var body: some View {
         VStack(spacing: 0) {
             dragHandle
+                .opacity(scrubbing ? 0 : 1)
             header
+                .opacity(scrubbing ? 0 : 1)
             Divider().background(DS.border)
+                .opacity(scrubbing ? 0 : 1)
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     statsGrid
                         .padding(.horizontal, 16)
+                        .opacity(scrubbing ? 0 : 1)
                     elevationSection
                         .padding(.horizontal, 16)
                     timeSection
                         .padding(.horizontal, 16)
+                        .opacity(scrubbing ? 0 : 1)
                     gpxExportButton
                         .padding(.horizontal, 16)
+                        .opacity(scrubbing ? 0 : 1)
                     deleteButton
                         .padding(.horizontal, 16)
+                        .opacity(scrubbing ? 0 : 1)
                 }
                 .padding(.top, 16)
                 .padding(.bottom, 32)
             }
+            .scrollDisabled(scrubbing)
         }
         .background(
             ZStack {
                 Color(red: 0.07, green: 0.07, blue: 0.07)
                 Color.white.opacity(0.03)
             }
+            .opacity(scrubbing ? 0 : 1)
         )
         .clipShape(
             UnevenRoundedRectangle(
@@ -55,8 +79,10 @@ struct CustomRouteDetailPanel: View {
                 bottomTrailingRadius: 0,
                 topTrailingRadius: DS.radiusL
             )
-            .stroke(Color(hex: "#7B5EA7").opacity(0.5), lineWidth: 1)
+            .stroke(Color(hex: "#7B5EA7").opacity(scrubbing ? 0 : 0.5), lineWidth: 1)
         )
+        .animation(.easeInOut(duration: 0.18), value: scrubbing)
+        .task(id: derivedKey) { derived = DerivedRouteData(route: route) }
         .offset(y: max(0, dragOffset))
         .gesture(
             DragGesture()
@@ -111,12 +137,14 @@ struct CustomRouteDetailPanel: View {
     // MARK: - Stats grid
 
     private var statsGrid: some View {
+        // Цифры берём из кэша: каждая из них — проход по всем высотам маршрута
+        let climb = derived?.climb
         let items: [(String, String, String, String)] = [
             ("📏", "ДИСТАНЦИЯ",  String(format: "%.1f", route.distanceKm), "км"),
-            ("↑",  "НАБОР",      route.ascentM.map  { "\(Int($0))" } ?? "—", "м"),
-            ("↓",  "СБРОС",      route.descentM.map { "\(Int($0))" } ?? "—", "м"),
-            ("⛰", "МАКС",       route.maxElevationM.map { "\(Int($0))" } ?? "—", "м"),
-            ("▼",  "МИН",        route.minElevationM.map { "\(Int($0))" } ?? "—", "м"),
+            ("↑",  "НАБОР",      climb?.ascent.map  { "\(Int($0))" } ?? "—", "м"),
+            ("↓",  "СБРОС",      climb?.descent.map { "\(Int($0))" } ?? "—", "м"),
+            ("⛰", "МАКС",       climb?.max.map { "\(Int($0))" } ?? "—", "м"),
+            ("▼",  "МИН",        climb?.min.map { "\(Int($0))" } ?? "—", "м"),
             ("📍", "ТОЧЕК",      "\(route.waypointLats.count)", ""),
         ]
         return LazyVGrid(
@@ -161,14 +189,25 @@ struct CustomRouteDetailPanel: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(DS.textSecondary)
                 .kerning(0.7)
+                .opacity(scrubbing ? 0 : 1)
 
-            if let elevs = route.elevations, !elevs.isEmpty {
+            if let data = derived, !data.chartElevations.isEmpty {
                 CustomElevationChart(
-                    elevations:  elevs,
-                    coordinates: route.coordinates
+                    elevations:  data.chartElevations,
+                    coordinates: data.chartCoordinates,
+                    totalKm:     route.distanceKm
                 )
                 .padding(12)
-                .background(DS.glass)
+                .background(profileBackdrop)
+                .background(GeometryReader { geo in
+                    // Карте нужно знать, какой кусок экрана занят профилем:
+                    // туда она не должна прятать бегунок
+                    Color.clear
+                        .onAppear { appState.profileBlockFrame = geo.frame(in: .global) }
+                        .onChange(of: geo.frame(in: .global)) { _, frame in
+                            appState.profileBlockFrame = frame
+                        }
+                })
                 .clipShape(RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous).stroke(DS.border, lineWidth: 1))
             } else {
@@ -187,27 +226,22 @@ struct CustomRouteDetailPanel: View {
         }
     }
 
+    /// Пока карточка растворена, у профиля своя подложка — иначе график
+    /// читался бы поверх карты как пятно.
+    @ViewBuilder private var profileBackdrop: some View {
+        if scrubbing {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Color(red: 0.07, green: 0.07, blue: 0.07).opacity(0.82)
+            }
+        } else {
+            DS.glass
+        }
+    }
+
     // MARK: - Time estimation
 
-    private var mockStats: RouteStats {
-        let coords = route.coordinates
-        let dummy = CLLocationCoordinate2D(latitude: 44.0, longitude: 20.9)
-        let center = coords.isEmpty ? dummy : coords[coords.count / 2]
-        return RouteStats(
-            distance: route.distanceKm,
-            ascent:   route.ascentM   ?? 0,
-            descent:  route.descentM  ?? 0,
-            minEle:   route.minElevationM ?? 0,
-            maxEle:   route.maxElevationM ?? 0,
-            duration: nil,
-            coordinates: coords,
-            elevations: route.elevations ?? [],
-            center:   center,
-            boundsNE: center,
-            boundsSW: center,
-            photoCoordinates: []
-        )
-    }
+    private var mockStats: RouteStats { derived?.stats ?? DerivedRouteData.empty }
 
     private var timeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -300,10 +334,66 @@ struct CustomRouteDetailPanel: View {
     }
 }
 
+// MARK: - Производные данные маршрута
+
+/// То, что считается по всем точкам маршрута: прореженный профиль для графика
+/// и `RouteStats` для оценки времени. Считаем один раз при открытии панели.
+private struct DerivedRouteData {
+    /// Столько точек рисует график. На 120 pt высоты больше не видно, а
+    /// Charts на тысячах марок встаёт колом — так же прорежен профиль
+    /// обычных маршрутов (`RouteStats.elevationSampled`).
+    static let chartSamples = 200
+
+    let chartElevations: [Double]
+    let chartCoordinates: [CLLocationCoordinate2D]
+    let stats: RouteStats
+    /// Готовые цифры для плашек — каждая иначе снова шла бы по всем высотам
+    let climb: (ascent: Double?, descent: Double?, min: Double?, max: Double?)
+
+    init(route: CustomRoute) {
+        let coordinates = route.coordinates
+        let elevations  = route.elevations ?? []
+        chartElevations  = DerivedRouteData.thin(elevations)
+        chartCoordinates = DerivedRouteData.thin(coordinates)
+
+        climb = (route.ascentM, route.descentM, route.minElevationM, route.maxElevationM)
+
+        let dummy  = CLLocationCoordinate2D(latitude: 44.0, longitude: 20.9)
+        let center = coordinates.isEmpty ? dummy : coordinates[coordinates.count / 2]
+        stats = RouteStats(
+            distance: route.distanceKm,
+            ascent:   route.ascentM   ?? 0,
+            descent:  route.descentM  ?? 0,
+            minEle:   route.minElevationM ?? 0,
+            maxEle:   route.maxElevationM ?? 0,
+            duration: nil,
+            coordinates: coordinates,
+            elevations: elevations,
+            center:   center,
+            boundsNE: center,
+            boundsSW: center,
+            photoCoordinates: []
+        )
+    }
+
+    private static func thin<T>(_ values: [T]) -> [T] {
+        guard values.count > chartSamples else { return values }
+        let step = Double(values.count) / Double(chartSamples)
+        return (0..<chartSamples).map { values[Int(Double($0) * step)] }
+    }
+
+    static let empty: RouteStats = {
+        let center = CLLocationCoordinate2D(latitude: 44.0, longitude: 20.9)
+        return RouteStats(distance: 0, ascent: 0, descent: 0, minEle: 0, maxEle: 0,
+                          duration: nil, coordinates: [], elevations: [],
+                          center: center, boundsNE: center, boundsSW: center,
+                          photoCoordinates: [])
+    }()
+}
+
 // MARK: - Elevation chart with axis labels and scrubbing
 
 private struct CustomElevationChart: View {
-    let elevations: [Double]
     let coordinates: [CLLocationCoordinate2D]
 
     @EnvironmentObject var appState: AppState
@@ -311,18 +401,27 @@ private struct CustomElevationChart: View {
 
     private let purple = Color(hex: "#7B5EA7")
 
-    private var samples: [(index: Int, elevation: Double)] {
-        elevations.enumerated().map { (index: $0.offset, elevation: $0.element) }
+    // Считаем при создании: тело перерисовывается на каждом кадре скраба
+    private let samples: [(index: Int, elevation: Double)]
+    private let minY: Double
+    private let maxY: Double
+    private let peak: Double
+    private let bottom: Double
+
+    private let cumulativeKm: [Double]
+    private let totalKm: Double
+
+    init(elevations: [Double], coordinates: [CLLocationCoordinate2D], totalKm: Double) {
+        self.coordinates = coordinates
+        self.totalKm = totalKm
+        cumulativeKm = ProfileScrub.cumulativeKm(coordinates)
+        samples = elevations.enumerated().map { (index: $0.offset, elevation: $0.element) }
+        peak    = elevations.max() ?? 0
+        bottom  = elevations.min() ?? 0
+        minY    = floor(((elevations.min() ?? 0) - 60) / 100) * 100
+        maxY    = ceil(((elevations.max() ?? 1000) + 60) / 100) * 100
     }
 
-    private var minY: Double {
-        let lo = elevations.min() ?? 0
-        return floor((lo - 60) / 100) * 100
-    }
-    private var maxY: Double {
-        let hi = elevations.max() ?? 1000
-        return ceil((hi + 60) / 100) * 100
-    }
     private var yStride: Double {
         let range = maxY - minY
         if range < 300 { return 100 }
@@ -339,7 +438,7 @@ private struct CustomElevationChart: View {
 
     private var headerRow: some View {
         HStack {
-            Label("\(Int(elevations.max() ?? 0)) м", systemImage: "mountain.2.fill")
+            Label("\(Int(peak)) м", systemImage: "mountain.2.fill")
                 .font(.caption)
                 .foregroundColor(purple)
             Spacer()
@@ -352,7 +451,7 @@ private struct CustomElevationChart: View {
                     .clipShape(Capsule())
                     .animation(.none, value: idx)
             } else {
-                Text("Мин \(Int(elevations.min() ?? 0)) м")
+                Text("Мин \(Int(bottom)) м")
                     .font(.caption)
                     .foregroundColor(DS.textSecondary)
             }
@@ -423,14 +522,17 @@ private struct CustomElevationChart: View {
                                 if let rawIdx: Int = proxy.value(atX: x),
                                    rawIdx >= 0, rawIdx < samples.count {
                                     scrubIndex = rawIdx
-                                    let t = Double(rawIdx) / Double(max(samples.count - 1, 1))
-                                    let ci = Int(t * Double(max(coordinates.count - 1, 1)))
-                                    appState.scrubberCoordinate = coordinates[ci]
+                                    ProfileScrub.publish(index: rawIdx,
+                                                         elevation: samples[rawIdx].elevation,
+                                                         coordinates: coordinates,
+                                                         cumulativeKm: cumulativeKm,
+                                                         totalKm: totalKm,
+                                                         to: appState)
                                 }
                             }
                             .onEnded { _ in
                                 scrubIndex = nil
-                                appState.scrubberCoordinate = nil
+                                appState.endProfileScrub()
                             }
                     )
             }

@@ -49,7 +49,16 @@ final class AccountService: ObservableObject {
 
     private init() {
         if let url = SupabaseConfig.url, let key = SupabaseConfig.anonKey {
-            client = SupabaseClient(supabaseURL: url, supabaseKey: key)
+            // Своё хранилище вместо умолчального Keychain — см. AuthStorage:
+            // в неподписанной сборке для симулятора Keychain недоступен,
+            // и вход через Google падал на пустом код-верификаторе
+            client = SupabaseClient(
+                supabaseURL: url,
+                supabaseKey: key,
+                options: SupabaseClientOptions(
+                    auth: SupabaseClientOptions.AuthOptions(storage: AccountAuthStorage())
+                )
+            )
             state  = .signedOut
         } else {
             client = nil

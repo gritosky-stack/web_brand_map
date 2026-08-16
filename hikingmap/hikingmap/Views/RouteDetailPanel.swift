@@ -19,12 +19,21 @@ struct RouteDetailPanel: View {
 
     private var typeColor: Color { route.isPlanned ? DS.planned : DS.completed }
 
+    /// Пока ведут ползунок по профилю — прячем всё, кроме самого профиля,
+    /// и почти растворяем карточку: смотрят в этот момент на карту. Прячем
+    /// прозрачностью, а не удалением, иначе график уехал бы из-под пальца.
+    private var scrubbing: Bool { appState.isScrubbingProfile }
+
     var body: some View {
         VStack(spacing: 0) {
             dragHandle
+                .opacity(scrubbing ? 0 : 1)
             header
+                .opacity(scrubbing ? 0 : 1)
             tabBar
+                .opacity(scrubbing ? 0 : 1)
             Divider().background(DS.border)
+                .opacity(scrubbing ? 0 : 1)
 
             ScrollView(showsIndicators: false) {
                 Group {
@@ -35,12 +44,14 @@ struct RouteDetailPanel: View {
                 }
                 .padding(.bottom, 32)
             }
+            .scrollDisabled(scrubbing)
         }
         .background(
             ZStack {
                 Color(red: 0.07, green: 0.07, blue: 0.07)
                 Color.white.opacity(0.03)
             }
+            .opacity(scrubbing ? 0 : 1)
         )
         .clipShape(
             UnevenRoundedRectangle(
@@ -57,8 +68,9 @@ struct RouteDetailPanel: View {
                 bottomTrailingRadius: 0,
                 topTrailingRadius: DS.radiusL
             )
-            .stroke(DS.border, lineWidth: 1)
+            .stroke(DS.border.opacity(scrubbing ? 0 : 1), lineWidth: 1)
         )
+        .animation(.easeInOut(duration: 0.18), value: scrubbing)
         .offset(y: max(0, dragOffset))
         .gesture(
             DragGesture()
@@ -147,18 +159,22 @@ struct RouteDetailPanel: View {
             if let stats {
                 statsRow(stats)
                     .padding(.horizontal, 16)
+                    .opacity(scrubbing ? 0 : 1)
 
                 difficultyRow(stats.difficulty)
                     .padding(.horizontal, 16)
+                    .opacity(scrubbing ? 0 : 1)
 
                 elevationSection(stats)
                     .padding(.horizontal, 16)
 
                 smartTimeSection(stats)
                     .padding(.horizontal, 16)
+                    .opacity(scrubbing ? 0 : 1)
 
                 fitnessSection(stats)
                     .padding(.horizontal, 16)
+                    .opacity(scrubbing ? 0 : 1)
             } else {
                 HStack {
                     ProgressView().tint(DS.accent)
@@ -173,16 +189,19 @@ struct RouteDetailPanel: View {
             if let desc = route.description, !desc.isEmpty {
                 descriptionSection(desc)
                     .padding(.horizontal, 16)
+                    .opacity(scrubbing ? 0 : 1)
             }
 
             if let ig = route.instagramUrl, let url = URL(string: ig) {
                 instagramButton(url: url)
                     .padding(.horizontal, 16)
+                    .opacity(scrubbing ? 0 : 1)
             }
 
             goButton
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
+                .opacity(scrubbing ? 0 : 1)
         }
         .padding(.top, 16)
     }
@@ -288,16 +307,40 @@ struct RouteDetailPanel: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(DS.textSecondary)
                 .kerning(0.7)
+                .opacity(scrubbing ? 0 : 1)
 
             ElevationChartView(stats: stats)
                 .padding(12)
-                .background(DS.glass)
+                .background(profileBackdrop)
+                .background(GeometryReader { geo in
+                    // Карте нужно знать, какой кусок экрана занят профилем:
+                    // туда она не должна прятать бегунок
+                    Color.clear
+                        .onAppear { appState.profileBlockFrame = geo.frame(in: .global) }
+                        .onChange(of: geo.frame(in: .global)) { _, frame in
+                            appState.profileBlockFrame = frame
+                        }
+                })
                 .clipShape(RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous).stroke(DS.border, lineWidth: 1))
 
             Text("Проведите пальцем по графику для навигации")
                 .font(.system(size: 10))
                 .foregroundColor(DS.textTertiary)
+                .opacity(scrubbing ? 0 : 1)
+        }
+    }
+
+    /// Пока карточка растворена, у профиля своя подложка — иначе график
+    /// читался бы поверх карты как пятно.
+    @ViewBuilder private var profileBackdrop: some View {
+        if scrubbing {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Color(red: 0.07, green: 0.07, blue: 0.07).opacity(0.82)
+            }
+        } else {
+            DS.glass
         }
     }
 
