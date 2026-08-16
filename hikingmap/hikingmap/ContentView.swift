@@ -8,6 +8,7 @@ struct ContentView: View {
     @ObservedObject private var offlineManager = OfflineMapManager.shared
     @ObservedObject private var topoDownloader = TileSetDownloader.topo
     @ObservedObject private var histMapDownloader = TileSetDownloader.histmap
+    @ObservedObject private var accountService   = AccountService.shared
 
     @State private var showGPXImporter   = false
     @State private var showMapTools      = false
@@ -71,7 +72,7 @@ struct ContentView: View {
                         HStack {
                             zoomOutButton
                                 .padding(.leading, 16)
-                                .padding(.bottom, 84)
+                                .padding(.bottom, bottomControlsInset)
                             Spacer()
                         }
                     }
@@ -79,6 +80,31 @@ struct ContentView: View {
                     .allowsHitTesting(true)
                     .transition(.scale(scale: 0.85, anchor: .bottomLeading).combined(with: .opacity))
                 }
+
+                // Ползунок гравюры, вынесенный на карту
+                if histSliderOnMap {
+                    VStack {
+                        Spacer()
+                        HistMapSliderBar()
+                            .environmentObject(appState)
+                            .padding(.bottom, 84)
+                    }
+                    .ignoresSafeArea(edges: .bottom)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
+                // Кнопка «моя локация» — правый нижний угол, зеркально Zoom Out
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        MyLocationButton()
+                            .environmentObject(appState)
+                            .padding(.trailing, 16)
+                            .padding(.bottom, bottomControlsInset)
+                    }
+                }
+                .ignoresSafeArea(edges: .bottom)
 
                 // Floating AI button — always on top, draggable
                 floatingAIButton
@@ -93,12 +119,31 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.22), value: appState.isConstructorMode)
         .animation(.spring(response: 0.32, dampingFraction: 0.78), value: showZoomOut)
+        .animation(.spring(response: 0.32, dampingFraction: 0.78), value: histSliderOnMap)
         #if DEBUG
         .overlay(alignment: .leading) { DebugHUD().environmentObject(appState) }
         #endif
         .onAppear { appState.preloadAllStats() }
+        .alert("Геолокация выключена", isPresented: $appState.showLocationDeniedAlert) {
+            Button("Открыть настройки") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Чтобы карта показала, где вы находитесь, разрешите доступ к геопозиции в настройках.")
+        }
+        .alert("Вы вне зоны карты", isPresented: $appState.showLocationOutOfRegionAlert) {
+            Button("Понятно", role: .cancel) {}
+        } message: {
+            Text("Карта покрывает Сербию и ближайшие окрестности, а вы сейчас за их пределами — показать вашу точку не на чем.")
+        }
         .sheet(isPresented: $appState.showAIAssistant) {
             AIAssistantView().environmentObject(appState)
+        }
+        .sheet(isPresented: $appState.showAccount) {
+            AccountSheet()
         }
         .sheet(isPresented: $appState.showOfflineMaps) {
             OfflineMapsView().environmentObject(appState)
@@ -123,6 +168,23 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    /// Ползунок на карте показываем, только когда сам слой включён и панели
+    /// не перекрывают низ экрана.
+    private var histSliderOnMap: Bool {
+        appState.showHistMap && appState.histMapSliderOnMap
+            && histMapUsable && !appState.routeListExpanded
+    }
+
+    /// Слой живой, только если есть сеть или скачанный набор. От этого же
+    /// условия зависит тумблер слоя — ползунок обязан гаснуть вместе с ним,
+    /// иначе он управляет тем, чего на карте нет.
+    private var histMapUsable: Bool { appState.isOnline || histMapReady }
+
+    /// Кнопки в нижних углах уезжают вверх, когда под ними лёг ползунок.
+    private var bottomControlsInset: CGFloat {
+        histSliderOnMap ? 84 + HistMapSliderBar.height : 84
     }
 
     // MARK: - Bottom panel state machine
@@ -206,6 +268,12 @@ struct ContentView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
 
             } else {
+                // Полоска загрузки крепится к карточке снизу экрана, а не
+                // висит отдельно: карточка и так самый нижний элемент, и
+                // прогресс читается как её продолжение.
+                DownloadProgressStrip()
+                    .environmentObject(appState)
+
                 RouteListSheet(expanded: $appState.routeListExpanded)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -311,6 +379,24 @@ struct ContentView: View {
         .background(Color(red: 0.04, green: 0.04, blue: 0.04).opacity(0.55))
         .clipShape(Capsule())
         .overlay(Capsule().stroke(DS.border, lineWidth: 1))
+    }
+
+    /// Вход в аккаунт. Кружок под стать kmBadge, чтобы верхняя панель
+    /// осталась одной строкой пилюль.
+    private var accountButton: some View {
+        Button { appState.showAccount = true } label: {
+            Image(systemName: accountService.state == .signedIn
+                  ? "person.crop.circle.fill" : "person.crop.circle")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(accountService.state == .signedIn ? DS.accent : DS.textPrimary)
+                .frame(width: 32, height: 32)
+                .background(.ultraThinMaterial)
+                .background(Color(red: 0.04, green: 0.04, blue: 0.04).opacity(0.55))
+                .clipShape(Circle())
+                .overlay(Circle().stroke(DS.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Аккаунт")
     }
 
     private var kmBadge: some View {
@@ -448,6 +534,10 @@ struct ContentView: View {
                     ))
                 }
                 .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+
+                accountButton
             }
 
             if showMapTools {
@@ -682,6 +772,36 @@ struct ContentView: View {
                 .font(.system(size: 10))
                 .foregroundColor(DS.textSecondary.opacity(0.75))
                 .fixedSize(horizontal: false, vertical: true)
+
+            // Гравюра густо кроет основу, а вся польза от неё — в сравнении
+            // со современной картой. Ползунок и позволяет их смешивать; жить
+            // он может здесь либо прямо на карте — по тумблеру ниже.
+            if appState.showHistMap && histMapUsable {
+                Toggle(isOn: $appState.histMapSliderOnMap.animation(
+                    .spring(response: 0.3, dampingFraction: 0.8))) {
+                    Text("Ползунок на карте")
+                        .font(.system(size: 11))
+                        .foregroundColor(appState.histMapSliderOnMap ? DS.accent : DS.textSecondary)
+                }
+                .toggleStyle(SwitchToggleStyle(tint: DS.accent))
+                .padding(.top, 2)
+
+                if !appState.histMapSliderOnMap {
+                    HStack {
+                        Text("Плотность гравюры")
+                            .font(.system(size: 10))
+                            .foregroundColor(DS.textSecondary)
+                        Spacer()
+                        Text("\(Int(appState.histMapAlpha * 100))%")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(DS.textSecondary)
+                            .monospacedDigit()
+                    }
+
+                    Slider(value: $appState.histMapAlpha, in: 0...1)
+                        .tint(DS.accent)
+                }
+            }
         }
     }
 

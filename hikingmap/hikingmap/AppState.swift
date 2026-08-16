@@ -59,6 +59,17 @@ enum BaseMapStyle: String, CaseIterable, Identifiable {
     var supportsOffline: Bool { self == .topo }
 }
 
+/// Режим слежения за геопозицией. Кнопка «моя локация» гоняет его по кругу
+/// idle → follow → heading → follow; жест по карте роняет обратно в idle.
+enum LocationFollowMode {
+    /// Не следим — камера свободна
+    case idle
+    /// Камера идёт за паком, север сверху
+    case follow
+    /// То же плюс доворот карты по компасу
+    case heading
+}
+
 final class AppState: ObservableObject {
     @Published var selectedRoute: Route?
     @Published var routeStats: [String: RouteStats] = [:]
@@ -86,6 +97,7 @@ final class AppState: ObservableObject {
         didSet { UserDefaults.standard.set(baseStyle.rawValue, forKey: AppState.baseStyleKey) }
     }
     @Published var showOfflineMaps = false
+    @Published var showAccount = false
     /// Железные дороги и станции — свой слой в топооснове (тоггл в «Слоях»)
     @Published var showRailways = true
     /// Станции, попавшие в кадр. Их рисует интерфейс, а не стиль карты:
@@ -97,6 +109,12 @@ final class AppState: ObservableObject {
     /// Историческая карта 1:75 000 (австро-венгерская «Спецкарта», 1900-е–1910-е).
     /// Растровый слой поверх основы — тоггл в «Слоях».
     @Published var showHistMap = false
+    /// Плотность гравюры — ползунок в «Слоях». По умолчанию почти непрозрачна,
+    /// но сквозь неё читаются современные подписи и горизонтали.
+    @Published var histMapAlpha: Double = 0.92
+    /// Где показывать ползунок плотности: на карте или в панели «Слои».
+    /// Крестик на самом ползунке переключает это же поле.
+    @Published var histMapSliderOnMap = false
     /// Есть ли сеть. Нужно хитмапу: его тайлы чужие и офлайн не сохраняются,
     /// а без них Mapbox растягивает старые с мелкого зума — получается мыло.
     @Published private(set) var isOnline = true
@@ -120,6 +138,15 @@ final class AppState: ObservableObject {
     @Published var showCaveLayer = false
     lazy var trackRecorder: TrackRecorder = TrackRecorder()
 
+    // MARK: - Моя локация
+    @Published var locationFollowMode: LocationFollowMode = .idle
+    /// Ждём первую засечку GPS — кнопка в это время крутит дугу
+    @Published var isAwaitingLocationFix = false
+    /// Геолокация запрещена в настройках — предлагаем их открыть
+    @Published var showLocationDeniedAlert = false
+    /// Пользователь вне рамки карты — облёт к нему невозможен
+    @Published var showLocationOutOfRegionAlert = false
+
     private static let baseStyleKey = "baseMapStyle"
     private static var storedBaseStyle: BaseMapStyle {
         BaseMapStyle(rawValue: UserDefaults.standard.string(forKey: baseStyleKey) ?? "") ?? .satellite
@@ -132,6 +159,7 @@ final class AppState: ObservableObject {
     let zoomOutRequest       = PassthroughSubject<Void, Never>()
     let trackCoordUpdate     = PassthroughSubject<CLLocationCoordinate2D, Never>()
     let sightingDropped      = PassthroughSubject<Sighting, Never>()
+    let locateRequest        = PassthroughSubject<Void, Never>()
 
     var filteredRoutes: [Route] {
         switch filter {
@@ -179,6 +207,20 @@ final class AppState: ObservableObject {
     func deselect() {
         selectedRoute = nil
         showDetailPanel = false
+    }
+
+    /// Нажатие на кнопку «моя локация». Разрешение спрашиваем здесь, а не на
+    /// старте приложения: так у вопроса есть понятный повод. Сам облёт и
+    /// слежение делает карта — см. `MapboxMapView+MyLocation`.
+    func requestMyLocation() {
+        let permission = LocationPermission.shared
+        if permission.isDenied {
+            showLocationDeniedAlert = true
+        } else if permission.status == .notDetermined {
+            permission.request()   // карта долетит по `didGrant`
+        } else {
+            locateRequest.send()
+        }
     }
 
     func flyCamera(to coordinate: CLLocationCoordinate2D) {

@@ -8,6 +8,15 @@
 
 /* Begin PBXBuildFile section */
 		19DC715431D44B8F88E99A11 /* FitnessMatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8DF3C120F8A43C0B4EDAE1E /* FitnessMatchView.swift */; };
+		D1A0000000000000000000A1 /* LocationPermission.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000000A2 /* LocationPermission.swift */; };
+		D1A0000000000000000000B1 /* MyLocationButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000000B2 /* MyLocationButton.swift */; };
+		D1A0000000000000000000C1 /* MapboxMapView+MyLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000000C2 /* MapboxMapView+MyLocation.swift */; };
+		D1A0000000000000000001A1 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000001A2 /* SupabaseConfig.swift */; };
+		D1A0000000000000000001B1 /* AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000001B2 /* AccountService.swift */; };
+		D1A0000000000000000001C1 /* RouteSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000001C2 /* RouteSync.swift */; };
+		D1A0000000000000000001D1 /* AccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000001D2 /* AccountSheet.swift */; };
+		D1A0000000000000000003A1 /* HistMapSliderBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000003A2 /* HistMapSliderBar.swift */; };
+		D1A0000000000000000004A1 /* DownloadProgressStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000004A2 /* DownloadProgressStrip.swift */; };
 		2AD726D4254F88B2543E45CD /* TrackRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2174F1E76377A349A2BB1F7F /* TrackRecorder.swift */; };
 		3F5CE64B59540BF79EC8B121 /* LiveTrackHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 354C631697992D9F609E2694 /* LiveTrackHUD.swift */; };
 		3F7165C73E5F9CA47A4E71BF /* CavePoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF5E1403A6BF6871AD3028E /* CavePoint.swift */; };
@@ -23,6 +32,7 @@
 		CC3344556677889900A101 /* TopoTiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900A102 /* TopoTiles.swift */; };
 		CC2233445566778899000201 /* OfflineMapsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2233445566778899000202 /* OfflineMapsView.swift */; };
 		CC2233445566778899000101 /* OfflineMapManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2233445566778899000102 /* OfflineMapManager.swift */; };
+		D1A0000000000000000001E1 /* Supabase.plist in Resources */ = {isa = PBXBuildFile; fileRef = D1A0000000000000000001E2 /* Supabase.plist */; };
 		AA1122334455667788990003 /* pss_routes.geojson in Resources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788990004 /* pss_routes.geojson */; };
 		B0FC5952E62D4BA782C49823 /* AIAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A4E24CE58414FEAB939ED38 /* AIAssistantView.swift */; };
 		BB2233445566778899001101 /* caves.geojson in Resources */ = {isa = PBXBuildFile; fileRef = BB2233445566778899001102 /* caves.geojson */; };
@@ -79,6 +89,16 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		D1A0000000000000000000A2 /* LocationPermission.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "LocationPermission.swift"; sourceTree = "<group>"; };
+		D1A0000000000000000000B2 /* MyLocationButton.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "MyLocationButton.swift"; sourceTree = "<group>"; };
+		D1A0000000000000000000C2 /* MapboxMapView+MyLocation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "MapboxMapView+MyLocation.swift"; sourceTree = "<group>"; };
+		D1A0000000000000000001A2 /* SupabaseConfig.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Account/SupabaseConfig.swift"; sourceTree = "<group>"; };
+		D1A0000000000000000001B2 /* AccountService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Account/AccountService.swift"; sourceTree = "<group>"; };
+		D1A0000000000000000001C2 /* RouteSync.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Account/RouteSync.swift"; sourceTree = "<group>"; };
+		D1A0000000000000000001D2 /* AccountSheet.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Account/AccountSheet.swift"; sourceTree = "<group>"; };
+		D1A0000000000000000001E2 /* Supabase.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Supabase.plist; sourceTree = "<group>"; };
+		D1A0000000000000000003A2 /* HistMapSliderBar.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HistMapSliderBar.swift; sourceTree = "<group>"; };
+		D1A0000000000000000004A2 /* DownloadProgressStrip.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DownloadProgressStrip.swift; sourceTree = "<group>"; };
 		2174F1E76377A349A2BB1F7F /* TrackRecorder.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackRecorder.swift; sourceTree = "<group>"; };
 		2703ACB415474911AFCECF20 /* SmartTimeView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SmartTimeView.swift; sourceTree = "<group>"; };
 		354C631697992D9F609E2694 /* LiveTrackHUD.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LiveTrackHUD.swift; sourceTree = "<group>"; };
@@ -197,6 +217,7 @@
 				CE0B84AD2F9E365600D0AF82 /* ContentView.swift */,
 				CE0B84AF2F9E365900D0AF82 /* Assets.xcassets */,
 				CE0B84B12F9E365900D0AF82 /* Preview Content */,
+							D1A0000000000000000001E2 /* Supabase.plist */,
 			);
 			path = hikingmap;
 			sourceTree = "<group>";
@@ -246,6 +267,11 @@
 				354C631697992D9F609E2694 /* LiveTrackHUD.swift */,
 				F38F5EC656030B72F80CD259 /* CaveDetailPanel.swift */,
 				EE99887766554433221100EE /* PSSRouteDetailPanel.swift */,
+							D1A0000000000000000000B2 /* MyLocationButton.swift */,
+							D1A0000000000000000000C2 /* MapboxMapView+MyLocation.swift */,
+							D1A0000000000000000001D2 /* AccountSheet.swift */,
+							D1A0000000000000000003A2 /* HistMapSliderBar.swift */,
+							D1A0000000000000000004A2 /* DownloadProgressStrip.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -289,6 +315,10 @@
 				CC3344556677889900A102 /* TopoTiles.swift */,
 				CC2233445566778899000102 /* OfflineMapManager.swift */,
 				2174F1E76377A349A2BB1F7F /* TrackRecorder.swift */,
+							D1A0000000000000000000A2 /* LocationPermission.swift */,
+							D1A0000000000000000001A2 /* SupabaseConfig.swift */,
+							D1A0000000000000000001B2 /* AccountService.swift */,
+							D1A0000000000000000001C2 /* RouteSync.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -311,6 +341,7 @@
 			name = hikingmap;
 			packageProductDependencies = (
 				CE6B922D2F9E39E40076358C /* MapboxMaps */,
+				D1A0000000000000000000F2 /* Supabase */,
 			);
 			productName = hikingmap;
 			productReference = CE0B84A82F9E365600D0AF82 /* hikingmap.app */;
@@ -386,6 +417,8 @@
 			mainGroup = CE0B849F2F9E365600D0AF82;
 			packageReferences = (
 				CE6B922C2F9E39E40076358C /* XCRemoteSwiftPackageReference "mapbox-maps-ios" */,
+				D1A0000000000000000000F1 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				D1A0000000000000000002A1 /* XCRemoteSwiftPackageReference "xctest-dynamic-overlay" */,
 			);
 			productRefGroup = CE0B84A92F9E365600D0AF82 /* Products */;
 			projectDirPath = "";
@@ -403,6 +436,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D1A0000000000000000001E1 /* Supabase.plist in Resources */,
 				CE6B923C2F9E3B060076358C /* future_trips in Resources */,
 				CE6B923B2F9E3B060076358C /* photos in Resources */,
 				CE6B923A2F9E3B060076358C /* GPX in Resources */,
@@ -471,6 +505,15 @@
 				FA001122334455667788990C /* RouteListSheet.swift in Sources */,
 				94A41467C83D63F25CC6B286 /* TrackRecording.swift in Sources */,
 				3F7165C73E5F9CA47A4E71BF /* CavePoint.swift in Sources */,
+				D1A0000000000000000000A1 /* LocationPermission.swift in Sources */,
+				D1A0000000000000000000B1 /* MyLocationButton.swift in Sources */,
+				D1A0000000000000000000C1 /* MapboxMapView+MyLocation.swift in Sources */,
+				D1A0000000000000000001A1 /* SupabaseConfig.swift in Sources */,
+				D1A0000000000000000001B1 /* AccountService.swift in Sources */,
+				D1A0000000000000000001C1 /* RouteSync.swift in Sources */,
+				D1A0000000000000000001D1 /* AccountSheet.swift in Sources */,
+				D1A0000000000000000003A1 /* HistMapSliderBar.swift in Sources */,
+				D1A0000000000000000004A1 /* DownloadProgressStrip.swift in Sources */,
 				2AD726D4254F88B2543E45CD /* TrackRecorder.swift in Sources */,
 				3F5CE64B59540BF79EC8B121 /* LiveTrackHUD.swift in Sources */,
 				C7E2DC1742C4DBBF49FB07B1 /* CaveDetailPanel.swift in Sources */,
@@ -1095,6 +1138,22 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		D1A0000000000000000002A1 /* XCRemoteSwiftPackageReference "xctest-dynamic-overlay" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/xctest-dynamic-overlay";
+			requirement = {
+				kind = exactVersion;
+				version = 1.9.0;
+			};
+		};
+		D1A0000000000000000000F1 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = exactVersion;
+				version = 2.30.0;
+			};
+		};
 		CE6B922C2F9E39E40076358C /* XCRemoteSwiftPackageReference "mapbox-maps-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/mapbox/mapbox-maps-ios";
@@ -1106,6 +1165,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		D1A0000000000000000000F2 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D1A0000000000000000000F1 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
 		CE6B922D2F9E39E40076358C /* MapboxMaps */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = CE6B922C2F9E39E40076358C /* XCRemoteSwiftPackageReference "mapbox-maps-ios" */;

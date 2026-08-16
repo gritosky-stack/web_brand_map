@@ -9,6 +9,9 @@ struct CustomRoute: Identifiable, Codable {
     var waypointLons: [Double]
     var distanceKm: Double
     var elevations: [Double]?   // fetched async after save
+    /// Когда маршрут последний раз меняли. Опционально нарочно: старые
+    /// записи в UserDefaults этого поля не знают и должны читаться дальше.
+    var updatedAt: Date?
 
     var coordinates: [CLLocationCoordinate2D] {
         zip(waypointLats, waypointLons).map { CLLocationCoordinate2D(latitude: $0, longitude: $1) }
@@ -34,6 +37,7 @@ struct CustomRoute: Identifiable, Codable {
         self.waypointLons = waypoints.map(\.longitude)
         self.distanceKm   = distanceKm
         self.elevations   = nil
+        self.updatedAt    = Date()
     }
 
     /// Create from recorded track coordinates and elevations.
@@ -110,19 +114,35 @@ final class CustomRouteStore: ObservableObject {
     init() { load() }
 
     func add(_ route: CustomRoute) {
-        routes.insert(route, at: 0)
+        var stamped = route
+        stamped.updatedAt = Date()
+        routes.insert(stamped, at: 0)
         persist()
+        let pushed = stamped
+        Task { await RouteSync.shared.push(pushed) }
     }
 
     func update(_ route: CustomRoute) {
         if let idx = routes.firstIndex(where: { $0.id == route.id }) {
-            routes[idx] = route
+            var stamped = route
+            stamped.updatedAt = Date()
+            routes[idx] = stamped
             persist()
+            let pushed = stamped
+            Task { await RouteSync.shared.push(pushed) }
         }
     }
 
     func remove(id: String) {
         routes.removeAll { $0.id == id }
+        persist()
+        Task { await RouteSync.shared.delete(id: id) }
+    }
+
+    /// Замена всего списка после синхронизации. Отдельно от `add`/`update`,
+    /// чтобы приехавшее из облака не поехало обратно в облако же.
+    func replaceAll(_ newRoutes: [CustomRoute]) {
+        routes = newRoutes
         persist()
     }
 

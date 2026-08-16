@@ -34,16 +34,13 @@ struct MapboxMapView: UIViewRepresentable {
             zoom: 6.5, pitch: 0
         ))
 
-        let bounds = CoordinateBounds(
-            southwest: CLLocationCoordinate2D(latitude: 41.0, longitude: 17.2),
-            northeast: CLLocationCoordinate2D(latitude: 47.4, longitude: 24.4)
-        )
         try? mapView.mapboxMap.setCameraBounds(with: CameraBoundsOptions(
-            bounds: bounds, maxZoom: 18, minZoom: 5
+            bounds: Coordinator.regionBounds, maxZoom: 18, minZoom: 5
         ))
 
         context.coordinator.mapView = mapView
         context.coordinator.loadBaseStyle(appState.baseStyle, on: mapView)
+        context.coordinator.setupMyLocation(on: mapView)
 
         // Именно observe, а не observeNext: событие приходит и при смене основы карты,
         // когда стиль перезагружается и все наши слои нужно ставить заново.
@@ -96,6 +93,12 @@ final class Coordinator: NSObject {
     var pssSnapSegments: [TrailSnapService.Segment] = []
     var liveTrackCoords: [CLLocationCoordinate2D] = []
     var lastPublishedZoom: Double = 6.5
+    /// Моя локация: пак включаем лениво, при первом запросе с разрешением
+    var isPuckEnabled = false
+    /// Ожидание первой засечки GPS после выдачи разрешения
+    var locationFixSubscription: AnyCancelable?
+    /// Активный стейт слежения — SDK держит его слабо, ссылка нужна нам
+    var followState: FollowPuckViewportState?
     /// Первую загрузку стиля сопровождаем облётом, перезагрузку при смене
     /// основы карты — нет, иначе камера прыгает под руками.
     var isFirstStyleLoad = true
@@ -110,6 +113,15 @@ final class Coordinator: NSObject {
     /// Перекраска была нужна ради офлайна: у satellite-streets `composite` состоит
     /// из одного тайлсета, и скачанные пачки к нему подходили. Сейчас офлайн живёт
     /// на своих тайлах, так что запасной основе можно быть обычным Outdoors.
+    /// Рамка, за которую камеру не пускает `setCameraBounds`. Держим её здесь,
+    /// а не по месту вызова: облёту к пользователю нужно знать ту же рамку,
+    /// иначе он честно летит к точке вне её, Mapbox прижимает камеру к углу
+    /// рамки — и человек оказывается в Адриатическом море, ничего не поняв.
+    static let regionBounds = CoordinateBounds(
+        southwest: CLLocationCoordinate2D(latitude: 41.0, longitude: 17.2),
+        northeast: CLLocationCoordinate2D(latitude: 47.4, longitude: 24.4)
+    )
+
     static func styleURI(for base: BaseMapStyle) -> StyleURI {
         switch base {
         case .satellite: return .satelliteStreets
@@ -170,7 +182,8 @@ final class Coordinator: NSObject {
         appState.cameraFlyRequest
             .receive(on: DispatchQueue.main)
             .sink { [weak self] coord in
-                guard let mapView = self?.mapView else { return }
+                guard let self, let mapView = self.mapView else { return }
+                self.stopFollowing()
                 mapView.camera.ease(to: CameraOptions(center: coord, zoom: 15, pitch: 35),
                                     duration: 1.2, curve: .easeInOut, completion: nil)
             }
@@ -179,7 +192,8 @@ final class Coordinator: NSObject {
         appState.caveFlyCameraRequest
             .receive(on: DispatchQueue.main)
             .sink { [weak self] coord in
-                guard let mapView = self?.mapView else { return }
+                guard let self, let mapView = self.mapView else { return }
+                self.stopFollowing()
                 mapView.camera.ease(to: CameraOptions(center: coord, zoom: 15, bearing: 20, pitch: 45),
                                     duration: 1.4, curve: .easeInOut, completion: nil)
             }
@@ -189,6 +203,7 @@ final class Coordinator: NSObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] bounds in
                 guard let self, let mapView = self.mapView else { return }
+                self.stopFollowing()
                 let corners = [
                     bounds.sw,
                     CLLocationCoordinate2D(latitude: bounds.sw.latitude, longitude: bounds.ne.longitude),
@@ -219,6 +234,20 @@ final class Coordinator: NSObject {
         appState.$showHistMap
             .receive(on: DispatchQueue.main)
             .sink { [weak self] show in self?.updateHistMap(show) }
+            .store(in: &cancellables)
+
+        appState.$histMapAlpha
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] alpha in self?.setHistMapOpacity(alpha) }
+            .store(in: &cancellables)
+
+        appState.$isOnline
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self, appState.showHistMap else { return }
+                updateHistMap(true)
+            }
             .store(in: &cancellables)
 
         appState.$isRecording
@@ -253,7 +282,8 @@ final class Coordinator: NSObject {
         appState.zoomOutRequest
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
-                guard let mapView = self?.mapView else { return }
+                guard let self, let mapView = self.mapView else { return }
+                self.stopFollowing()
                 mapView.camera.ease(to: CameraOptions(zoom: 8.0),
                                     duration: 1.0, curve: .easeInOut, completion: nil)
             }
@@ -1061,7 +1091,14 @@ final class Coordinator: NSObject {
 
         var layer = RasterLayer(id: "topo-layer", source: "topo-overlay")
         layer.rasterOpacity = .constant(0.0)
-        try? mapView.mapboxMap.addLayer(layer, layerPosition: .below("world-mask"))
+        // Оба растра просились `.below("world-mask")`, и кто добавлен последним,
+        // тот и оказывался сверху: включив OpenTopoMap поверх спутника, юзер
+        // терял гравюру. Порядок задаём явно — историческая карта всегда выше,
+        // она осознанный слой поверх основы, а OpenTopoMap саму основу заменяет.
+        let below: LayerPosition = mapView.mapboxMap.layerExists(withId: "histmap-backdrop")
+            ? .below("histmap-backdrop")
+            : .below("world-mask")
+        try? mapView.mapboxMap.addLayer(layer, layerPosition: below)
     }
 
     private func removeTopoLayer(from mapView: MapView) {
@@ -1146,7 +1183,10 @@ final class Coordinator: NSObject {
         guard isStyleLoaded, let mapView else { return }
 
         removeHistMap(from: mapView)
-        guard show else { return }
+        // Без сети и без скачанного набора тайлы взять неоткуда. Раньше слой
+        // в этом случае оставался на карте на подгруженных ранее тайлах, хотя
+        // тумблер уже был выключен и погашен — выглядело как рассинхрон.
+        guard show, appState.isOnline || HistMapTiles.isAvailable else { return }
 
         var src = RasterSource(id: "histmap-source")
         src.tiles = [HistMapTiles.tilesURL]
@@ -1156,21 +1196,93 @@ final class Coordinator: NSObject {
         src.attribution = "Library of Congress · k.u.k. Militärgeographisches Institut"
         try? mapView.mapboxMap.addSource(src)
 
+        // Под гравюру кладём бумажную подложку. Тайлов «Спецкарты» хватает не
+        // на всю Сербию, и без подложки покрытие обрывается прямо на
+        // современную карту — выглядит как поломка. С ней край читается как
+        // «сюда съёмка не дошла»: дальше просто чистый лист.
+        //
+        // Прозрачность у подложки общая с гравюрой, поэтому ползунок по-прежнему
+        // проявляет современную карту — только теперь равномерно, а не пятнами.
+        addHistMapBackdrop(on: mapView)
+
         var layer = RasterLayer(id: "histmap-layer", source: "histmap-source")
-        layer.rasterOpacity = .constant(0.92)
+        layer.rasterOpacity = .constant(appState.histMapAlpha)
         layer.rasterFadeDuration = .constant(0)
         // Набор кончается на z14, дальше SDK растягивает родительский тайл.
         // Сглаженная интерполяция на гравюре выглядит как бумага под лупой,
         // а `.nearest` дал бы лестницы на штрихах.
         layer.rasterResampling = .constant(.linear)
-        try? mapView.mapboxMap.addLayer(layer, layerPosition: .below("world-mask"))
+        try? mapView.mapboxMap.addLayer(layer, layerPosition: .above("histmap-backdrop"))
         // Современные подписи, горизонтали и железные дороги сознательно
         // оставляем поверх: на проверке в симуляторе они не спорят с гравюрой,
         // а работают ориентирами — по ним видно, где ты на старой карте.
     }
 
+    /// Плотность гравюры меняем правкой слоя, а не пересборкой источника:
+    /// иначе на каждом движении ползунка тайлы перезапрашивались бы заново.
+    private func setHistMapOpacity(_ alpha: Double) {
+        guard let mapView, mapView.mapboxMap.layerExists(withId: "histmap-layer") else { return }
+        try? mapView.mapboxMap.updateLayer(withId: "histmap-layer", type: RasterLayer.self) { layer in
+            layer.rasterOpacity = .constant(alpha)
+        }
+        try? mapView.mapboxMap.updateLayer(withId: "histmap-backdrop", type: FillLayer.self) { layer in
+            layer.fillOpacity = .constant(alpha)
+        }
+    }
+
+    /// Подложка — заливка по полигону, а не `BackgroundLayer`.
+    ///
+    /// Первая версия была именно фоновым слоем, и на мелких зумах он работал,
+    /// а стоило приблизиться — исчезал, обнажая современную карту. Причина в
+    /// рельефе: при включённом `setTerrain` фоновый слой рисовать не на чем,
+    /// у него нет геометрии, которую можно натянуть на DEM. Заливка полигоном
+    /// на рельеф ложится нормально.
+    private func addHistMapBackdrop(on mapView: MapView) {
+        if !mapView.mapboxMap.imageExists(withId: "histmap-paper") {
+            try? mapView.mapboxMap.addImage(Self.paperPattern(), id: "histmap-paper")
+        }
+
+        // С запасом вокруг рамки камеры: полигон должен перекрывать всё,
+        // что вообще может попасть в кадр, включая наклон и поля по краям.
+        let ring: [CLLocationCoordinate2D] = [
+            CLLocationCoordinate2D(latitude: 37.0, longitude: 13.0),
+            CLLocationCoordinate2D(latitude: 37.0, longitude: 29.0),
+            CLLocationCoordinate2D(latitude: 51.0, longitude: 29.0),
+            CLLocationCoordinate2D(latitude: 51.0, longitude: 13.0),
+            CLLocationCoordinate2D(latitude: 37.0, longitude: 13.0)
+        ]
+        var src = GeoJSONSource(id: "histmap-backdrop-source")
+        src.data = .feature(Feature(geometry: .polygon(Polygon([ring]))))
+        try? mapView.mapboxMap.addSource(src)
+
+        var backdrop = FillLayer(id: "histmap-backdrop", source: "histmap-backdrop-source")
+        backdrop.fillPattern = .constant(.name("histmap-paper"))
+        backdrop.fillOpacity = .constant(appState.histMapAlpha)
+        try? mapView.mapboxMap.addLayer(backdrop, layerPosition: .below("world-mask"))
+    }
+
+    /// Клетка бумаги с еле заметной штриховкой. Диагональ идёт из угла в угол —
+    /// только так плитка стыкуется сама с собой без швов.
+    private static func paperPattern() -> UIImage {
+        let side: CGFloat = 12
+        return UIGraphicsImageRenderer(size: CGSize(width: side, height: side)).image { ctx in
+            DS.topoPaperUI.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: side, height: side))
+
+            DS.topoRoadCasingUI.withAlphaComponent(0.13).setStroke()
+            let hatch = UIBezierPath()
+            hatch.lineWidth = 1
+            hatch.move(to: CGPoint(x: 0, y: side));        hatch.addLine(to: CGPoint(x: side, y: 0))
+            hatch.move(to: CGPoint(x: 0, y: side / 2));    hatch.addLine(to: CGPoint(x: side / 2, y: 0))
+            hatch.move(to: CGPoint(x: side / 2, y: side)); hatch.addLine(to: CGPoint(x: side, y: side / 2))
+            hatch.stroke()
+        }
+    }
+
     private func removeHistMap(from mapView: MapView) {
         try? mapView.mapboxMap.removeLayer(withId: "histmap-layer")
+        try? mapView.mapboxMap.removeLayer(withId: "histmap-backdrop")
+        try? mapView.mapboxMap.removeSource(withId: "histmap-backdrop-source")
         try? mapView.mapboxMap.removeSource(withId: "histmap-source")
     }
 
@@ -1783,6 +1895,7 @@ final class Coordinator: NSObject {
 
     // MARK: - Camera
     private func flyToRoute(stats: RouteStats, on mapView: MapView) {
+        stopFollowing()
         let corners: [CLLocationCoordinate2D] = [
             stats.boundsSW,
             CLLocationCoordinate2D(latitude: stats.boundsSW.latitude, longitude: stats.boundsNE.longitude),
@@ -1802,6 +1915,7 @@ final class Coordinator: NSObject {
     }
 
     private func flyToOverview(on mapView: MapView) {
+        stopFollowing()
         mapView.camera.ease(to: CameraOptions(
             center: CLLocationCoordinate2D(latitude: 44.2107, longitude: 20.9029),
             zoom: 6.5, pitch: 0
