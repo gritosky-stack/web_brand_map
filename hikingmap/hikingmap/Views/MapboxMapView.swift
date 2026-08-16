@@ -88,6 +88,10 @@ final class Coordinator: NSObject {
     var cancellables = Set<AnyCancellable>()
     var isStyleLoaded = false
     var drawnRouteId: String?
+    /// Какой свой маршрут сейчас показан. Нужен, чтобы отличить смену выбора
+    /// от обычного пересчёта слоя: подписка дёргается ещё и на смену фильтра
+    /// и на правки в хранилище, а камерой при этом двигать нельзя.
+    var shownCustomRouteId: String?
     var scrubberManager: PointAnnotationManager?
     var sightingManager: PointAnnotationManager?
     var pssSnapSegments: [TrailSnapService.Segment] = []
@@ -1776,6 +1780,14 @@ final class Coordinator: NSObject {
     func refreshCustomRoutesOnMap(filter: RouteFilter, selected: CustomRoute?, allRoutes: [CustomRoute]) {
         guard isStyleLoaded, let mapView else { return }
 
+        let selectionChanged = shownCustomRouteId != selected?.id
+        // Закрыли карточку своего маршрута — камера отъезжает на обзор, как и
+        // после обычного маршрута (`onSelectedRouteChanged(nil)`).
+        if selectionChanged, selected == nil, shownCustomRouteId != nil {
+            flyToOverview(on: mapView)
+        }
+        shownCustomRouteId = selected?.id
+
         // Clear previous layers
         try? mapView.mapboxMap.removeLayer(withId: "custom-all-lines")
         try? mapView.mapboxMap.removeSource(withId: "custom-all-src")
@@ -1785,8 +1797,9 @@ final class Coordinator: NSObject {
 
         let purple = UIColor(red: 0.48, green: 0.37, blue: 0.65, alpha: 1)
 
-        // Show all routes as dim lines when on "Мои" tab
-        if filter == .mine && !allRoutes.isEmpty {
+        // Бледные линии всех своих маршрутов — в «Мои» и в «Все»: список в
+        // этих вкладках их показывает, значит и на карте они должны быть.
+        if (filter == .mine || filter == .all) && !allRoutes.isEmpty {
             let features: [Feature] = allRoutes.compactMap { r in
                 guard r.coordinates.count >= 2 else { return nil }
                 return Feature(geometry: .lineString(LineString(r.coordinates)))
@@ -1825,7 +1838,9 @@ final class Coordinator: NSObject {
             endAnn.image = .init(image: makePin(.finish), name: "pin-finish")
             mapView.annotations.makePointAnnotationManager(id: "custom-route-pins").annotations = [startAnn, endAnn]
 
-            // Fly to selected route
+            // Облёт — только на смену выбора: иначе камера дёргалась бы каждый
+            // раз, когда в маршрут дописываются высоты.
+            guard selectionChanged else { return }
             let screenH = UIScreen.main.bounds.height
             let padding = UIEdgeInsets(top: 80, left: 40, bottom: screenH * 0.3, right: 40)
             if let cam = try? mapView.mapboxMap.camera(

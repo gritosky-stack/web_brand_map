@@ -17,11 +17,15 @@ struct HistMapSliderBar: View {
             Text("🗺")
                 .font(.system(size: 11))
 
+            // lineLimit + fixedSize обязательны: без них «100%» не влезает
+            // в слот и рвётся на две строки, а двузначные значения влезают.
             Text("\(Int(appState.histMapAlpha * 100))%")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundColor(DS.textPrimary)
                 .monospacedDigit()
-                .frame(width: 30, alignment: .leading)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(width: 36, alignment: .leading)
 
             Slider(value: $appState.histMapAlpha, in: 0...1)
                 .tint(DS.accent)

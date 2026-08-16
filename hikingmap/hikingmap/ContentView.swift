@@ -94,20 +94,26 @@ struct ContentView: View {
                 }
 
                 // Кнопка «моя локация» — правый нижний угол, зеркально Zoom Out
-                VStack {
-                    Spacer()
-                    HStack {
+                if mapHasFocus {
+                    VStack {
                         Spacer()
-                        MyLocationButton()
-                            .environmentObject(appState)
-                            .padding(.trailing, 16)
-                            .padding(.bottom, bottomControlsInset)
+                        HStack {
+                            Spacer()
+                            MyLocationButton()
+                                .environmentObject(appState)
+                                .padding(.trailing, 16)
+                                .padding(.bottom, bottomControlsInset)
+                        }
                     }
+                    .ignoresSafeArea(edges: .bottom)
+                    .transition(.scale(scale: 0.85, anchor: .bottomTrailing).combined(with: .opacity))
                 }
-                .ignoresSafeArea(edges: .bottom)
 
-                // Floating AI button — always on top, draggable
-                floatingAIButton
+                // Floating AI button — draggable, но только пока карта в фокусе
+                if mapHasFocus {
+                    floatingAIButton
+                        .transition(.scale(scale: 0.85).combined(with: .opacity))
+                }
             }
 
             // Mountain burst overlay
@@ -120,6 +126,7 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.22), value: appState.isConstructorMode)
         .animation(.spring(response: 0.32, dampingFraction: 0.78), value: showZoomOut)
         .animation(.spring(response: 0.32, dampingFraction: 0.78), value: histSliderOnMap)
+        .animation(.spring(response: 0.32, dampingFraction: 0.78), value: mapHasFocus)
         #if DEBUG
         .overlay(alignment: .leading) { DebugHUD().environmentObject(appState) }
         #endif
@@ -170,11 +177,21 @@ struct ContentView: View {
         }
     }
 
+    /// Карта на первом плане: ни список, ни карточка маршрута/пещеры не
+    /// раскрыты. Свёрнутая свайпом карточка фокус не отнимает — она узкая
+    /// и низ экрана остаётся картой. От этого зависит вся плавающая обвязка
+    /// карты: локация, ассистент, зум и ползунок гравюры.
+    private var mapHasFocus: Bool {
+        !appState.routeListExpanded && !appState.recordingEntryVisible
+            && !appState.showDetailPanel && !appState.showCaveDetail
+            && !appState.showCustomRouteDetail && !appState.showPSSRouteDetail
+    }
+
     /// Ползунок на карте показываем, только когда сам слой включён и панели
     /// не перекрывают низ экрана.
     private var histSliderOnMap: Bool {
         appState.showHistMap && appState.histMapSliderOnMap
-            && histMapUsable && !appState.routeListExpanded
+            && histMapUsable && mapHasFocus
     }
 
     /// Слой живой, только если есть сеть или скачанный набор. От этого же
@@ -329,23 +346,34 @@ struct ContentView: View {
     // MARK: - Zoom Out button
 
     private var showZoomOut: Bool {
-        appState.mapZoom > 11.5 && !appState.showDetailPanel
-            && !appState.routeListExpanded && !appState.recordingEntryVisible
+        appState.mapZoom > 11.5 && mapHasFocus
     }
 
+    /// Когда на карте лежит ползунок гравюры, широкая плашка с текстом
+    /// оказывается вторым «пилюлей» на другом уровне и смотрится неопрятно —
+    /// в этом случае кнопка сжимается до иконки и встаёт в пару к кнопке
+    /// локации напротив. Уберут ползунок — вернётся с подписью.
     private var zoomOutButton: some View {
         Button {
             appState.zoomOutRequest.send()
         } label: {
-            HStack(spacing: 5) {
-                Image(systemName: "minus.magnifyingglass")
-                    .font(.system(size: 13, weight: .medium))
-                Text("Zoom Out")
-                    .font(.system(size: 12, weight: .medium))
+            Group {
+                if histSliderOnMap {
+                    Image(systemName: "minus.magnifyingglass")
+                        .font(.system(size: 17, weight: .medium))
+                        .frame(width: 44, height: 44)
+                } else {
+                    HStack(spacing: 5) {
+                        Image(systemName: "minus.magnifyingglass")
+                            .font(.system(size: 13, weight: .medium))
+                        Text("Zoom Out")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                }
             }
             .foregroundColor(DS.textPrimary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
             .background(.ultraThinMaterial)
             .background(Color(red: 0.04, green: 0.04, blue: 0.04).opacity(0.7))
             .clipShape(Capsule())
@@ -353,6 +381,7 @@ struct ContentView: View {
             .shadow(color: .black.opacity(0.3), radius: 8, y: 3)
         }
         .buttonStyle(.plain)
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: histSliderOnMap)
     }
 
     // MARK: - Top bar

@@ -151,6 +151,28 @@ struct RouteListSheet: View {
         !filterDifficulty.isEmpty || filterDist != nil || filterAscent != nil || filterDescent != nil
     }
 
+    /// Свои маршруты видны и в «Мои», и в «Все» — нарисованный трек не должен
+    /// пропадать из общего списка. В «Пройденные»/«Планы» их нет: этих
+    /// статусов у своих маршрутов не существует.
+    private var customListRoutes: [CustomRoute] {
+        guard appState.filter == .mine || appState.filter == .all else { return [] }
+        let routes = appState.customRouteStore.routes
+        guard hasActiveFilters else { return routes }
+        // Сложность своим маршрутам никто не считает, поэтому фильтр по ней
+        // их отсекает целиком — иначе они лезли бы в любую выборку.
+        if !filterDifficulty.isEmpty { return [] }
+        return routes.filter { route in
+            if let dr = filterDist, !dr.matches(route.distanceKm) { return false }
+            if let ar = filterAscent {
+                guard let a = route.ascentM, ar.matches(a) else { return false }
+            }
+            if let dr = filterDescent {
+                guard let d = route.descentM, dr.matches(d) else { return false }
+            }
+            return true
+        }
+    }
+
     private var filteredListRoutes: [Route] {
         guard hasActiveFilters else { return appState.filteredRoutes }
         return appState.filteredRoutes.filter { route in
@@ -174,9 +196,7 @@ struct RouteListSheet: View {
     }
 
     private var collapsedRouteCount: Int {
-        appState.filter == .mine
-            ? appState.customRouteStore.routes.count
-            : appState.filteredRoutes.count
+        customListRoutes.count + appState.filteredRoutes.count
     }
 
     private var collapsedRow: some View {
@@ -430,53 +450,51 @@ struct RouteListSheet: View {
     private var routeList: some View {
         ScrollView(showsIndicators: false) {
             LazyVStack(spacing: 0) {
-                if appState.filter == .mine {
-                    ForEach(appState.customRouteStore.routes) { route in
-                        CustomRouteListRow(
-                            route: route,
-                            isSelected: appState.selectedCustomRoute?.id == route.id
-                        ) {
-                            withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
-                                expanded = false
-                            }
-                            appState.selectCustomRoute(route)
-                            appState.showCustomRouteDetail = true
+                // Свои — сверху: их мало, и это то, что человек только что сделал.
+                ForEach(customListRoutes) { route in
+                    CustomRouteListRow(
+                        route: route,
+                        isSelected: appState.selectedCustomRoute?.id == route.id
+                    ) {
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+                            expanded = false
                         }
-                        Divider().background(DS.border).padding(.leading, 50)
+                        appState.selectCustomRoute(route)
+                        appState.showCustomRouteDetail = true
                     }
-                    if appState.customRouteStore.routes.isEmpty {
-                        Text("Нет сохранённых маршрутов.\nНарисуйте маршрут или запишите трек.")
-                            .font(.system(size: 13))
-                            .foregroundColor(DS.textTertiary)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 40)
-                    }
-                } else {
-                    ForEach(filteredListRoutes) { route in
-                        RouteListRow(
-                            route: route,
-                            stats: appState.routeStats[route.id],
-                            isSelected: appState.selectedRoute?.id == route.id
-                        ) {
-                            withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
-                                expanded = false
-                            }
-                            appState.select(route)
+                    Divider().background(DS.border).padding(.leading, 50)
+                }
+
+                ForEach(filteredListRoutes) { route in
+                    RouteListRow(
+                        route: route,
+                        stats: appState.routeStats[route.id],
+                        isSelected: appState.selectedRoute?.id == route.id
+                    ) {
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+                            expanded = false
                         }
-                        Divider().background(DS.border).padding(.leading, 50)
+                        appState.select(route)
                     }
-                    if filteredListRoutes.isEmpty && hasActiveFilters {
-                        Text("Нет маршрутов по выбранным фильтрам")
-                            .font(.system(size: 13))
-                            .foregroundColor(DS.textTertiary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 40)
-                    }
+                    Divider().background(DS.border).padding(.leading, 50)
+                }
+
+                if customListRoutes.isEmpty && filteredListRoutes.isEmpty {
+                    Text(emptyListMessage)
+                        .font(.system(size: 13))
+                        .foregroundColor(DS.textTertiary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 40)
                 }
             }
             .padding(.bottom, 40)
         }
+    }
+
+    private var emptyListMessage: String {
+        if hasActiveFilters { return "Нет маршрутов по выбранным фильтрам" }
+        return "Нет сохранённых маршрутов.\nНарисуйте маршрут или запишите трек."
     }
 
     private var pssRouteList: some View {

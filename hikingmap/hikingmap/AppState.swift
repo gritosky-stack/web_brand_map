@@ -256,20 +256,55 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Разбор всех GPX при старте.
+    ///
+    /// Раньше на каждый маршрут заводилась своя `Task.detached(priority: .background)`.
+    /// Два изъяна: `.background` — самый низкий QoS, система вправе отложить
+    /// его надолго, и под нагрузкой (карта тянет тайлы, идёт докачка набора)
+    /// разбор растягивался на минуты; а 27 задач разом забивали пул, поэтому
+    /// не было и первых результатов — список пустовал до самого конца.
+    ///
+    /// Теперь одна очередь на `.utility` с ограничением в 4 параллельных
+    /// разбора, в порядке списка: верхние строки заполняются сразу, а фон
+    /// не конкурирует сам с собой.
     func preloadAllStats() {
-        for route in RouteStore.all {
-            let routeId = route.id
-            if routeStats[routeId] != nil { continue }
-            Task.detached(priority: .background) { [weak self] in
-                let stats = GPXLoader.loadStats(for: route)
-                await MainActor.run { [weak self] in
-                    if let stats { self?.routeStats[routeId] = stats }
+        guard !preloadStarted else { return }
+        preloadStarted = true
+
+        let pending = RouteStore.all.filter { routeStats[$0.id] == nil }
+        guard !pending.isEmpty else { return }
+
+        Task.detached(priority: .utility) { [weak self] in
+            await withTaskGroup(of: (String, RouteStats?).self) { group in
+                var next  = 0
+                let limit = min(4, ProcessInfo.processInfo.activeProcessorCount)
+
+                func enqueueNext() {
+                    guard next < pending.count else { return }
+                    let route = pending[next]
+                    next += 1
+                    group.addTask { (route.id, GPXLoader.loadStats(for: route)) }
+                }
+
+                for _ in 0..<limit { enqueueNext() }
+
+                while let (routeId, stats) = await group.next() {
+                    if let stats {
+                        await MainActor.run { [weak self] in
+                            self?.routeStats[routeId] = stats
+                        }
+                    }
+                    enqueueNext()
                 }
             }
         }
     }
 
     // MARK: - Recording
+
+    /// `onAppear` у корневого экрана срабатывает не единожды — разбор
+    /// запускаем только с первого раза.
+    private var preloadStarted = false
 
     private var cancellables = Set<AnyCancellable>()
     private var recordingCancellables = Set<AnyCancellable>()
