@@ -48,13 +48,18 @@ import urllib.request
 
 import numpy as np
 
-from histmap_io import Sheet, blur, correlate_shift, read_dem_window
+from histmap_io import Sheet, blur, correlate_shift, orient_field, read_dem_window
 
 STEP = 2                 # прореживание листа: 4.5 м/px × 2 ≈ 9 м/px
 BLOCKS_X, BLOCKS_Y = 8, 5
 MIN_SHARPNESS = 4.0      # блоки ищут остаток в узком окне, поэтому порог мягкий
 MIN_GLOBAL_SHARPNESS = 5.0   # а вот сдвиг всего листа обязан быть уверенным
 MAX_SHIFT_M = 1200.0     # больше — это не невязка, а промах поиска пика
+MIN_MARGIN = 1.35        # во столько раз пик обязан обойти второй максимум
+PRIOR_M = 350.0          # в каком радиусе от ответа соседей искать двойника
+RESCUE_M = 250.0         # и в каком — перебирать разошедшийся лист
+ACCEPT_M = 120.0         # ближе этого к ответу соседей переисканный замер годен
+OUTLIER_M = 200.0        # дальше этого от соседей замер считаем ложным пиком
 OVERPASS = "https://overpass-api.de/api/interpreter"
 
 
@@ -108,8 +113,14 @@ def rasterize_ways(ways, sheet, shape, step):
     return out
 
 
-def dem_relief(sheet, shape, step, dem_dir):
-    """Рельеф в сетке листа как эталон для печати. Пусто, если DEM нет."""
+def dem_signals(sheet, shape, step, dem_dir):
+    """Рельеф в сетке листа как эталон для печати. Пусто, если DEM нет.
+
+    Возвращает два признака. **Кривизна** — куда гравёр сгущает штрих (гребни
+    и тальвеги). **Ориентация склона** — куда он этот штрих ведёт. Второй
+    признак важнее: он работает и там, где штрих сплошной и по плотности
+    отличить ничего нельзя.
+    """
     h, w = shape
     lon0, lat0, lon1, lat1 = sheet.bbox
     dem = np.full(shape, np.nan, np.float32)
@@ -133,11 +144,12 @@ def dem_relief(sheet, shape, step, dem_dir):
     dem = np.nan_to_num(dem, nan=float(np.nanmedian(dem)))
     # Кривизна, а не уклон: гравёр сгущает штрих на перегибах — по гребням и
     # тальвегам, — и с ней пик корреляции заметно резче (на проверочном листе
-    # 14.5× против 10.5× при том же ответе).
+    # 14.5x против 10.5x при том же ответе).
     curv = (np.gradient(np.gradient(dem, axis=0), axis=0)
             + np.gradient(np.gradient(dem, axis=1), axis=1))
-    curv = np.abs(curv)
-    return np.clip(curv, 0, np.percentile(curv, 99))
+    curv = np.clip(np.abs(curv), 0, np.percentile(np.abs(curv), 99))
+    gy, gx = np.gradient(blur(dem, k=2, rep=2))
+    return {"curv": curv, "orient": orient_field(gx, gy)}
 
 
 # --- признаки на скане -------------------------------------------------------
@@ -146,21 +158,27 @@ def ink_signals(img):
     """Что можно снять со скана.
 
     Набор LoC для Сербии почти весь монохромный: цветные тиражи нашлись лишь
-    у 8 листов из 71, и у остальных позиций цветных изданий не существует
-    вовсе. Поэтому основной признак — **плотность линий**, а цветоделение идёт
-    бонусом там, где оно есть.
+    у 6 листов из 71, и у остальных позиций цветных изданий не существует
+    вовсе. Поэтому цветоделение — бонус там, где оно есть, а нести замер
+    обязан монохромный признак.
 
     Просто «тёмные пиксели» не годятся: у сепийного скана есть собственный
     тональный дрейф, и корреляция цепляется за него, а не за печать. Снимаем
     его вычитанием сильно размытой копии — остаются штрихи.
+
+    Из штрихов берём два разных признака. **Плотность** — сколько печати на
+    единицу площади. **Ориентация** — куда печать направлена; она и оказалась
+    главной, потому что не насыщается (см. `orient_field`).
     """
     r = img[:, :, 0].astype(np.int16)
     g = img[:, :, 1].astype(np.int16)
     b = img[:, :, 2].astype(np.int16)
     lum = (r * 0.3 + g * 0.59 + b * 0.11).astype(np.float32)
-    lines = (lum - blur(lum, k=12, rep=3) < -6).astype(np.float32)
+    high = lum - blur(lum, k=12, rep=3)           # без тонального дрейфа скана
+    lines = (high < -6).astype(np.float32)
+    gy, gx = np.gradient(high)
 
-    out = {"lines": lines}
+    out = {"lines": lines, "orient": orient_field(gx, gy)}
     blue = ((b - r > 18) & (b - g > 6)).astype(np.float32)
     if blue.mean() > 0.003:                      # цветной тираж
         out["blue"] = blue
@@ -169,7 +187,7 @@ def ink_signals(img):
 
 # --- замер -------------------------------------------------------------------
 
-def _pairs(signals, water, relief):
+def _pairs(signals, water, relief, sign):
     """Пары «признак на скане ↔ современный эталон».
 
     Пары «вся печать ↔ реки» здесь намеренно нет, хотя она и даёт иногда
@@ -178,25 +196,45 @@ def _pairs(signals, water, relief):
     там отрицательная по смыслу, и любой её положительный пик случаен.
     Проверка на листе Дивчибаре это подтвердила — «гидро» тянула ответ
     на 580 м в сторону от того, что показывал рельеф.
+
+    `sign` разводит два тиража. На штриховом листе штрих идёт по линии
+    падения, и ориентация печати совпадает с ориентацией градиента рельефа
+    (`sign = +1`). На листе с горизонталями линия идёт поперёк склона, и то же
+    поле надо развернуть (`sign = -1`). Какой перед нами тираж, из метаданных
+    LoC не видно — определяем по тому, какой знак даёт более резкий пик.
     """
     out = []
     if "blue" in signals and water is not None:
         out.append(("реки", signals["blue"], water))
     if relief is not None:
-        out.append(("рельеф", signals["lines"], relief))
+        out.append(("штрих", signals["orient"],
+                    tuple(sign * c for c in relief["orient"])))
+        out.append(("рельеф", signals["lines"], relief["curv"]))
     return out
 
 
-def global_shift(signals, water, relief, radius):
+def _usable(a, b):
+    """Есть ли в паре вообще что коррелировать."""
+    aa = a if isinstance(a, tuple) else (a,)
+    bb = b if isinstance(b, tuple) else (b,)
+    return (max(float(np.abs(x).mean()) for x in aa) > 1e-4
+            and max(float(np.std(x)) for x in bb) > 1e-6)
+
+
+def global_shift(signals, water, relief, radius, centre=(0.0, 0.0), signs=(1.0, -1.0)):
     """Сдвиг всего листа. Считается по всей площади, поэтому устойчив даже там,
-    где отдельный блок безнадёжен."""
+    где отдельный блок безнадёжен.
+
+    Возвращает (метка, dx, dy, резкость, отрыв от второго пика, знак).
+    """
     best = None
-    for label, a, b in _pairs(signals, water, relief):
-        if a.mean() < 0.002 or float(np.std(b)) < 1e-6:
-            continue
-        dx, dy, sharp = correlate_shift(a, b, radius=radius)
-        if best is None or sharp > best[3]:
-            best = (label, dx, dy, sharp)
+    for sign in signs:
+        for label, a, b in _pairs(signals, water, relief, sign):
+            if not _usable(a, b):
+                continue
+            dx, dy, sharp, margin = correlate_shift(a, b, radius=radius, centre=centre)
+            if best is None or sharp > best[3]:
+                best = (label, dx, dy, sharp, margin, sign)
     return best
 
 
@@ -208,6 +246,7 @@ def measure(signals, water, relief, mpp_x, mpp_y, base):
     физически невязка внутри листа меняется плавно.
     """
     ref_shift = (int(round(base[1])), int(round(base[2])))
+    sign = base[5]
     h, w = signals["lines"].shape
     bw, bh = w // BLOCKS_X, h // BLOCKS_Y
     local = max(6, int(250 / max(mpp_x, mpp_y)))     # ±250 м вокруг сдвига листа
@@ -216,14 +255,17 @@ def measure(signals, water, relief, mpp_x, mpp_y, base):
         for i in range(BLOCKS_X):
             sy, sx = slice(j * bh, (j + 1) * bh), slice(i * bw, (i + 1) * bw)
             est = []
-            for label, a, b in _pairs(signals, water, relief):
-                ablk = a[sy, sx]
-                bblk = b[sy, sx]
-                if ablk.mean() < 0.004 or float(np.std(bblk)) < 1e-6:
+            for label, a, b in _pairs(signals, water, relief, sign):
+                aa = a if isinstance(a, tuple) else (a,)
+                bb = b if isinstance(b, tuple) else (b,)
+                ablk = tuple(x[sy, sx] for x in aa)
+                bblk = tuple(x[sy, sx] for x in bb)
+                if not _usable(ablk, bblk):
                     continue
                 # сдвигаем скан на сдвиг листа — остаётся только остаток
-                shifted = np.roll(np.roll(ablk, ref_shift[1], 0), ref_shift[0], 1)
-                dx, dy, sharp = correlate_shift(shifted, bblk, radius=local)
+                shifted = tuple(np.roll(np.roll(x, ref_shift[1], 0), ref_shift[0], 1)
+                                for x in ablk)
+                dx, dy, sharp, _ = correlate_shift(shifted, bblk, radius=local)
                 if sharp >= MIN_SHARPNESS:
                     est.append((dx + base[1], dy + base[2], sharp))
             if not est:
@@ -275,12 +317,27 @@ def fit_grid(samples, nx, ny):
 
 # --- отбраковка по соседям --------------------------------------------------
 
-CONSISTENCY_M = 250.0     # дальше этого от соседей замер считается шумом
-NEIGHBOUR_DEG = 1.2       # радиус «соседства» в градусах
+def local_field(measured, centers, name, radius_deg=1.2, min_n=3):
+    """Ответ соседей в точке листа: медиана по измеренным соседям.
+
+    Медиана, а не среднее: один сосед с ложным пиком не должен утаскивать
+    оценку. Радиус берём широким — ошибка георефересовки задаётся датумом и
+    тиражом, а они меняются на масштабе куда крупнее листа.
+    """
+    cx, cy = centers[name]
+    near = [v["shift_m"] for n, v in measured.items()
+            if n != name
+            and (cx - centers[n][0]) ** 2 + (cy - centers[n][1]) ** 2 < radius_deg ** 2]
+    if len(near) < min_n:
+        near = [v["shift_m"] for n, v in measured.items() if n != name]
+        if len(near) < min_n:
+            return None
+    return (statistics.median(x for x, _ in near),
+            statistics.median(y for _, y in near))
 
 
-def refit(result, centers, lat_of):
-    """Оставить только замеры, согласованные с соседями; остальным — их поправка.
+def outliers(result, centers, tol=140.0, rounds=3):
+    """Листы, чей замер не бьётся с соседями. Пересчитываем в несколько кругов.
 
     Замер бывает уверенным по резкости пика и всё равно ложным: на листах со
     сплошной штриховкой корреляция цепляется за случайную структуру. Отличить
@@ -288,54 +345,22 @@ def refit(result, centers, lat_of):
     Ошибка георефересовки регионально гладкая (её задают датум и тираж, а не
     местность), поэтому лист, разошедшийся с соседями на сотни метров, —
     почти наверняка шум.
-
-    Проверка идёт в два прохода: первый выбивает грубые выбросы, второй
-    пересчитывает медианы уже без них.
     """
-    def measured():
-        return {n: v for n, v in result.items()
-                if not v.get("inherited") and not v.get("rejected")}
-
-    for _ in range(2):
-        good = measured()
-        for name, v in list(good.items()):
-            cx, cy = centers[name]
-            near = [o["shift_m"] for on, o in good.items()
-                    if on != name
-                    and (cx - centers[on][0]) ** 2 + (cy - centers[on][1]) ** 2 < NEIGHBOUR_DEG ** 2]
-            if len(near) < 3:
+    bad = set()
+    for _ in range(rounds):
+        good = {n: v for n, v in result.items()
+                if not v.get("inherited") and n not in bad}
+        fresh = set()
+        for name, v in good.items():
+            loc = local_field(good, centers, name)
+            if loc is None:
                 continue
-            med_e = statistics.median(x for x, _ in near)
-            med_n = statistics.median(y for _, y in near)
-            if (abs(v["shift_m"][0] - med_e) > CONSISTENCY_M
-                    or abs(v["shift_m"][1] - med_n) > CONSISTENCY_M):
-                v["rejected"] = True
-
-    # Всем, у кого нет своего замера, — поправка соседей по обратному квадрату
-    good = measured()
-    if not good:
-        return result
-    for name, v in result.items():
-        if name in good:
-            continue
-        cx, cy = centers[name]
-        num_e = num_n = den = 0.0
-        for on, o in good.items():
-            d2 = (cx - centers[on][0]) ** 2 + (cy - centers[on][1]) ** 2
-            wgt = 1.0 / (d2 + 0.02)
-            num_e += wgt * o["shift_m"][0]
-            num_n += wgt * o["shift_m"][1]
-            den += wgt
-        dE, dN = num_e / den, num_n / den
-        n = v["grid"]
-        lat_c = lat_of[name]
-        v["dlon"] = [[dE / (111320 * math.cos(math.radians(lat_c)))] * n for _ in range(n)]
-        v["dlat"] = [[dN / 110570] * n for _ in range(n)]
-        v["shift_m"] = [round(dE, 1), round(dN, 1)]
-        v["inherited"] = True
-        v["warped"] = False
-        v.pop("rejected", None)
-    return result
+            if abs(v["shift_m"][0] - loc[0]) > tol or abs(v["shift_m"][1] - loc[1]) > tol:
+                fresh.add(name)
+        if not fresh - bad:
+            break
+        bad |= fresh
+    return bad
 
 
 def main():
@@ -346,71 +371,51 @@ def main():
     ap.add_argument("--out", default="align.json")
     ap.add_argument("--grid", type=int, default=5, help="узлов сетки поправки по стороне")
     ap.add_argument("--only", help="один лист по имени — для отладки")
-    ap.add_argument("--refit", action="store_true",
-                    help="пересчитать отбраковку по готовому --out, не измеряя заново")
+    ap.add_argument("--rescue", action="store_true",
+                    help="перебрать по готовому --out листы, разошедшиеся с соседями")
+    ap.add_argument("--research", action="store_true",
+                    help="при переборе искать пик заново, а не сразу брать поправку соседей")
     args = ap.parse_args()
-
-    if args.refit:
-        result = json.load(open(args.out, encoding="utf-8"))
-        centers, lat_of = {}, {}
-        for name in result:
-            box = Sheet(os.path.join(args.sheets_dir, f"{name}.tif")).bbox
-            centers[name] = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
-            lat_of[name] = (box[1] + box[3]) / 2
-            result[name].pop("rejected", None)
-        refit(result, centers, lat_of)
-        with open(args.out, "w", encoding="utf-8") as f:
-            json.dump(result, f, ensure_ascii=False)
-        own = sum(1 for v in result.values() if not v.get("inherited"))
-        print(f"после отбраковки: свой замер у {own} листов, "
-              f"у остальных {len(result) - own} — поправка соседей")
-        return
 
     paths = sorted(glob.glob(os.path.join(args.sheets_dir, "*.tif")))
     if args.only:
         paths = [p for p in paths if args.only in p]
-    result, report, centers, unmeasured, lat_of = {}, [], {}, [], {}
 
-    for idx, path in enumerate(paths, 1):
-        name = os.path.basename(path)[:-4]
+    result, report, centers, lat_of = {}, [], {}, {}
+    pending, unmeasured = [], []
+
+    def load(path):
+        """Лист и всё, с чем его сравнивают, в одной сетке."""
         sheet = Sheet(path)
         img = sheet.downsample(STEP)
         h, w, _ = img.shape
         lat_c = sheet.bbox[1] + (sheet.bbox[3] - sheet.bbox[1]) / 2
         mpp_x = sheet.px * STEP * 111320 * math.cos(math.radians(lat_c))
         mpp_y = sheet.py * STEP * 110570
-
         signals = ink_signals(img)
         ways = osm_waterways(sheet.bbox, args.osm_cache)
         water = rasterize_ways(ways, sheet, (h, w), STEP) if ways else None
-        relief = dem_relief(sheet, (h, w), STEP, args.dem)
+        relief = dem_signals(sheet, (h, w), STEP, args.dem)
+        return sheet, signals, water, relief, mpp_x, mpp_y, lat_c
 
-        base = global_shift(signals, water, relief, radius=int(MAX_SHIFT_M / mpp_x))
-        if base is None or base[3] < MIN_GLOBAL_SHARPNESS:
-            report.append((name, 0, None, None, None))
-            unmeasured.append((name, (sheet.bbox[0] + sheet.bbox[2]) / 2,
-                               (sheet.bbox[1] + sheet.bbox[3]) / 2, lat_c))
-            print(f"[{idx}/{len(paths)}] {name}: сигнала нет"
-                  + (f" (пик {base[3]:.1f}x)" if base else ""), flush=True)
-            continue
-
+    def record(name, base, signals, water, relief, mpp_x, mpp_y, lat_c):
+        """Натянуть сетку поправки по поблочным замерам и сложить в результат."""
         samples = measure(signals, water, relief, mpp_x, mpp_y, base)
         if len(samples) < 3:
             # Лист целиком мерится, а блоки — нет: берём один сдвиг на лист
             samples = [(u, v, base[1] * mpp_x, -base[2] * mpp_y, 1.0)
                        for u in (0.25, 0.75) for v in (0.25, 0.75)]
-
         gx, gy = fit_grid(samples, args.grid, args.grid)
-        # Остаточная невязка: насколько замеры расходятся с натянутой сеткой
         res_e, res_n = [], []
         for u, v, dE, dN, _ in samples:
-            i = min(args.grid - 1, int(u * args.grid))
-            j = min(args.grid - 1, int(v * args.grid))
-            res_e.append(dE - gx[j, i])
-            res_n.append(dN - gy[j, i])
+            i_ = min(args.grid - 1, int(u * args.grid))
+            j_ = min(args.grid - 1, int(v * args.grid))
+            res_e.append(dE - gx[j_, i_])
+            res_n.append(dN - gy[j_, i_])
         rms_e = float(np.sqrt(np.mean(np.square(res_e))))
         rms_n = float(np.sqrt(np.mean(np.square(res_n))))
-        med_e, med_n = float(np.median([s[2] for s in samples])), float(np.median([s[3] for s in samples]))
+        med_e = float(np.median([s[2] for s in samples]))
+        med_n = float(np.median([s[3] for s in samples]))
 
         # Шумный лист не варпим: если замеры расходятся с натянутой сеткой
         # сильнее полусотни метров, значит сетка описывает не деформацию листа,
@@ -424,50 +429,203 @@ def main():
             warped = True
 
         # Сетку храним в градусах: тайлеру не нужно знать про метры
-        dlon = (gx / (111320 * math.cos(math.radians(lat_c)))).tolist()
-        dlat = (gy / 110570).tolist()
+        result[name] = {"grid": args.grid,
+                        "dlon": (gx / (111320 * math.cos(math.radians(lat_c)))).tolist(),
+                        "dlat": (gy / 110570).tolist(),
+                        "blocks": len(samples),
+                        "shift_m": [round(med_e, 1), round(med_n, 1)],
+                        "raw_shift_m": [round(med_e, 1), round(med_n, 1)],
+                        "residual_m": [round(rms_e, 1), round(rms_n, 1)],
+                        "signal": base[0],
+                        "edition": "штриховой" if base[5] > 0 else "горизонтали",
+                        "margin": round(base[4], 2),
+                        "warped": warped}
+        report.append((name, len(samples), med_e, med_n, (rms_e, rms_n)))
+        print(f"[{name}] {base[0]}/{result[name]['edition']}, блоков {len(samples):2d}, "
+              f"сдвиг {med_e:+6.0f}/{med_n:+6.0f} м, остаток {rms_e:4.0f}/{rms_n:4.0f} м, "
+              f"пик {base[3]:.0f}x (отрыв {base[4]:.1f})", flush=True)
+
+    def flatten(name, dE, dN, lat_c):
+        """Один сдвиг на весь лист — когда своего замера у него так и нет."""
+        n = args.grid
+        result[name] = {"grid": n,
+                        "dlon": [[dE / (111320 * math.cos(math.radians(lat_c)))] * n
+                                 for _ in range(n)],
+                        "dlat": [[dN / 110570] * n for _ in range(n)],
+                        "blocks": 0, "shift_m": [round(dE, 1), round(dN, 1)],
+                        "residual_m": None, "warped": False, "inherited": True}
+
+    for path in paths:
+        name = os.path.basename(path)[:-4]
+        box = Sheet(path).bbox
+        centers[name] = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
+        lat_of[name] = (box[1] + box[3]) / 2
+
+    # --- перебор разошедшихся листов по готовому набору ----------------------
+    #
+    # Отдельный режим, потому что полный замер идёт около часа, а перебирать
+    # приходится ровно те листы, где корреляция села на ложный пик, — их видно
+    # только когда посчитаны все.
+    if args.rescue:
+        result.update(json.load(open(args.out, encoding="utf-8")))
+        # Замер без отрыва от второго пика в дело не берём. Проверка на шести
+        # цветных листах, где есть независимая правда по синей печати рек,
+        # показала: там, где отрыв есть, ориентация штриха попадает в эту
+        # правду на 3–23 м. Там, где отрыва нет, ответ ничем не лучше жребия —
+        # и на юго-востоке такие листы дружно садились на ложный пик около
+        # +200 м по востоку.
+        weak = {n for n, v in result.items()
+                if not v.get("inherited") and (v.get("margin") or 0) < MIN_MARGIN}
+        for n in weak:
+            result[n]["inherited"] = True
+        bad = outliers(result, centers, tol=OUTLIER_M)
+        redo = sorted(bad | weak | {n for n, v in result.items() if v.get("inherited")})
+        good = {n: v for n, v in result.items()
+                if not v.get("inherited") and n not in bad}
+        print(f"согласованных листов {len(good)}, перебираем {len(redo)}: "
+              + ", ".join(sorted(bad)) if bad else f"согласованы все {len(good)}")
+        saved = {n: result[n] for n in good}
+        for idx, name in enumerate(redo, 1):
+            loc = local_field(saved, centers, name)
+            if loc is None:
+                continue
+            if name in weak or not args.research:
+                flatten(name, loc[0], loc[1], lat_of[name])
+                continue
+            path = os.path.join(args.sheets_dir, f"{name}.tif")
+            sheet, signals, water, relief, mpp_x, mpp_y, lat_c = load(path)
+            centre = (loc[0] / mpp_x, -loc[1] / mpp_y)
+            base = global_shift(signals, water, relief,
+                                radius=int(RESCUE_M / mpp_x), centre=centre)
+            if base is None or base[3] < MIN_GLOBAL_SHARPNESS:
+                flatten(name, loc[0], loc[1], lat_c)
+                print(f"[{idx}/{len(redo)}] {name}: сигнала рядом с соседями нет "
+                      f"→ поправка соседей {loc[0]:+.0f}/{loc[1]:+.0f} м", flush=True)
+                continue
+            print(f"[{idx}/{len(redo)}] ", end="")
+            record(name, base, signals, water, relief, mpp_x, mpp_y, lat_c)
+            # Даже в узком окне пик может сесть не туда: если ответ всё равно
+            # далеко от соседей, доверяем соседям, а не ему.
+            if (result[name].get("margin", 0) < MIN_MARGIN
+                    or abs(result[name]["shift_m"][0] - loc[0]) > ACCEPT_M
+                    or abs(result[name]["shift_m"][1] - loc[1]) > ACCEPT_M):
+                flatten(name, loc[0], loc[1], lat_c)
+                print(f"        …и всё равно мимо — беру поправку соседей "
+                      f"{loc[0]:+.0f}/{loc[1]:+.0f} м", flush=True)
+        with open(args.out, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False)
+        own = sum(1 for v in result.values() if not v.get("inherited"))
+        print(f"\nсвой замер: {own}/{len(result)} листов")
+        seam_report(result, centers)
+        return
+
+    # --- проход 1: листы, чей пик однозначен ---------------------------------
+    #
+    # Однозначным считаем тот, что и резкий, и заметно выше второго максимума.
+    # Второе условие тут не формальность: у квазипериодической печати
+    # корреляция даёт гряду почти равных пиков, и самый высокий из них
+    # запросто соответствует сдвигу на шаг штриховки, а не на невязку.
+    for idx, path in enumerate(paths, 1):
+        name = os.path.basename(path)[:-4]
+        sheet, signals, water, relief, mpp_x, mpp_y, lat_c = load(path)
         centers[name] = ((sheet.bbox[0] + sheet.bbox[2]) / 2,
                          (sheet.bbox[1] + sheet.bbox[3]) / 2)
         lat_of[name] = lat_c
-        result[name] = {"grid": args.grid, "dlon": dlon, "dlat": dlat,
-                        "blocks": len(samples),
-                        "shift_m": [round(med_e, 1), round(med_n, 1)],
-                        "residual_m": [round(rms_e, 1), round(rms_n, 1)],
-                        "warped": warped}
-        report.append((name, len(samples), med_e, med_n, (rms_e, rms_n)))
-        print(f"[{idx}/{len(paths)}] {name}: {base[0]}, блоков {len(samples):2d}, "
-              f"сдвиг {med_e:+6.0f}/{med_n:+6.0f} м, остаток {rms_e:4.0f}/{rms_n:4.0f} м",
-              flush=True)
+        base = global_shift(signals, water, relief, radius=int(MAX_SHIFT_M / mpp_x))
+        if base is None or base[3] < MIN_GLOBAL_SHARPNESS:
+            print(f"[{idx}/{len(paths)}] {name}: сигнала нет"
+                  + (f" (пик {base[3]:.1f}x)" if base else ""), flush=True)
+            unmeasured.append(name)
+            continue
+        if base[4] < MIN_MARGIN:
+            print(f"[{idx}/{len(paths)}] {name}: пик {base[3]:.0f}x, но двойник рядом "
+                  f"(отрыв {base[4]:.2f}) — доищем по соседям", flush=True)
+            pending.append((path, name))
+            continue
+        print(f"[{idx}/{len(paths)}] ", end="")
+        record(name, base, signals, water, relief, mpp_x, mpp_y, lat_c)
 
-    # Листы без сигнала (сплошная штриховка южных тиражей не несёт информации
-    # о крутизне) и листы, разошедшиеся с соседями, получают поправку соседей.
-    for name, cx, cy, lat_c in unmeasured:
-        centers[name] = (cx, cy)
-        lat_of[name] = lat_c
-        result[name] = {"grid": args.grid,
-                        "dlon": [[0.0] * args.grid for _ in range(args.grid)],
-                        "dlat": [[0.0] * args.grid for _ in range(args.grid)],
-                        "blocks": 0, "shift_m": [0.0, 0.0],
-                        "residual_m": None, "inherited": True}
-    refit(result, centers, lat_of)
+    # --- опорное поле --------------------------------------------------------
+    def prior(name):
+        """Ответ соседей, взвешенный обратным квадратом расстояния."""
+        cx, cy = centers[name]
+        num_e = num_n = den = 0.0
+        for on, v in result.items():
+            if v.get("inherited"):
+                continue
+            d2 = (cx - centers[on][0]) ** 2 + (cy - centers[on][1]) ** 2
+            wgt = 1.0 / (d2 + 0.02)
+            num_e += wgt * v["shift_m"][0]
+            num_n += wgt * v["shift_m"][1]
+            den += wgt
+        return (num_e / den, num_n / den) if den else None
+
+    # --- проход 2: доискиваем двойников рядом с ответом соседей --------------
+    for path, name in pending:
+        p = prior(name)
+        if p is None:
+            unmeasured.append(name)
+            continue
+        sheet, signals, water, relief, mpp_x, mpp_y, lat_c = load(path)
+        centre = (p[0] / mpp_x, -p[1] / mpp_y)
+        base = global_shift(signals, water, relief,
+                            radius=int(PRIOR_M / mpp_x), centre=centre)
+        if base is None or base[3] < MIN_GLOBAL_SHARPNESS:
+            print(f"[доп] {name}: и рядом с соседями сигнала нет", flush=True)
+            unmeasured.append(name)
+            continue
+        print(f"[доп] ", end="")
+        record(name, base, signals, water, relief, mpp_x, mpp_y, lat_c)
+
+    # Листы, где сигнала нет вовсе, получают поправку соседей: она заведомо
+    # неточная, зато гладкая — шва на стыке от неё не будет.
+    measured = {n: v for n, v in result.items() if not v.get("inherited")}
+    for name in unmeasured:
+        loc = local_field(measured, centers, name) or (0.0, 0.0)
+        flatten(name, loc[0], loc[1], lat_of[name])
 
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False)
 
-    good = [r for r in report if r[4]]
+    own = [n for n, v in result.items() if not v.get("inherited")]
+    print(f"\nсвой замер: {len(own)}/{len(result)} листов")
+    good = [r for r in report if r[0] in own]
     if good:
-        print(f"\nвыровнено листов: {len(good)}/{len(report)}")
         print("сдвиг, медиана по листам: "
               f"E {np.median([r[2] for r in good]):+.0f} м, "
               f"N {np.median([r[3] for r in good]):+.0f} м")
         print("остаточная невязка, медиана: "
               f"E {np.median([r[4][0] for r in good]):.0f} м, "
               f"N {np.median([r[4][1] for r in good]):.0f} м")
-        worst = sorted(good, key=lambda r: -max(r[4]))[:5]
-        print("худшие листы: " + ", ".join(f"{r[0]} ({max(r[4]):.0f} м)" for r in worst))
-    missing = [n for n, *_ in unmeasured if n not in result]
-    if missing:
-        print(f"остались на георефересовке LoC ({len(missing)}): {', '.join(missing)}")
+    seam_report(result, centers)
+    print("дальше: тот же вызов с --rescue — он переберёт разошедшиеся листы")
+
+
+def seam_report(result, centers):
+    """Приёмка стыков: соседние листы обязаны сойтись, иначе на карте виден шов.
+
+    Метрика лукавая сама по себе — набор, где все листы получили одну и ту же
+    поправку соседей, покажет идеальные стыки и при этом будет весь сдвинут.
+    Поэтому смотреть на неё имеет смысл только вместе с числом листов, у
+    которых есть собственный замер.
+    """
+    seams = []
+    for a in result:
+        for b in result:
+            if a >= b:
+                continue
+            d = math.hypot(centers[a][0] - centers[b][0], centers[a][1] - centers[b][1])
+            if d > 0.55:
+                continue
+            seams.append((math.hypot(result[a]["shift_m"][0] - result[b]["shift_m"][0],
+                                     result[a]["shift_m"][1] - result[b]["shift_m"][1]), a, b))
+    if not seams:
+        return
+    seams.sort(reverse=True)
+    vals = [s[0] for s in seams]
+    print(f"расхождение на стыках: медиана {statistics.median(vals):.0f} м, "
+          f"хуже 150 м — {sum(1 for v in vals if v > 150)} из {len(vals)}; "
+          + "худшие: " + ", ".join(f"{a}/{b} {g:.0f} м" for g, a, b in seams[:3]))
 
 
 if __name__ == "__main__":

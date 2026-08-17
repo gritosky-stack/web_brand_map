@@ -6,14 +6,14 @@
 взятого. Тайлы группируются по широтной полосе листа, поэтому в LRU помещается
 вся строка листов и каждый лист читается ровно один раз.
 
-Тайлы 256 px, как у остальных растровых слоёв проекта (топо, хитмап). Максимум
-z14 — это 9.5 м/px на широте Сербии; нативные 4.5 м/px скана (z15) увеличили бы
-набор вчетверо ради зерна бумаги.
+Тайлы 512 px. Максимум z13 — это те же 9.5 м/px на широте Сербии, что давал
+z14 на плитке 256; нативные 4.5 м/px скана увеличили бы набор вчетверо ради
+зерна бумаги.
 
 Поправки георефересовки берутся из `align.json` (см. `align_histmaps.py`):
 на каждый лист — сетка смещений в градусах, между узлами интерполируем билинейно.
 
-    python make_histmap_tiles.py sheets/ --align align.json --out serbia-histmap-v1.mbtiles
+    python make_histmap_tiles.py sheets/ --align align.json --out serbia-histmap-v2.mbtiles
 """
 import argparse
 import glob
@@ -29,8 +29,12 @@ from PIL import Image
 
 from histmap_io import Sheet
 
-TILE = 256
-DOWNSAMPLE = 2           # 4.5 м/px → 9 м/px: ровно под z14, дальше не нужно
+# Плитка 512, а не 256. Земли на тайл вчетверо больше, детальность та же:
+# z13 на 512 px — это ровно разрешение z14 на 256 px. Зато и в кадре, и на
+# диске тайлов вчетверо меньше, а растр под рельефом стоит ровно по числу
+# текстур — на 256 px включение гравюры заметно роняло кадры на телефоне.
+TILE = 512
+DOWNSAMPLE = 2           # 4.5 м/px → 9 м/px: ровно под z13 на 512 px
 
 # Приведение тона листов. Тиражи и сканы у LoC разные: уровень бумаги гуляет
 # от 198 до 244, контраст — в полтора раза. Без нормировки страна выглядит
@@ -253,8 +257,8 @@ def main():
     ap.add_argument("sheets_dir")
     ap.add_argument("--align", default="align.json")
     ap.add_argument("--out", default="serbia-histmap-v1.mbtiles")
-    ap.add_argument("--minzoom", type=int, default=8)
-    ap.add_argument("--maxzoom", type=int, default=14)
+    ap.add_argument("--minzoom", type=int, default=7)
+    ap.add_argument("--maxzoom", type=int, default=13)
     ap.add_argument("--quality", type=int, default=80)
     args = ap.parse_args()
 

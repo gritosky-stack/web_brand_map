@@ -151,26 +151,53 @@ def blur(a, k=3, rep=3):
     return a
 
 
-def correlate_shift(a, b, radius):
+def correlate_shift(a, b, radius, centre=(0.0, 0.0)):
     """Сдвиг, которым `a` садится на `b`: пик кросс-корреляции через FFT.
 
-    Пик уточняем параболой по трём соседним отсчётам — иначе точность
-    упирается в шаг сетки, а он у нас 18 м.
+    `a` и `b` — либо по растру, либо по набору растров: у поля ориентаций две
+    компоненты, и корреляции по ним складываются, то есть пик ищется по
+    совпадению направления, а не яркости.
 
-    Возвращает (dx, dy, резкость пика в медианах).
+    Пик уточняем параболой по трём соседним отсчётам — иначе точность
+    упирается в шаг сетки, а он у нас 18 м. `centre` сдвигает окно поиска:
+    так лист с неоднозначной корреляцией ищут рядом с ответом соседей.
+
+    Возвращает (dx, dy, резкость пика в медианах, отрыв от второго максимума).
     """
-    a, b = blur(a), blur(b)
-    a = a - a.mean()
-    b = b - b.mean()
-    c = np.fft.irfft2(np.fft.rfft2(b) * np.conj(np.fft.rfft2(a)), s=a.shape)
+    aa = [a] if isinstance(a, np.ndarray) else list(a)
+    bb = [b] if isinstance(b, np.ndarray) else list(b)
+    c = None
+    for ai, bi in zip(aa, bb):
+        ai, bi = blur(ai), blur(bi)
+        ai = ai - ai.mean()
+        bi = bi - bi.mean()
+        part = np.fft.irfft2(np.fft.rfft2(bi) * np.conj(np.fft.rfft2(ai)), s=ai.shape)
+        c = part if c is None else c + part
     c = np.fft.fftshift(c)
     h, w = c.shape
-    cy0, cx0 = h // 2, w // 2
-    r = min(radius, cy0 - 2, cx0 - 2)
+    cy0 = h // 2 + int(round(centre[1]))
+    cx0 = w // 2 + int(round(centre[0]))
+    r = min(radius, cy0 - 2, cx0 - 2, h - cy0 - 2, w - cx0 - 2)
+    if r < 3:
+        return 0.0, 0.0, 0.0, 1.0
     win = c[cy0 - r:cy0 + r, cx0 - r:cx0 + r]
     cy, cx = np.unravel_index(np.argmax(win), win.shape)
     peak = win[cy, cx]
     sharpness = peak / (np.median(np.abs(c)) + 1e-9)
+
+    # Отрыв от второго максимума. У квазипериодической печати — штриховка,
+    # горизонтали — корреляция даёт целую гряду почти равных пиков, и самый
+    # высокий из них запросто не тот. Один пик выше остальных — ответ
+    # однозначен; несколько сравнимых — лист надо доискивать по соседям.
+    rival = np.array(win, copy=True)
+    # Гасим не только сам пик, но и всё его плечо: поля перед корреляцией
+    # размыты, поэтому пик широкий, и без этого «вторым максимумом» окажется
+    # его собственный склон — отрыв выйдет около единицы у любого, даже
+    # безупречного замера.
+    k = max(4, r // 4)
+    rival[max(0, cy - k):cy + k + 1, max(0, cx - k):cx + k + 1] = -np.inf
+    second = float(rival.max()) if np.isfinite(rival).any() else 0.0
+    margin = float(peak / second) if second > 0 else 99.0
 
     def refine(prev, cur, nxt):
         d = prev - 2 * cur + nxt
@@ -181,4 +208,23 @@ def correlate_shift(a, b, radius):
         sub_x = refine(win[cy, cx - 1], peak, win[cy, cx + 1])
     if 0 < cy < win.shape[0] - 1:
         sub_y = refine(win[cy - 1, cx], peak, win[cy + 1, cx])
-    return cx - r + sub_x, cy - r + sub_y, float(sharpness)
+    return (cx - r + sub_x + centre[0], cy - r + sub_y + centre[1],
+            float(sharpness), margin)
+
+
+def orient_field(gx, gy, k=4, rep=2):
+    """Поле ориентаций в удвоенном угле — устойчивая замена «плотности штриха».
+
+    Плотность на горных листах насыщается: штрих сплошной, контраста нет, и
+    корреляция цепляется за случайное. А **направление** штриха насыщения не
+    знает — гравёр ведёт его по линии падения склона. Угол берём удвоенным,
+    чтобы штрих «вверх» и «вниз» считались одним направлением, и нормируем на
+    когерентность: там, где направления нет, вектор короткий и в корреляцию
+    почти не входит.
+    """
+    a = blur(gx * gx - gy * gy, k=k, rep=rep)
+    b = blur(2.0 * gx * gy, k=k, rep=rep)
+    mag = np.hypot(a, b)
+    scale = float(np.percentile(mag, 90)) + 1e-9
+    unit = np.clip(mag / scale, 0, 1) / (mag + 1e-9)
+    return a * unit, b * unit
