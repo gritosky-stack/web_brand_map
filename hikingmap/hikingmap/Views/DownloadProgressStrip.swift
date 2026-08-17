@@ -12,18 +12,20 @@ struct DownloadProgressStrip: View {
     @ObservedObject private var topo    = TileSetDownloader.topo
     @ObservedObject private var histmap = TileSetDownloader.histmap
 
-    /// Первая активная загрузка. Их две, но одновременно качать оба набора
-    /// на мобильном интернете — плохая идея, так что показываем одну.
-    private var active: (title: String, stage: TileSetDownloader.Stage)? {
-        for downloader in [topo, histmap] {
-            switch downloader.stage {
+    /// Все идущие загрузки, а не первая из них.
+    ///
+    /// Пока набор был один, вопроса не стояло. Теперь их несколько, и
+    /// показывать только первый значило врать: вторая загрузка шла молча,
+    /// ела трафик и место, а на экране её не было вовсе.
+    private var active: [(id: String, title: String, stage: TileSetDownloader.Stage)] {
+        TileSetDownloader.all.compactMap { d in
+            switch d.stage {
             case .downloading, .unpacking, .readyToUnpack:
-                return (Self.title(for: downloader.spec.id), downloader.stage)
+                return (d.spec.id, Self.title(for: d.spec.id), d.stage)
             default:
-                continue
+                return nil
             }
         }
-        return nil
     }
 
     private static func title(for id: String) -> String {
@@ -35,29 +37,34 @@ struct DownloadProgressStrip: View {
     }
 
     var body: some View {
-        if let active {
+        let running = active
+        if !running.isEmpty {
             Button {
                 appState.showOfflineMaps = true
             } label: {
-                VStack(spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text(active.title)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(DS.textPrimary)
-                            .lineLimit(1)
+                VStack(spacing: 8) {
+                    ForEach(running, id: \.id) { item in
+                        VStack(spacing: 5) {
+                            HStack(spacing: 6) {
+                                Text(item.title)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(DS.textPrimary)
+                                    .lineLimit(1)
 
-                        Spacer(minLength: 0)
+                                Spacer(minLength: 0)
 
-                        Text(Self.statusText(active.stage))
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(DS.accent)
-                            .monospacedDigit()
+                                Text(Self.statusText(item.stage))
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(DS.accent)
+                                    .monospacedDigit()
+                            }
+
+                            ProgressView(value: Self.fraction(item.stage))
+                                .progressViewStyle(.linear)
+                                .tint(DS.accent)
+                                .scaleEffect(x: 1, y: 0.6, anchor: .center)
+                        }
                     }
-
-                    ProgressView(value: Self.fraction(active.stage))
-                        .progressViewStyle(.linear)
-                        .tint(DS.accent)
-                        .scaleEffect(x: 1, y: 0.6, anchor: .center)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)

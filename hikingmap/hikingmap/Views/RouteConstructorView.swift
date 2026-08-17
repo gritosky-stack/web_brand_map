@@ -147,6 +147,15 @@ struct RouteConstructorView: View {
                 statDivider
                 statItem("↓", climbValue(appState.constructorDescentM), "м")
             }
+            // Время появляется сразу, как только маршрут перестал быть точкой:
+            // именно оно решает, влезет ли задумка в день. Профиль высот
+            // догружается позже линии, поэтому набор пока неизвестен — время
+            // всё равно показываем, по одной длине: оно уточнится само.
+            if waypointCount >= 2 {
+                Text("≈ \(HikingTime.short(distanceKm: estimatedDistanceKm, ascentM: appState.constructorAscentM ?? 0)) в пути")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(DS.textSecondary)
+            }
             if waypointCount >= 2 {
                 doneButton
             }

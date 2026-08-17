@@ -206,6 +206,19 @@ final class AppState: ObservableObject {
     @Published var selectedCave: CavePoint? = nil
     @Published var showCaveDetail: Bool = false
     @Published var showCaveLayer = false
+
+    // MARK: - Объекты на карте
+    /// Вода и укрытия — раздельно: воду ищут по ходу дня, крышу подбирают
+    /// заранее, и включать их вместе почти никогда не нужно.
+    /// Крутизна склонов — накладка поверх любой основы, а не своя основа:
+    /// вопрос «тут можно срезать или там стенка» одинаково возникает и на
+    /// спутнике, и на топооснове, и на гравюре.
+    @Published var showSlope = false
+
+    @Published var showWaterLayer = false
+    @Published var showShelterLayer = false
+    @Published var selectedMapPoint: MapPoint? = nil
+
     lazy var trackRecorder: TrackRecorder = TrackRecorder()
 
     // MARK: - Моя локация

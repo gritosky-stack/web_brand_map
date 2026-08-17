@@ -238,7 +238,11 @@ struct ContentView: View {
             // Пещера идёт первой: по ней тапают, когда на экране уже открыт
             // маршрут, и её карточка должна лечь поверх. Закрыли пещеру —
             // ветка ниже сама вернёт карточку маршрута, камеру никто не трогает.
-            if let cave = appState.selectedCave, appState.showCaveDetail {
+            if let point = appState.selectedMapPoint {
+                MapPointBar(point: point, onClose: { appState.selectedMapPoint = nil })
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+
+            } else if let cave = appState.selectedCave, appState.showCaveDetail {
                 CaveDetailPanel(
                     cave: cave,
                     onClose: { appState.selectedCave = nil; appState.showCaveDetail = false },
@@ -324,6 +328,7 @@ struct ContentView: View {
         .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedCustomRoute?.id)
         .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.showDetailPanel)
         .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedCave?.id)
+        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedMapPoint?.id)
         .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.showCaveDetail)
         .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedPSSRoute?.id)
         .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.showPSSRouteDetail)
@@ -621,7 +626,25 @@ struct ContentView: View {
         }
     }
 
+    /// Список слоёв длиннее экрана — поэтому он прокручиваемый.
+    ///
+    /// Раньше содержимое просто обрезалось нижней кромкой: последние строки
+    /// («Офлайн-карта» и отладочные) были недостижимы, и выглядело это как
+    /// поломка вёрстки, а не как «список не влез».
     private var layersSlider: some View {
+        ScrollView(.vertical, showsIndicators: true) {
+            layersContent
+        }
+        // Оставляем место сверху под ряд кнопок, снизу — под нижнюю карточку
+        .frame(width: 250)
+        .frame(maxHeight: UIScreen.main.bounds.height * 0.62)
+        .background(.ultraThinMaterial)
+        .background(Color(red: 0.04, green: 0.04, blue: 0.04).opacity(0.55))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(DS.border, lineWidth: 1))
+    }
+
+    private var layersContent: some View {
         VStack(alignment: .leading, spacing: 6) {
             baseStylePicker
 
@@ -653,6 +676,14 @@ struct ContentView: View {
 
             Divider().background(DS.border).padding(.vertical, 2)
 
+            mapObjectsSection
+
+            Divider().background(DS.border).padding(.vertical, 2)
+
+            slopeRow
+
+            Divider().background(DS.border).padding(.vertical, 2)
+
             heatmapRow
 
             Divider().background(DS.border).padding(.vertical, 2)
@@ -670,11 +701,6 @@ struct ContentView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
-        .background(Color(red: 0.04, green: 0.04, blue: 0.04).opacity(0.55))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(DS.border, lineWidth: 1))
-        .frame(width: 250)
     }
 
     /// Основа карты. Топооснова — единственная, что умеет работать без сети.
@@ -769,6 +795,73 @@ struct ContentView: View {
     #endif
 
     /// Тоггл железных дорог и станций.
+    /// «Объекты на карте» — точечные слои из OpenStreetMap. Свой раздел, потому
+    /// что их будет больше, а включаются они поштучно и независимо от основы.
+    private var mapObjectsSection: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("ОБЪЕКТЫ НА КАРТЕ")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundColor(DS.textSecondary.opacity(0.6))
+                .tracking(0.6)
+
+            Toggle(isOn: $appState.showWaterLayer) {
+                Text("💧 Вода")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(appState.showWaterLayer ? DS.accent : DS.textSecondary)
+            }
+            .toggleStyle(SwitchToggleStyle(tint: DS.accent))
+
+            Toggle(isOn: $appState.showShelterLayer) {
+                Text("🏠 Укрытия и кемпинги")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(appState.showShelterLayer ? DS.accent : DS.textSecondary)
+            }
+            .toggleStyle(SwitchToggleStyle(tint: DS.accent))
+
+            // Обещать воду там, где её может не быть, нельзя: полнота OSM по
+            // Сербии неровная, а родник пересыхает. Оговорка стоит здесь, а не
+            // в карточке точки, чтобы её увидели до того, как построят на этом план.
+            Text("Данные OpenStreetMap, на местности не проверены. Родник может пересохнуть")
+                .font(.system(size: 10))
+                .foregroundColor(DS.textSecondary.opacity(0.75))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Крутизна склонов. Живёт не в основах, а отдельным тумблером: она
+    /// накладка, и работает поверх любой из них.
+    private var slopeRow: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Toggle(isOn: $appState.showSlope) {
+                Text("⛰ Крутизна склонов")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(appState.showSlope ? DS.accent : DS.textSecondary)
+            }
+            .toggleStyle(SwitchToggleStyle(tint: DS.accent))
+
+            if appState.showSlope {
+                HStack(spacing: 6) {
+                    ForEach(SlopeTiles.steps, id: \.degrees) { step in
+                        HStack(spacing: 3) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color(step.color))
+                                .frame(width: 12, height: 8)
+                            Text("\(step.degrees)°")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(DS.textSecondary)
+                        }
+                    }
+                }
+                .padding(.top, 1)
+            }
+
+            Text("Copernicus, 30 м на точку — обобщённо. Отдельный уступ в пару метров она не покажет")
+                .font(.system(size: 10))
+                .foregroundColor(DS.textSecondary.opacity(0.75))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private var railwaysRow: some View {
         VStack(alignment: .leading, spacing: 5) {
             Toggle(isOn: $appState.showRailways) {

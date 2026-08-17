@@ -21,6 +21,8 @@
 		2AD726D4254F88B2543E45CD /* TrackRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2174F1E76377A349A2BB1F7F /* TrackRecorder.swift */; };
 		3F5CE64B59540BF79EC8B121 /* LiveTrackHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 354C631697992D9F609E2694 /* LiveTrackHUD.swift */; };
 		3F7165C73E5F9CA47A4E71BF /* CavePoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF5E1403A6BF6871AD3028E /* CavePoint.swift */; };
+		DD99887766554433AA0101 /* MapPoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD99887766554433AA0102 /* MapPoint.swift */; };
+		DD99887766554433AA0501 /* HikingTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD99887766554433AA0502 /* HikingTime.swift */; };
 		BB1122334455667788990031 /* ConstructorAimLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1122334455667788990032 /* ConstructorAimLayer.swift */; };
 		8BC474299305472586500DDB /* RouteConstructorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E87534EABC744978B086D59 /* RouteConstructorView.swift */; };
 		94A41467C83D63F25CC6B286 /* TrackRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4C4AFA6B4264344FEFC8315 /* TrackRecording.swift */; };
@@ -42,10 +44,15 @@
 		BB2233445566778899001101 /* caves.geojson in Resources */ = {isa = PBXBuildFile; fileRef = BB2233445566778899001102 /* caves.geojson */; };
 		CC1122334455667788990001 /* serbia_region.geojson in Resources */ = {isa = PBXBuildFile; fileRef = CC1122334455667788990002 /* serbia_region.geojson */; };
 		CC3344556677889900E201 /* railways.geojson in Resources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900E202 /* railways.geojson */; };
+		DD99887766554433AA0401 /* shelters.geojson in Resources */ = {isa = PBXBuildFile; fileRef = DD99887766554433AA0402 /* shelters.geojson */; };
+		DD99887766554433AA0301 /* water.geojson in Resources */ = {isa = PBXBuildFile; fileRef = DD99887766554433AA0302 /* water.geojson */; };
+		DD99887766554433AA0701 /* slope-tiles in Resources */ = {isa = PBXBuildFile; fileRef = DD99887766554433AA0702 /* slope-tiles */; };
+		DD99887766554433AA0601 /* histmap_coverage.geojson in Resources */ = {isa = PBXBuildFile; fileRef = DD99887766554433AA0602 /* histmap_coverage.geojson */; };
 		CC3344556677889900A201 /* topo_style.json in Resources */ = {isa = PBXBuildFile; fileRef = CC3344556677889900A202 /* topo_style.json */; };
 		C3D45E67F890A12B34567890 /* CustomRouteCarousel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E56F78901B23C45678901A /* CustomRouteCarousel.swift */; };
 		C4D5E6F7890123456789AB01 /* CustomRouteDetailPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E6F789012345678901BC12 /* CustomRouteDetailPanel.swift */; };
 		C7E2DC1742C4DBBF49FB07B1 /* CaveDetailPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38F5EC656030B72F80CD259 /* CaveDetailPanel.swift */; };
+		DD99887766554433AA0201 /* MapPointBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD99887766554433AA0202 /* MapPointBar.swift */; };
 		CE0B84AC2F9E365600D0AF82 /* hikingmapApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0B84AB2F9E365600D0AF82 /* hikingmapApp.swift */; };
 		CE0B84AE2F9E365600D0AF82 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0B84AD2F9E365600D0AF82 /* ContentView.swift */; };
 		CE0B84B02F9E365900D0AF82 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CE0B84AF2F9E365900D0AF82 /* Assets.xcassets */; };
@@ -127,6 +134,10 @@
 		BB2233445566778899001102 /* caves.geojson */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = caves.geojson; sourceTree = "<group>"; };
 		CC1122334455667788990002 /* serbia_region.geojson */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = serbia_region.geojson; sourceTree = "<group>"; };
 		CC3344556677889900E202 /* railways.geojson */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = railways.geojson; sourceTree = "<group>"; };
+		DD99887766554433AA0402 /* shelters.geojson */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = shelters.geojson; sourceTree = "<group>"; };
+		DD99887766554433AA0302 /* water.geojson */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = water.geojson; sourceTree = "<group>"; };
+		DD99887766554433AA0702 /* slope-tiles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "slope-tiles"; sourceTree = "<group>"; };
+		DD99887766554433AA0602 /* histmap_coverage.geojson */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = histmap_coverage.geojson; sourceTree = "<group>"; };
 		CC3344556677889900A202 /* topo_style.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = topo_style.json; sourceTree = "<group>"; };
 		C8DF3C120F8A43C0B4EDAE1E /* FitnessMatchView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FitnessMatchView.swift; sourceTree = "<group>"; };
 		CE0B84A82F9E365600D0AF82 /* hikingmap.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = hikingmap.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -154,8 +165,11 @@
 		D4E56F78901B23C45678901A /* CustomRouteCarousel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CustomRouteCarousel.swift; sourceTree = "<group>"; };
 		D5E6F789012345678901BC12 /* CustomRouteDetailPanel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CustomRouteDetailPanel.swift; sourceTree = "<group>"; };
 		DBF5E1403A6BF6871AD3028E /* CavePoint.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CavePoint.swift; sourceTree = "<group>"; };
+		DD99887766554433AA0102 /* MapPoint.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MapPoint.swift; sourceTree = "<group>"; };
+		DD99887766554433AA0502 /* HikingTime.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HikingTime.swift; sourceTree = "<group>"; };
 		EE99887766554433221100EE /* PSSRouteDetailPanel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PSSRouteDetailPanel.swift; sourceTree = "<group>"; };
 		F38F5EC656030B72F80CD259 /* CaveDetailPanel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CaveDetailPanel.swift; sourceTree = "<group>"; };
+		DD99887766554433AA0202 /* MapPointBar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MapPointBar.swift; sourceTree = "<group>"; };
 		F6789012B3C4D5E6F7890123 /* ElevationService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ElevationService.swift; sourceTree = "<group>"; };
 		FA001122334455667788990B /* PSSRoute.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PSSRoute.swift; sourceTree = "<group>"; };
 		FA001122334455667788990D /* RouteListSheet.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RouteListSheet.swift; sourceTree = "<group>"; };
@@ -275,6 +289,7 @@
 				FA001122334455667788990D /* RouteListSheet.swift */,
 				354C631697992D9F609E2694 /* LiveTrackHUD.swift */,
 				F38F5EC656030B72F80CD259 /* CaveDetailPanel.swift */,
+				DD99887766554433AA0202 /* MapPointBar.swift */,
 				EE99887766554433221100EE /* PSSRouteDetailPanel.swift */,
 							D1A0000000000000000000B2 /* MyLocationButton.swift */,
 							D1A0000000000000000000C2 /* MapboxMapView+MyLocation.swift */,
@@ -295,6 +310,8 @@
 				FA001122334455667788AA02 /* RouteMatcher.swift */,
 				A4C4AFA6B4264344FEFC8315 /* TrackRecording.swift */,
 				DBF5E1403A6BF6871AD3028E /* CavePoint.swift */,
+				DD99887766554433AA0102 /* MapPoint.swift */,
+				DD99887766554433AA0502 /* HikingTime.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -308,6 +325,10 @@
 				BB2233445566778899001102 /* caves.geojson */,
 				CC1122334455667788990002 /* serbia_region.geojson */,
 				CC3344556677889900E202 /* railways.geojson */,
+				DD99887766554433AA0402 /* shelters.geojson */,
+				DD99887766554433AA0302 /* water.geojson */,
+				DD99887766554433AA0702 /* slope-tiles */,
+				DD99887766554433AA0602 /* histmap_coverage.geojson */,
 				CC3344556677889900A202 /* topo_style.json */,
 				FA001122334455667788BB02 /* routes_index.json */,
 			);
@@ -458,6 +479,10 @@
 				BB2233445566778899001101 /* caves.geojson in Resources */,
 				CC1122334455667788990001 /* serbia_region.geojson in Resources */,
 				CC3344556677889900E201 /* railways.geojson in Resources */,
+				DD99887766554433AA0401 /* shelters.geojson in Resources */,
+				DD99887766554433AA0301 /* water.geojson in Resources */,
+				DD99887766554433AA0701 /* slope-tiles in Resources */,
+				DD99887766554433AA0601 /* histmap_coverage.geojson in Resources */,
 				CC3344556677889900A201 /* topo_style.json in Resources */,
 				FA001122334455667788BB01 /* routes_index.json in Resources */,
 			);
@@ -520,6 +545,8 @@
 				FA001122334455667788990C /* RouteListSheet.swift in Sources */,
 				94A41467C83D63F25CC6B286 /* TrackRecording.swift in Sources */,
 				3F7165C73E5F9CA47A4E71BF /* CavePoint.swift in Sources */,
+				DD99887766554433AA0101 /* MapPoint.swift in Sources */,
+				DD99887766554433AA0501 /* HikingTime.swift in Sources */,
 				D1A0000000000000000000A1 /* LocationPermission.swift in Sources */,
 				D1A0000000000000000000B1 /* MyLocationButton.swift in Sources */,
 				D1A0000000000000000000C1 /* MapboxMapView+MyLocation.swift in Sources */,
@@ -533,6 +560,7 @@
 				2AD726D4254F88B2543E45CD /* TrackRecorder.swift in Sources */,
 				3F5CE64B59540BF79EC8B121 /* LiveTrackHUD.swift in Sources */,
 				C7E2DC1742C4DBBF49FB07B1 /* CaveDetailPanel.swift in Sources */,
+				DD99887766554433AA0201 /* MapPointBar.swift in Sources */,
 				EE99887766554433221100FF /* PSSRouteDetailPanel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

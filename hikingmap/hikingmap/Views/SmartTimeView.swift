@@ -30,10 +30,11 @@ struct SmartTimeView: View {
     @State private var fitnessIdx: Int   = 1
     @State private var weatherIdx: Int   = 0
 
-    // Naismith base: 5 km/h walking + 1 min per 10 m ascent
-    private var baseMinutes: Double {
-        (stats.distance / 5.0) * 60 + (stats.ascent / 10.0)
-    }
+    /// База — общая для приложения оценка на одного среднего человека
+    /// (`HikingTime`, коэффициенты подобраны по пройденным трекам). Раньше
+    /// здесь стоял книжный Наизмит, и он ошибался на этих же треках втрое
+    /// сильнее; ползунки крутились вокруг неверной середины.
+    private var baseMinutes: Double { HikingTime.minutes(stats) }
 
     private var groupMult: Double {
         let n = Int(groupSize.rounded())

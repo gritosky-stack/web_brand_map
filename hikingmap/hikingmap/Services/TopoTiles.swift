@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Своя топооснова: векторные тайлы Сербии и Косова, лежащие на устройстве.
 ///
@@ -122,14 +123,21 @@ enum TileSet {
 /// `tools/tiles/README.md`.
 enum HistMapTiles {
 
-    static let version = "v1"
+    static let version = "v2"
+
+    /// Плитка 512 px: та же детальность, вчетверо меньше тайлов в кадре и на
+    /// диске. Поэтому и зумы на единицу меньше прежних — z13 на 512 px это
+    /// ровно то же разрешение, что z14 на 256 px.
+    static let minZoom = 7.0
+    static let maxZoom = 13.0
 
     static var rootURL: URL { TileSetSpec.root("histmap-tiles") }
 
     /// Для карточки в офлайн-экране: набор собирается конвейером, и точный
     /// размер известен только после сборки — держим его рядом с версией.
-    /// Гравюра высокочастотная, JPEG её почти не жмёт: 35 тысяч тайлов z8–z14.
-    static let approxSize = "около 455 МБ"
+    /// Гравюра высокочастотная, JPEG её почти не жмёт: 9 тысяч тайлов z7–z13
+    /// по 512 px.
+    static let approxSize = "около 530 МБ"
 
     static var isAvailable: Bool { TileSet.isAvailable(.histmap) }
     static var isStale: Bool { TileSet.isStale(.histmap) }
@@ -140,5 +148,42 @@ enum HistMapTiles {
         isAvailable
             ? TileSet.fileTemplate(.histmap)
             : "\(TileSetSpec.base)/histmap/\(version)/{z}/{x}/{y}.jpg"
+    }
+}
+
+/// Крутизна склонов — полупрозрачный растр поверх любой основы.
+///
+/// Считается из Copernicus GLO-30 (`tools/tiles/make_slope_tiles.py`) и лежит
+/// **прямо в бандле**: 1078 тайлов на 21 МБ — меньше, чем стоила бы отдельная
+/// закачка со своим экраном, прогрессом и версией. Пологое в тайлах полностью
+/// прозрачно, поэтому слой ложится хоть на спутник, хоть на гравюру.
+enum SlopeTiles {
+
+    /// Потолок z11 — не экономия, а честность: DEM даёт 30 м на точку, это
+    /// примерно z11 при плитке 512. Тайлы z12+ были бы интерполяцией,
+    /// выданной за данные, — пусть их растягивает SDK, это хотя бы видно.
+    static let minZoom = 8.0
+    static let maxZoom = 11.0
+
+    /// Ступени раскраски — для легенды в «Слоях».
+    static let steps: [(degrees: Int, color: UIColor)] = [
+        (30, UIColor(red: 1.00, green: 0.84, blue: 0.25, alpha: 1)),
+        (35, UIColor(red: 1.00, green: 0.55, blue: 0.13, alpha: 1)),
+        (40, UIColor(red: 0.91, green: 0.22, blue: 0.16, alpha: 1)),
+        (45, UIColor(red: 0.63, green: 0.14, blue: 0.59, alpha: 1)),
+    ]
+
+    /// ⚠️ Шаблон собираем строкой, а не `appendingPathComponent`: тот
+    /// процент-кодирует фигурные скобки, и `{z}` уезжает в `%7Bz%7D` —
+    /// источник молча не находит ни одного тайла. Тем же способом строится
+    /// путь к скачанным наборам, см. `TileSet.fileTemplate`.
+    static var tilesURL: String? {
+        guard let root = Bundle.main.resourceURL?
+            .appendingPathComponent("slope-tiles", isDirectory: true),
+              FileManager.default.fileExists(atPath: root.path)
+        else { return nil }
+        let encoded = root.path.addingPercentEncoding(
+            withAllowedCharacters: .urlPathAllowed) ?? root.path
+        return "file://" + encoded + "/{z}/{x}/{y}.png"
     }
 }

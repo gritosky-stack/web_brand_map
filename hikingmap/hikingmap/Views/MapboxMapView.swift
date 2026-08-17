@@ -87,6 +87,7 @@ struct MapboxMapView: UIViewRepresentable {
         // после них система всё равно шлёт одиночный тап
         mapView.gestures.delegate = context.coordinator
 
+
         return mapView
     }
 
@@ -336,6 +337,19 @@ final class Coordinator: NSObject {
             }
             .store(in: &cancellables)
 
+        appState.$showSlope
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] show in self?.updateSlopeLayer(show) }
+            .store(in: &cancellables)
+
+        appState.$showWaterLayer.combineLatest(appState.$showShelterLayer)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self, let mapView, isStyleLoaded else { return }
+                self.refreshMapPoints(on: mapView)
+            }
+            .store(in: &cancellables)
+
         appState.zoomOutRequest
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
@@ -360,9 +374,13 @@ final class Coordinator: NSObject {
             .sink { [weak self] active in
                 guard let self else { return }
                 if active {
-                    // Flat pitch for accurate screen-to-coordinate tap mapping
-                    mapView?.camera.ease(to: CameraOptions(pitch: 0), duration: 0.35,
-                                         curve: .easeInOut, completion: nil)
+                    // Ровный кадр и нулевые отступы: наклон ломает перевод
+                    // экранной точки в координату, а отступы уводят «центр
+                    // камеры» от середины экрана. Отступы остаются от показа
+                    // маршрута (там низ кадра отдан карточке), и без сброса
+                    // прицел смотрел бы в одну точку, а шаг вставал в другую.
+                    mapView?.camera.ease(to: CameraOptions(padding: .zero, pitch: 0),
+                                         duration: 0.35, curve: .easeInOut, completion: nil)
                     // Тропы под камерой нужны сразу: по ним пойдёт и притяжение,
                     // и прокладка, если сети не окажется
                     refreshTileTrailSegments(force: true)
@@ -487,6 +505,8 @@ final class Coordinator: NSObject {
         addRailwayLayers(mapView)
         toggleLayer(id: "osm-hiking-trails", visible: appState.showOSMTrails, on: mapView)
         toggleCaveLayer(appState.showCaveLayer, on: mapView)
+        refreshMapPoints(on: mapView)
+        updateSlopeLayer(appState.showSlope)
         toggleRailways(appState.showRailways, on: mapView)
         refreshStations()
         updateTopoOpacity(appState.topoAlpha)
@@ -663,6 +683,151 @@ final class Coordinator: NSObject {
         sym.textOptional = .constant(true)
         sym.visibility   = .constant(.none)
         try? mapView.mapboxMap.addLayer(sym)
+    }
+
+    // MARK: - Крутизна склонов
+
+    /// Полупрозрачная накладка поверх основы. Как и остальные растры —
+    /// **лениво**: при выключенном тумблере слоя на карте нет вовсе.
+    ///
+    /// Место в стопке выбрано так, чтобы работать с любой основой: выше
+    /// гравюры (иначе она бы её закрыла), но ниже маски, троп и маршрутов —
+    /// линии маршрута должны читаться поверх заливки.
+    private func updateSlopeLayer(_ show: Bool) {
+        guard isStyleLoaded, let mapView else { return }
+        try? mapView.mapboxMap.removeLayer(withId: "slope-layer")
+        try? mapView.mapboxMap.removeSource(withId: "slope-src")
+        guard show, let template = SlopeTiles.tilesURL else { return }
+
+        var src = RasterSource(id: "slope-src")
+        src.tiles = [template]
+        src.tileSize = 512
+        src.minzoom = SlopeTiles.minZoom
+        src.maxzoom = SlopeTiles.maxZoom
+        src.attribution = "Copernicus GLO-30 DEM"
+        try? mapView.mapboxMap.addSource(src)
+
+        var layer = RasterLayer(id: "slope-layer", source: "slope-src")
+        // Прозрачность заложена в сами тайлы (альфа 115 из 255); здесь ещё
+        // немного приглушаем, иначе поверх спутника заливка спорит с рельефом
+        layer.rasterOpacity = .constant(0.85)
+        layer.rasterFadeDuration = .constant(0)
+        layer.rasterResampling = .constant(.linear)
+        // Ниже z8 растр всё равно растягивается из самого мелкого тайла и
+        // выглядит на обзоре страны фиолетовыми кляксами — там он бесполезен
+        layer.minZoom = SlopeTiles.minZoom
+        try? mapView.mapboxMap.addLayer(layer, layerPosition: .below("world-mask"))
+    }
+
+    // MARK: - Объекты на карте: вода и укрытия
+
+    /// Наборы точечных объектов. Каждый живёт своим источником и своими слоями,
+    /// потому что включаются они раздельно.
+    enum MapPointSet: String, CaseIterable {
+        case water, shelter
+
+        var points: [MapPoint] {
+            self == .water ? MapPointStore.shared.water : MapPointStore.shared.shelters
+        }
+        var clusterColor: UIColor {
+            self == .water ? UIColor(red: 0.16, green: 0.55, blue: 0.85, alpha: 0.72)
+                           : UIColor(red: 0.62, green: 0.40, blue: 0.16, alpha: 0.72)
+        }
+        var resource: String { self == .water ? "water" : "shelters" }
+        var src: String { "\(rawValue)-poi-src" }
+        var layers: [String] { ["\(rawValue)-poi-cluster-bg", "\(rawValue)-poi-cluster-count",
+                                "\(rawValue)-poi-layer"] }
+    }
+
+    /// Слои заводятся один раз при загрузке стиля и переключаются видимостью —
+    /// ровно как у пещер.
+    ///
+    /// ⚠️ Ленивое добавление (по тумблеру) здесь не работает: стиль
+    /// перезагружается не только при смене основы, и слои, заведённые между
+    /// перезагрузками, молча исчезают вместе с источником. Проверено дампом
+    /// стиля: через три секунды после добавления в нём не оставалось ни
+    /// одного нашего слоя. Растровым слоям это не мешает — их пересоздаёт
+    /// подписка на `onStyleLoaded`, — а вот источник на восемь тысяч точек
+    /// пересобирать на каждый чих дорого, поэтому он заводится единожды.
+    private func loadMapPointLayers(_ mapView: MapView) {
+        for set in MapPointSet.allCases {
+            guard !mapView.mapboxMap.sourceExists(withId: set.src),
+                  let url = Bundle.main.url(forResource: set.resource, withExtension: "geojson"),
+                  let text = try? String(contentsOf: url, encoding: .utf8)
+            else { continue }
+
+            for kind in MapPoint.Kind.allCases where kind.isWater == (set == .water) {
+                let id = "poi-\(kind.rawValue)"
+                if !mapView.mapboxMap.imageExists(withId: id),
+                   let img = makeEmojiPin(emoji: kind.emoji, size: 34) {
+                    try? mapView.mapboxMap.addImage(img, id: id)
+                }
+            }
+
+            var src = GeoJSONSource(id: set.src)
+            src.data = .string(text)
+            src.cluster = true
+            src.clusterRadius = 55
+            // Колонки в городах стоят плотно, и без кластеров до крупного зума
+            // карта превращалась бы в кашу из значков
+            src.clusterMaxZoom = 13
+            try? mapView.mapboxMap.addSource(src)
+
+            var bg = CircleLayer(id: set.layers[0], source: set.src)
+            bg.filter = Exp(.has) { "point_count" }
+            bg.circleRadius = .expression(
+                Exp(.step) { Exp(.get) { "point_count" }; 16.0; 10; 21.0; 50; 27.0; 200; 33.0 })
+            bg.circleColor = .constant(StyleColor(set.clusterColor))
+            bg.circleStrokeWidth = .constant(1.5)
+            bg.circleStrokeColor = .constant(StyleColor(UIColor.white.withAlphaComponent(0.55)))
+            bg.visibility = .constant(.none)
+            try? mapView.mapboxMap.addLayer(bg)
+
+            var count = SymbolLayer(id: set.layers[1], source: set.src)
+            count.filter = Exp(.has) { "point_count" }
+            count.textField = .expression(Exp(.get) { "point_count_abbreviated" })
+            count.textSize = .constant(12)
+            count.textColor = .constant(StyleColor(.white))
+            count.textFont = .constant(["DIN Pro Bold", "Arial Unicode MS Bold"])
+            count.textAllowOverlap = .constant(true)
+            count.visibility = .constant(.none)
+            try? mapView.mapboxMap.addLayer(count)
+
+            var sym = SymbolLayer(id: set.layers[2], source: set.src)
+            sym.filter = Exp(.not) { Exp(.has) { "point_count" } }
+            sym.iconImage = .constant(.name(set == .water ? "poi-spring" : "poi-hut"))
+            sym.iconAllowOverlap = .constant(false)
+            // Подпись — только вблизи, значок — всегда. `minZoom` на весь слой
+            // прятал бы и значки: в сельской местности точки редкие, в кластер
+            // не собираются, и до z13 не было бы видно ничего.
+            // Подпись — только вблизи, значок — всегда
+            sym.textField = .expression(
+                Exp(.step) { Exp(.zoom); Exp(.literal) { "" }; 13.0; Exp(.get) { "name" } })
+            // Шрифт — из тех, что использует стиль: глифы для чужого никто не
+            // скачает, и офлайн подпись не соберётся.
+            sym.textFont = .constant(["DIN Pro Medium", "Arial Unicode MS Regular"])
+            sym.textSize = .constant(10)
+            sym.textColor = .constant(StyleColor(.white))
+            sym.textHaloColor = .constant(StyleColor(.black))
+            sym.textHaloWidth = .constant(1.2)
+            sym.textOffset = .constant([0, 1.2])
+            sym.textAnchor = .constant(.top)
+            sym.textOptional = .constant(true)
+            sym.visibility = .constant(.none)
+            try? mapView.mapboxMap.addLayer(sym)
+
+        }
+    }
+
+    private func refreshMapPoints(on mapView: MapView) {
+        loadMapPointLayers(mapView)
+        for set in MapPointSet.allCases {
+            let on = set == .water ? appState.showWaterLayer : appState.showShelterLayer
+            let v: Value<MapboxMaps.Visibility> = .constant(on ? .visible : .none)
+            try? mapView.mapboxMap.updateLayer(withId: set.layers[0], type: CircleLayer.self) { $0.visibility = v }
+            try? mapView.mapboxMap.updateLayer(withId: set.layers[1], type: SymbolLayer.self) { $0.visibility = v }
+            try? mapView.mapboxMap.updateLayer(withId: set.layers[2], type: SymbolLayer.self) { $0.visibility = v }
+        }
     }
 
     // MARK: - Железные дороги
@@ -1006,7 +1171,9 @@ final class Coordinator: NSObject {
         }
 
         let options = RenderedQueryOptions(
-            layerIds: ["photo-marker-symbols", "route-hitboxes", "cave-cluster-bg", "cave-layer"],
+            layerIds: ["photo-marker-symbols", "route-hitboxes", "cave-cluster-bg", "cave-layer",
+                       "water-poi-cluster-bg", "water-poi-layer",
+                       "shelter-poi-cluster-bg", "shelter-poi-layer"],
             filter: nil
         )
         mapView.mapboxMap.queryRenderedFeatures(with: point, options: options) { [weak self] result in
@@ -1035,6 +1202,17 @@ final class Coordinator: NSObject {
                     self.mapView?.camera.ease(to: CameraOptions(
                         center: pt.coordinates, zoom: currentZoom + 2.5
                     ), duration: 0.55, curve: .easeInOut, completion: nil)
+                    return
+                }
+            }
+
+            // Вода и укрытия
+            for qf in features {
+                guard let props = qf.queriedFeature.feature.properties else { continue }
+                if case .string(let pid) = props["poiId"],
+                   let p = (MapPointStore.shared.water + MapPointStore.shared.shelters)
+                            .first(where: { $0.id == pid }) {
+                    DispatchQueue.main.async { self.appState.selectedMapPoint = p }
                     return
                 }
             }
@@ -1169,10 +1347,21 @@ final class Coordinator: NSObject {
     private func ensureTopoLayer(on mapView: MapView) {
         guard !mapView.mapboxMap.sourceExists(withId: "topo-overlay") else { return }
         var src = RasterSource(id: "topo-overlay")
-        src.tiles = ["https://tile.opentopomap.org/{z}/{x}/{y}.png"]
+        // Три зеркала, а не один хост. OpenTopoMap раздаёт тайлы с обычного
+        // сервера и режет частые запросы с одного соединения: при зуме карта
+        // остаётся мозаикой из тайлов чужих масштабов, пока не подвигаешь её
+        // руками. SDK раскладывает запросы по адресам из списка, и очередь
+        // на каждое зеркало становится втрое короче.
+        src.tiles = ["https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
+                     "https://b.tile.opentopomap.org/{z}/{x}/{y}.png",
+                     "https://c.tile.opentopomap.org/{z}/{x}/{y}.png"]
         src.tileSize = 256
         src.minzoom  = 5
         src.maxzoom  = 17
+        src.attribution = "© OpenTopoMap (CC-BY-SA) · © OpenStreetMap contributors"
+        // Держим в памяти больше плиток, чем помещается в кадр: иначе отъезд
+        // и возврат камеры заново идут в сеть по каждому тайлу.
+        src.tileCacheBudget = .megabytes(96)
         try? mapView.mapboxMap.addSource(src)
 
         var layer = RasterLayer(id: "topo-layer", source: "topo-overlay")
@@ -1181,9 +1370,17 @@ final class Coordinator: NSObject {
         // тот и оказывался сверху: включив OpenTopoMap поверх спутника, юзер
         // терял гравюру. Порядок задаём явно — историческая карта всегда выше,
         // она осознанный слой поверх основы, а OpenTopoMap саму основу заменяет.
-        let below: LayerPosition = mapView.mapboxMap.layerExists(withId: "histmap-backdrop")
-            ? .below("histmap-backdrop")
-            : .below("world-mask")
+        // Порядок задаём явно, а не полагаемся на очерёдность добавления.
+        // Крутизна — накладка, она обязана быть выше основы, иначе включённый
+        // на полную OpenTopoMap просто закрывал её собой.
+        let below: LayerPosition
+        if mapView.mapboxMap.layerExists(withId: "slope-layer") {
+            below = .below("slope-layer")
+        } else if mapView.mapboxMap.layerExists(withId: "histmap-backdrop") {
+            below = .below("histmap-backdrop")
+        } else {
+            below = .below("world-mask")
+        }
         try? mapView.mapboxMap.addLayer(layer, layerPosition: below)
     }
 
@@ -1276,10 +1473,18 @@ final class Coordinator: NSObject {
 
         var src = RasterSource(id: "histmap-source")
         src.tiles = [HistMapTiles.tilesURL]
-        src.tileSize = 256
-        src.minzoom = 8
-        src.maxzoom = 14
+        // Плитка 512, а не 256. Разрешение то же самое — тайл z13 на 512 px
+        // покрывает ту же землю с той же детальностью, что четыре тайла z14 на
+        // 256 px, — но в кадре их вчетверо меньше. Растр под рельефом рисуется
+        // через drape-проход, и его цена считается по числу текстур: на 256 px
+        // включение гравюры заметно роняло кадры, и особенно это было видно по
+        // анимациям SwiftUI (Mapbox рисует в главном потоке, так что карта
+        // отъедает время прямо у них).
+        src.tileSize = 512
+        src.minzoom = HistMapTiles.minZoom
+        src.maxzoom = HistMapTiles.maxZoom
         src.attribution = "Library of Congress · k.u.k. Militärgeographisches Institut"
+        src.tileCacheBudget = .megabytes(128)
         try? mapView.mapboxMap.addSource(src)
 
         // Под гравюру кладём бумажную подложку. Тайлов «Спецкарты» хватает не
@@ -1299,6 +1504,7 @@ final class Coordinator: NSObject {
         // а `.nearest` дал бы лестницы на штрихах.
         layer.rasterResampling = .constant(.linear)
         try? mapView.mapboxMap.addLayer(layer, layerPosition: .above("histmap-backdrop"))
+        addHistMapEdge(on: mapView)
         // Современные подписи, горизонтали и железные дороги сознательно
         // оставляем поверх: на проверке в симуляторе они не спорят с гравюрой,
         // а работают ориентирами — по ним видно, где ты на старой карте.
@@ -1313,6 +1519,9 @@ final class Coordinator: NSObject {
         }
         try? mapView.mapboxMap.updateLayer(withId: "histmap-backdrop", type: FillLayer.self) { layer in
             layer.fillOpacity = .constant(alpha)
+        }
+        try? mapView.mapboxMap.updateLayer(withId: "histmap-edge", type: LineLayer.self) { layer in
+            layer.lineOpacity = .constant(alpha)
         }
     }
 
@@ -1365,7 +1574,35 @@ final class Coordinator: NSObject {
         }
     }
 
+    /// Граница покрытия «Спецкарты» — тонкая рамка по краю отснятой площади.
+    ///
+    /// Одной бумажной подложки мало: пустая бумага рядом с гравюрой читается
+    /// как «кусок не загрузился», а не как «сюда съёмка не дошла». Рамка
+    /// снимает ровно эту двусмысленность — за ней ничего и не должно быть.
+    /// Линия собрана из рамок листов (`tools/tiles`), поэтому совпадает с
+    /// настоящим краем набора, а не приблизительно обводит страну.
+    private func addHistMapEdge(on mapView: MapView) {
+        guard !mapView.mapboxMap.sourceExists(withId: "histmap-edge-src"),
+              let url = Bundle.main.url(forResource: "histmap_coverage", withExtension: "geojson"),
+              let text = try? String(contentsOf: url, encoding: .utf8)
+        else { return }
+
+        var src = GeoJSONSource(id: "histmap-edge-src")
+        src.data = .string(text)
+        try? mapView.mapboxMap.addSource(src)
+
+        var edge = LineLayer(id: "histmap-edge", source: "histmap-edge-src")
+        edge.lineColor = .constant(StyleColor(UIColor(red: 0.36, green: 0.28, blue: 0.18, alpha: 0.85)))
+        edge.lineWidth = .expression(
+            Exp(.interpolate) { Exp(.linear); Exp(.zoom); 7.0; 1.0; 11.0; 1.8; 14.0; 2.6 })
+        edge.lineDasharray = .constant([5, 3])
+        edge.lineOpacity = .constant(appState.histMapAlpha)
+        try? mapView.mapboxMap.addLayer(edge, layerPosition: .above("histmap-layer"))
+    }
+
     private func removeHistMap(from mapView: MapView) {
+        try? mapView.mapboxMap.removeLayer(withId: "histmap-edge")
+        try? mapView.mapboxMap.removeSource(withId: "histmap-edge-src")
         try? mapView.mapboxMap.removeLayer(withId: "histmap-layer")
         try? mapView.mapboxMap.removeLayer(withId: "histmap-backdrop")
         try? mapView.mapboxMap.removeSource(withId: "histmap-backdrop-source")
@@ -1434,8 +1671,14 @@ final class Coordinator: NSObject {
 
     private func updateLabelLayers(hidden: Bool, on mapView: MapView) {
         let customIds: Set<String> = ["photo-marker-symbols"]
+        // ⚠️ Список — «свои слои, которых это не касается». Добавляя новый
+        // символьный слой, не забудь его сюда: иначе он будет молча гаснуть
+        // вместе с подписями карты, стоит вывести OpenTopoMap на полную.
+        // Именно так пропадали вода и укрытия — слой на карте есть, видимость
+        // выставлена, а его тут же гасит эта функция.
         let customPrefixes = ["route-", "topo-", "osm-", "pss-", "world-",
-                              "all-trails-", "custom-", "constructor-", "scrubber", "start-finish", "cave-"]
+                              "all-trails-", "custom-", "constructor-", "scrubber",
+                              "start-finish", "cave-", "water-poi", "shelter-poi"]
         for info in mapView.mapboxMap.allLayerIdentifiers {
             guard info.type == .symbol else { continue }
             let id = info.id
@@ -2129,7 +2372,12 @@ final class Coordinator: NSObject {
     /// что и тап: с притяжением к тропе и прокладкой от предыдущей точки.
     private func placeWaypointAtAim() {
         guard let mapView, appState.isConstructorMode else { return }
-        var placed = mapView.mapboxMap.cameraState.center
+        // Именно `coordinate(for:)` от середины экрана, а не `cameraState.center`:
+        // при ненулевых отступах камеры её центр — это середина не экрана, а
+        // области за вычетом отступов, и точка вставала выше прицела.
+        let bounds = mapView.bounds.isEmpty ? UIScreen.main.bounds : mapView.bounds
+        var placed = mapView.mapboxMap.coordinate(
+            for: CGPoint(x: bounds.midX, y: bounds.midY))
         if appState.isSnapEnabled,
            let snapped = TrailSnapService.findSnapInMemory(near: placed, segments: routingSegments) {
             placed = snapped
@@ -2189,7 +2437,11 @@ final class Coordinator: NSObject {
         // Мир при zoom = z шириной 512 · 2^z точек — это соглашение Mapbox
         let worldSize = 512.0 * pow(2.0, camera.zoom)
         let target = mercator(coordinate)
-        let origin = mercator(camera.center)
+        // Отсчитываем от координаты под `viewCenter`, а не от центра камеры:
+        // с ненулевыми отступами это разные точки, и «резинка» прыгала ровно
+        // на их разницу, когда опора уходила за край кадра и расчёт
+        // переключался с ответа SDK на этот.
+        let origin = mercator(mapView.mapboxMap.coordinate(for: viewCenter))
         let dx = (target.x - origin.x) * worldSize
         let dy = (target.y - origin.y) * worldSize
 
