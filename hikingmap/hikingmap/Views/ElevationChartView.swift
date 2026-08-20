@@ -16,6 +16,12 @@ struct ElevationChartView: View {
     private let minY: Double
     private let maxY: Double
 
+    // Раскраска по уклону — см. GradeColor, те же сегменты, что у линии
+    // маршрута на карте. lineGradient — полная насыщенность для контура,
+    // areaGradient — приглушённая для заливки под кривой.
+    private let lineGradient: Gradient
+    private let areaGradient: Gradient
+
     init(stats: RouteStats) {
         self.stats = stats
         let elevations = stats.elevationSampled
@@ -24,6 +30,10 @@ struct ElevationChartView: View {
         cumulativeKm = ProfileScrub.cumulativeKm(scrubCoordinates)
         minY = floor(((elevations.min() ?? stats.minEle) - 80) / 100) * 100
         maxY = ceil(((elevations.max() ?? stats.maxEle) + 80) / 100) * 100
+        lineGradient = GradeColor.gradient(coordinates: scrubCoordinates, elevations: elevations,
+                                            fallback: DS.accent)
+        areaGradient = GradeColor.gradient(coordinates: scrubCoordinates, elevations: elevations,
+                                            opacity: 0.4, fallback: DS.accent)
     }
     private var yStride: Double {
         let range = maxY - minY
@@ -71,20 +81,15 @@ struct ElevationChartView: View {
                     yStart: .value("base", minY),
                     yEnd:   .value("ele",  pt.elevation)
                 )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [DS.accent.opacity(0.5), DS.accent.opacity(0.04)],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                )
+                .foregroundStyle(LinearGradient(gradient: areaGradient, startPoint: .leading, endPoint: .trailing))
                 .interpolationMethod(.catmullRom)
 
                 LineMark(
                     x: .value("i", pt.index),
                     y: .value("ele", pt.elevation)
                 )
-                .foregroundStyle(DS.accent)
-                .lineStyle(StrokeStyle(lineWidth: 2))
+                .foregroundStyle(LinearGradient(gradient: lineGradient, startPoint: .leading, endPoint: .trailing))
+                .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
                 .interpolationMethod(.catmullRom)
             }
 

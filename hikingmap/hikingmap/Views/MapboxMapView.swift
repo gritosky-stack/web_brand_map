@@ -1864,8 +1864,15 @@ final class Coordinator: NSObject {
             return
         }
 
+        // Раскраска по уклону — те же сегменты, что на графике высот
+        // PSS-карточки; свечение ниже остаётся оранжевым (фирменный цвет
+        // клуба), меняется только сама линия.
+        let gradeFeatures = GradeColor.mapFeatures(coordinates: route.coordinates, elevations: route.elevations)
+
         var src = GeoJSONSource(id: "pss-selected-src")
-        src.data = .geometry(.lineString(LineString(route.coordinates)))
+        src.data = gradeFeatures.isEmpty
+            ? .geometry(.lineString(LineString(route.coordinates)))
+            : .featureCollection(FeatureCollection(features: gradeFeatures))
         try? mapView.mapboxMap.addSource(src)
 
         let pssColor = UIColor(red: 1.0, green: 0.55, blue: 0.1, alpha: 1)
@@ -1889,7 +1896,9 @@ final class Coordinator: NSObject {
         try? mapView.mapboxMap.addLayer(glow, layerPosition: .above("pss-selected-casing"))
 
         var line = LineLayer(id: "pss-selected-line", source: "pss-selected-src")
-        line.lineColor   = .constant(StyleColor(pssColor))
+        line.lineColor = gradeFeatures.isEmpty
+            ? .constant(StyleColor(pssColor))
+            : .expression(GradeColor.mapExpression())
         line.lineWidth   = .constant(4.0)
         line.lineOpacity = .constant(1.0)
         line.lineCap     = .constant(.round)
@@ -2006,8 +2015,16 @@ final class Coordinator: NSObject {
         try? mapView.mapboxMap.removeLayer(withId: "route-line-layer")
         try? mapView.mapboxMap.removeSource(withId: "route-line-source")
 
+        // Раскраска по уклону (см. GradeColor) — та же палитра и те же
+        // сегменты, что на графике высот. Пустой результат (высот нет,
+        // например маршрут впервые открыт офлайн) — откат на сплошную
+        // линию цвета типа маршрута, чтобы линия не пропала вовсе.
+        let gradeFeatures = GradeColor.mapFeatures(coordinates: stats.coordinates, elevations: stats.elevations)
+
         var src = GeoJSONSource(id: "route-line-source")
-        src.data = .geometry(.lineString(LineString(stats.coordinates)))
+        src.data = gradeFeatures.isEmpty
+            ? .geometry(.lineString(LineString(stats.coordinates)))
+            : .featureCollection(FeatureCollection(features: gradeFeatures))
         try? mapView.mapboxMap.addSource(src)
 
         // Dark casing for better contrast on satellite
@@ -2020,7 +2037,9 @@ final class Coordinator: NSObject {
         try? mapView.mapboxMap.addLayer(casing, layerPosition: .below("route-hitboxes"))
 
         var layer = LineLayer(id: "route-line-layer", source: "route-line-source")
-        layer.lineColor   = .constant(StyleColor(route.lineColor))
+        layer.lineColor = gradeFeatures.isEmpty
+            ? .constant(StyleColor(route.lineColor))
+            : .expression(GradeColor.mapExpression())
         layer.lineWidth   = .constant(4.5)
         layer.lineCap     = .constant(.round)
         layer.lineJoin    = .constant(.round)
@@ -2141,6 +2160,7 @@ final class Coordinator: NSObject {
         try? mapView.mapboxMap.removeLayer(withId: "custom-all-lines")
         try? mapView.mapboxMap.removeSource(withId: "custom-all-src")
         try? mapView.mapboxMap.removeLayer(withId: "custom-sel-line")
+        try? mapView.mapboxMap.removeLayer(withId: "custom-sel-casing")
         try? mapView.mapboxMap.removeSource(withId: "custom-sel-src")
         mapView.annotations.removeAnnotationManager(withId: "custom-route-pins")
 
@@ -2170,16 +2190,35 @@ final class Coordinator: NSObject {
         // Highlight selected route
         if let route = selected, route.coordinates.count >= 2 {
             let coords = route.coordinates
+            // Раскраска по уклону — те же сегменты, что на графике высот
+            // карточки своего маршрута. Пока высоты не догрузились
+            // (см. CustomRoute.elevations, асинхронно после сохранения) —
+            // сплошная фиолетовая линия, как раньше.
+            let gradeFeatures = GradeColor.mapFeatures(coordinates: coords, elevations: route.elevations ?? [])
+
             var src = GeoJSONSource(id: "custom-sel-src")
-            src.data = .geometry(.lineString(LineString(coords)))
+            src.data = gradeFeatures.isEmpty
+                ? .geometry(.lineString(LineString(coords)))
+                : .featureCollection(FeatureCollection(features: gradeFeatures))
             try? mapView.mapboxMap.addSource(src)
+
+            var casing = LineLayer(id: "custom-sel-casing", source: "custom-sel-src")
+            casing.lineColor   = .constant(StyleColor(UIColor.black.withAlphaComponent(0.55)))
+            casing.lineWidth   = .constant(7.5)
+            casing.lineCap     = .constant(.round)
+            casing.lineJoin    = .constant(.round)
+            casing.lineOpacity = .constant(0.60)
+            try? mapView.mapboxMap.addLayer(casing, layerPosition: .below("route-hitboxes"))
+
             var layer = LineLayer(id: "custom-sel-line", source: "custom-sel-src")
-            layer.lineColor   = .constant(StyleColor(purple))
+            layer.lineColor = gradeFeatures.isEmpty
+                ? .constant(StyleColor(purple))
+                : .expression(GradeColor.mapExpression())
             layer.lineWidth   = .constant(4.5)
             layer.lineOpacity = .constant(0.95)
             layer.lineCap     = .constant(.round)
             layer.lineJoin    = .constant(.round)
-            try? mapView.mapboxMap.addLayer(layer, layerPosition: .below("route-hitboxes"))
+            try? mapView.mapboxMap.addLayer(layer, layerPosition: .above("custom-sel-casing"))
 
             var startAnn = PointAnnotation(coordinate: coords.first!)
             startAnn.image = .init(image: makePin(.start), name: "pin-start")

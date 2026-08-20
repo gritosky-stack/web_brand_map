@@ -38,6 +38,15 @@ enum DS {
     static let diffHard      = Color(red: 0.957, green: 0.263, blue: 0.212) // #F44336
     static let diffExpert    = Color(red: 0.612, green: 0.153, blue: 0.690) // #9C27B0
 
+    // MARK: - Уклон маршрута (спуск)
+    // Продолжение шкалы сложности (diffEasy…diffExpert, набор высоты) в
+    // синий/голубой для спуска — см. GradeColor. Тот же вес "500", что и у
+    // остальной палитры сложности, чтобы шкала читалась как одно целое.
+    static let gradeDescentSteep    = Color(red: 0.129, green: 0.588, blue: 0.953) // #2196F3
+    static let gradeDescentSteepUI  = UIColor(red: 0.129, green: 0.588, blue: 0.953, alpha: 1)
+    static let gradeDescentGentle   = Color(red: 0.0,   green: 0.737, blue: 0.831)  // #00BCD4
+    static let gradeDescentGentleUI = UIColor(red: 0.0,   green: 0.737, blue: 0.831, alpha: 1)
+
     // MARK: - Топооснова
     // Палитра бумажной топокарты: ею перекрашивается satellite-streets,
     // см. applyTopoStyle в MapboxMapView.
