@@ -10,8 +10,11 @@ struct ElevationChartView: View {
     /// Выделенный жестом «двойной тап + протяжка» участок — держится, пока
     /// не сделают новое выделение (не спадает само по себе)
     @State private var selectedRange: ClosedRange<Int>? = nil
-    /// Идёт протяжка выделения прямо сейчас — глушим на это время скраб
-    @State private var isRangeSelecting = false
+    /// Чем занято текущее касание — решается на первом же его событии
+    @State private var dragKind: ProfileDragKind? = nil
+    /// Предыдущее касание, если оно было тапом на месте — по нему и
+    /// распознаём двойной тап
+    @State private var lastTap: ProfileScrub.TapMark? = nil
     /// Видимый по X участок графика после «щипка». nil — весь маршрут
     @State private var visibleRange: ClosedRange<Int>? = nil
     /// Диапазон на начало текущего жеста «щипка» — масштаб считаем от него,
@@ -163,8 +166,7 @@ struct ElevationChartView: View {
         .chartOverlay { proxy in
             GeometryReader { geo in
                 Rectangle().fill(.clear).contentShape(Rectangle())
-                    .gesture(scrubGesture(proxy: proxy, geo: geo))
-                    .highPriorityGesture(rangeSelectGesture(proxy: proxy, geo: geo))
+                    .gesture(chartDragGesture(proxy: proxy, geo: geo))
                     .simultaneousGesture(zoomGesture())
             }
         }
@@ -186,12 +188,31 @@ struct ElevationChartView: View {
         return rawIdx
     }
 
-    /// Ведение пальцем — как раньше: точка на графике, синхронно с картой
-    private func scrubGesture(proxy: ChartProxy, geo: GeometryProxy) -> some Gesture {
+    /// Единый жест над графиком: ведение пальцем — скраб, а протяжка сразу
+    /// после короткого тапа рядом — выделение участка.
+    ///
+    /// ⚠️ Двойной тап распознаём **сами**, а не отдельным
+    /// `TapGesture(count: 2).sequenced(before:)`. Скраб — это
+    /// `DragGesture(minimumDistance: 0)`, он срабатывает в момент касания и
+    /// уводит тап в провал ещё на первом пальце: до второго тапа дело не
+    /// доходило ни при каком приоритете жестов, и выделение не работало
+    /// вообще. Плюс `onChanged` есть только у жестов с `Value: Equatable`, а
+    /// у последовательности с `TapGesture` значение первого шага — `Void`.
+    /// Один `DragGesture` снимает обе проблемы разом.
+    private func chartDragGesture(proxy: ChartProxy, geo: GeometryProxy) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { drag in
-                guard !isRangeSelecting else { return }
-                if let rawIdx = chartIndex(at: drag.location, proxy: proxy, geo: geo) {
+                if dragKind == nil {
+                    let second = ProfileScrub.isSecondTap(after: lastTap, at: drag.startLocation)
+                    dragKind = second ? .rangeSelect : .scrub
+                    if second { selectedRange = nil }
+                }
+                if dragKind == .rangeSelect {
+                    guard let start = chartIndex(at: drag.startLocation, proxy: proxy, geo: geo),
+                          let current = chartIndex(at: drag.location, proxy: proxy, geo: geo)
+                    else { return }
+                    selectedRange = min(start, current)...max(start, current)
+                } else if let rawIdx = chartIndex(at: drag.location, proxy: proxy, geo: geo) {
                     scrubIndex = rawIdx
                     ProfileScrub.publish(index: rawIdx,
                                          elevation: samples[rawIdx].elevation,
@@ -201,32 +222,19 @@ struct ElevationChartView: View {
                                          to: appState)
                 }
             }
-            .onEnded { _ in
-                guard !isRangeSelecting else { return }
-                scrubIndex = nil
-                appState.endProfileScrub()
-            }
-    }
-
-    /// Двойной тап и сразу протяжка на втором тапе — выделяет участок графика.
-    /// Выделение остаётся и после отпускания пальца; карта облетает к нему.
-    private func rangeSelectGesture(proxy: ChartProxy, geo: GeometryProxy) -> some Gesture {
-        TapGesture(count: 2)
-            .sequenced(before: DragGesture(minimumDistance: 2))
-            .onChanged { value in
-                guard case .second(_, let drag?) = value else { return }
-                isRangeSelecting = true
-                guard let start = chartIndex(at: drag.startLocation, proxy: proxy, geo: geo),
-                      let current = chartIndex(at: drag.location, proxy: proxy, geo: geo)
-                else { return }
-                selectedRange = min(start, current)...max(start, current)
-            }
-            .onEnded { _ in
-                isRangeSelecting = false
-                if let range = selectedRange, range.upperBound > range.lowerBound {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    ProfileScrub.focusSegment(coordinates: scrubCoordinates, range: range, to: appState)
+            .onEnded { drag in
+                if dragKind == .rangeSelect {
+                    lastTap = nil
+                    if let range = selectedRange, range.upperBound > range.lowerBound {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        ProfileScrub.focusSegment(coordinates: scrubCoordinates, range: range, to: appState)
+                    }
+                } else {
+                    scrubIndex = nil
+                    appState.endProfileScrub()
+                    lastTap = ProfileScrub.tapMark(for: drag)
                 }
+                dragKind = nil
             }
     }
 
@@ -268,9 +276,47 @@ struct ElevationChartView: View {
 
 // MARK: - Общее для обоих профилей
 
+/// Чем занято текущее касание над графиком высот
+enum ProfileDragKind {
+    case scrub
+    case rangeSelect
+}
+
 /// Скраб по профилю: где точка на карте, сколько до неё километров и
 /// прячется ли интерфейс. Общий код для профилей обычных и своих маршрутов.
 enum ProfileScrub {
+
+    // MARK: - Распознавание двойного тапа
+
+    /// Отпущенное касание, которое оказалось тапом на месте
+    struct TapMark {
+        let time: Date
+        let location: CGPoint
+    }
+
+    /// Насколько может «поехать» палец, чтобы касание всё ещё считалось тапом
+    private static let tapSlop: CGFloat = 8
+    /// Окно между тапами — как у системного двойного тапа
+    private static let doubleTapWindow: TimeInterval = 0.4
+    /// Насколько далеко друг от друга могут стоять два тапа
+    private static let doubleTapDistance: CGFloat = 44
+
+    /// Касание закончилось: если палец не поехал, запоминаем его как тап —
+    /// следующее касание рядом и вовремя будет вторым тапом. Иначе nil,
+    /// чтобы обычная протяжка не считалась половиной двойного тапа.
+    static func tapMark(for drag: DragGesture.Value) -> TapMark? {
+        let moved = hypot(drag.translation.width, drag.translation.height)
+        guard moved < tapSlop else { return nil }
+        return TapMark(time: Date(), location: drag.startLocation)
+    }
+
+    static func isSecondTap(after previous: TapMark?, at location: CGPoint) -> Bool {
+        guard let previous else { return false }
+        guard Date().timeIntervalSince(previous.time) < doubleTapWindow else { return false }
+        return hypot(location.x - previous.location.x,
+                     location.y - previous.location.y) < doubleTapDistance
+    }
+
     /// Нарастающая дистанция по прореженным точкам — считается один раз
     /// на создание графика, а не на каждый кадр ведения пальцем.
     static func cumulativeKm(_ coordinates: [CLLocationCoordinate2D]) -> [Double] {

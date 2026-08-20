@@ -7,11 +7,79 @@
 
 import XCTest
 import CoreLocation
+import MapboxMaps
 @testable import hikingmap
 
 final class hikingmapTests: XCTestCase {
 
     func testExample() throws {
+    }
+}
+
+// MARK: - Раскраска по уклону
+
+/// Градиент вдоль линии (`line-gradient`) вместо двухточечных отрезков:
+/// отрезки Mapbox упрощал по-тайлово и ниже z≈11 выкидывал вовсе, маршрут
+/// пропадал с карты. Здесь проверяется то, на чём выражение отвалилось бы
+/// молча — узлы обязаны строго возрастать и покрывать всю линию от 0 до 1.
+final class GradeColorTests: XCTestCase {
+
+    /// Подъём с юга на север на 0.02° (~2.2 км) с равномерным набором
+    private func ridge(points: Int) -> ([CLLocationCoordinate2D], [Double]) {
+        var coords: [CLLocationCoordinate2D] = []
+        var eles: [Double] = []
+        for i in 0..<points {
+            let t = Double(i) / Double(points - 1)
+            coords.append(CLLocationCoordinate2D(latitude: 43.90 + 0.02 * t, longitude: 19.50))
+            eles.append(600 + 400 * t)
+        }
+        return (coords, eles)
+    }
+
+    /// Позиции узлов из выражения: [interpolate, [linear], [line-progress],
+    /// p0, цвет0, p1, цвет1, ...] — числа верхнего уровня и есть узлы.
+    /// Читаем через JSON, а не через `Exp.elements`: у SDK они internal.
+    private func stops(of exp: Exp) throws -> [Double] {
+        let data = try JSONEncoder().encode(exp)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [Any])
+        return json.compactMap { $0 as? Double }
+    }
+
+    func testGradientStopsRiseAndCoverWholeLine() throws {
+        let (coords, eles) = ridge(points: 300)
+        let exp = try XCTUnwrap(GradeColor.mapGradient(coordinates: coords, elevations: eles))
+        let positions = try stops(of: exp)
+
+        XCTAssertGreaterThan(positions.count, 2)
+        XCTAssertEqual(positions.first, 0, "градиент должен начинаться от начала линии")
+        XCTAssertEqual(positions.last, 1, "и доходить до её конца")
+        for (a, b) in zip(positions, positions.dropFirst()) {
+            XCTAssertLessThan(a, b, "узлы interpolate обязаны строго возрастать")
+        }
+    }
+
+    /// Нарисованный по тропам маршрут — тысячи точек, все они в выражение
+    /// лезть не должны
+    func testGradientIsCappedForDenseRoutes() throws {
+        let (coords, eles) = ridge(points: 5000)
+        let exp = try XCTUnwrap(GradeColor.mapGradient(coordinates: coords, elevations: eles, maxStops: 200))
+        XCTAssertLessThanOrEqual(try stops(of: exp).count, 202)   // +2 на дотяжку до 0 и 1
+    }
+
+    func testGradientIsNilWithoutUsableElevations() {
+        let (coords, _) = ridge(points: 50)
+        XCTAssertNil(GradeColor.mapGradient(coordinates: coords, elevations: []),
+                     "нет высот — вызывающая сторона обязана рисовать сплошным цветом")
+        XCTAssertNil(GradeColor.mapGradient(coordinates: coords, elevations: [600, 700]),
+                     "число высот не совпало с числом точек — тоже откат")
+    }
+
+    /// Все точки в одном месте: делить на нулевую длину нельзя, и узлы
+    /// градиента совпали бы — выражение должно просто не появиться
+    func testGradientIsNilForZeroLengthLine() {
+        let point = CLLocationCoordinate2D(latitude: 43.9, longitude: 19.5)
+        XCTAssertNil(GradeColor.mapGradient(coordinates: Array(repeating: point, count: 10),
+                                            elevations: Array(repeating: 600, count: 10)))
     }
 }
 

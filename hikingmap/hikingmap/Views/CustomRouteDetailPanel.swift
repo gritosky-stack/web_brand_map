@@ -401,7 +401,10 @@ private struct CustomElevationChart: View {
     /// Выделенный жестом «двойной тап + протяжка» участок — держится, пока
     /// не сделают новое выделение
     @State private var selectedRange: ClosedRange<Int>? = nil
-    @State private var isRangeSelecting = false
+    /// Чем занято текущее касание, и предыдущий тап для распознавания
+    /// двойного — см. `ElevationChartView.chartDragGesture`
+    @State private var dragKind: ProfileDragKind? = nil
+    @State private var lastTap: ProfileScrub.TapMark? = nil
     /// Видимый по X участок после «щипка». nil — весь маршрут
     @State private var visibleRange: ClosedRange<Int>? = nil
     @State private var pinchBaseRange: ClosedRange<Int>? = nil
@@ -551,8 +554,7 @@ private struct CustomElevationChart: View {
         .chartOverlay { proxy in
             GeometryReader { geo in
                 Rectangle().fill(.clear).contentShape(Rectangle())
-                    .gesture(scrubGesture(proxy: proxy, geo: geo))
-                    .highPriorityGesture(rangeSelectGesture(proxy: proxy, geo: geo))
+                    .gesture(chartDragGesture(proxy: proxy, geo: geo))
                     .simultaneousGesture(zoomGesture())
             }
         }
@@ -569,11 +571,20 @@ private struct CustomElevationChart: View {
         return rawIdx
     }
 
-    private func scrubGesture(proxy: ChartProxy, geo: GeometryProxy) -> some Gesture {
+    private func chartDragGesture(proxy: ChartProxy, geo: GeometryProxy) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { drag in
-                guard !isRangeSelecting else { return }
-                if let rawIdx = chartIndex(at: drag.location, proxy: proxy, geo: geo) {
+                if dragKind == nil {
+                    let second = ProfileScrub.isSecondTap(after: lastTap, at: drag.startLocation)
+                    dragKind = second ? .rangeSelect : .scrub
+                    if second { selectedRange = nil }
+                }
+                if dragKind == .rangeSelect {
+                    guard let start = chartIndex(at: drag.startLocation, proxy: proxy, geo: geo),
+                          let current = chartIndex(at: drag.location, proxy: proxy, geo: geo)
+                    else { return }
+                    selectedRange = min(start, current)...max(start, current)
+                } else if let rawIdx = chartIndex(at: drag.location, proxy: proxy, geo: geo) {
                     scrubIndex = rawIdx
                     ProfileScrub.publish(index: rawIdx,
                                          elevation: samples[rawIdx].elevation,
@@ -583,30 +594,19 @@ private struct CustomElevationChart: View {
                                          to: appState)
                 }
             }
-            .onEnded { _ in
-                guard !isRangeSelecting else { return }
-                scrubIndex = nil
-                appState.endProfileScrub()
-            }
-    }
-
-    private func rangeSelectGesture(proxy: ChartProxy, geo: GeometryProxy) -> some Gesture {
-        TapGesture(count: 2)
-            .sequenced(before: DragGesture(minimumDistance: 2))
-            .onChanged { value in
-                guard case .second(_, let drag?) = value else { return }
-                isRangeSelecting = true
-                guard let start = chartIndex(at: drag.startLocation, proxy: proxy, geo: geo),
-                      let current = chartIndex(at: drag.location, proxy: proxy, geo: geo)
-                else { return }
-                selectedRange = min(start, current)...max(start, current)
-            }
-            .onEnded { _ in
-                isRangeSelecting = false
-                if let range = selectedRange, range.upperBound > range.lowerBound {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    ProfileScrub.focusSegment(coordinates: coordinates, range: range, to: appState)
+            .onEnded { drag in
+                if dragKind == .rangeSelect {
+                    lastTap = nil
+                    if let range = selectedRange, range.upperBound > range.lowerBound {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        ProfileScrub.focusSegment(coordinates: coordinates, range: range, to: appState)
+                    }
+                } else {
+                    scrubIndex = nil
+                    appState.endProfileScrub()
+                    lastTap = ProfileScrub.tapMark(for: drag)
                 }
+                dragKind = nil
             }
     }
 

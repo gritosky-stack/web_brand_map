@@ -1870,15 +1870,15 @@ final class Coordinator: NSObject {
             return
         }
 
-        // Раскраска по уклону — те же сегменты, что на графике высот
+        // Раскраска по уклону — та же палитра, что на графике высот
         // PSS-карточки; свечение ниже остаётся оранжевым (фирменный цвет
         // клуба), меняется только сама линия.
-        let gradeFeatures = GradeColor.mapFeatures(coordinates: route.coordinates, elevations: route.elevations)
+        let gradeGradient = GradeColor.mapGradient(coordinates: route.coordinates,
+                                                    elevations: route.elevations)
 
         var src = GeoJSONSource(id: "pss-selected-src")
-        src.data = gradeFeatures.isEmpty
-            ? .geometry(.lineString(LineString(route.coordinates)))
-            : .featureCollection(FeatureCollection(features: gradeFeatures))
+        src.data = .geometry(.lineString(LineString(route.coordinates)))
+        src.lineMetrics = gradeGradient != nil
         try? mapView.mapboxMap.addSource(src)
 
         let pssColor = UIColor(red: 1.0, green: 0.55, blue: 0.1, alpha: 1)
@@ -1902,9 +1902,11 @@ final class Coordinator: NSObject {
         try? mapView.mapboxMap.addLayer(glow, layerPosition: .above("pss-selected-casing"))
 
         var line = LineLayer(id: "pss-selected-line", source: "pss-selected-src")
-        line.lineColor = gradeFeatures.isEmpty
-            ? .constant(StyleColor(pssColor))
-            : .expression(GradeColor.mapExpression())
+        if let gradient = gradeGradient {
+            line.lineGradient = .expression(gradient)
+        } else {
+            line.lineColor = .constant(StyleColor(pssColor))
+        }
         line.lineWidth   = .constant(4.0)
         line.lineOpacity = .constant(1.0)
         line.lineCap     = .constant(.round)
@@ -2021,16 +2023,16 @@ final class Coordinator: NSObject {
         try? mapView.mapboxMap.removeLayer(withId: "route-line-layer")
         try? mapView.mapboxMap.removeSource(withId: "route-line-source")
 
-        // Раскраска по уклону (см. GradeColor) — та же палитра и те же
-        // сегменты, что на графике высот. Пустой результат (высот нет,
-        // например маршрут впервые открыт офлайн) — откат на сплошную
-        // линию цвета типа маршрута, чтобы линия не пропала вовсе.
-        let gradeFeatures = GradeColor.mapFeatures(coordinates: stats.coordinates, elevations: stats.elevations)
+        // Раскраска по уклону (см. GradeColor) — та же палитра, что на
+        // графике высот, градиентом вдоль линии. nil (высот нет, например
+        // маршрут впервые открыт офлайн) — откат на сплошную линию цвета
+        // типа маршрута, чтобы линия не пропала вовсе.
+        let gradeGradient = GradeColor.mapGradient(coordinates: stats.coordinates,
+                                                    elevations: stats.elevations)
 
         var src = GeoJSONSource(id: "route-line-source")
-        src.data = gradeFeatures.isEmpty
-            ? .geometry(.lineString(LineString(stats.coordinates)))
-            : .featureCollection(FeatureCollection(features: gradeFeatures))
+        src.data = .geometry(.lineString(LineString(stats.coordinates)))
+        src.lineMetrics = gradeGradient != nil
         try? mapView.mapboxMap.addSource(src)
 
         // Dark casing for better contrast on satellite
@@ -2043,9 +2045,11 @@ final class Coordinator: NSObject {
         try? mapView.mapboxMap.addLayer(casing, layerPosition: .below("route-hitboxes"))
 
         var layer = LineLayer(id: "route-line-layer", source: "route-line-source")
-        layer.lineColor = gradeFeatures.isEmpty
-            ? .constant(StyleColor(route.lineColor))
-            : .expression(GradeColor.mapExpression())
+        if let gradient = gradeGradient {
+            layer.lineGradient = .expression(gradient)
+        } else {
+            layer.lineColor = .constant(StyleColor(route.lineColor))
+        }
         layer.lineWidth   = .constant(4.5)
         layer.lineCap     = .constant(.round)
         layer.lineJoin    = .constant(.round)
@@ -2196,16 +2200,16 @@ final class Coordinator: NSObject {
         // Highlight selected route
         if let route = selected, route.coordinates.count >= 2 {
             let coords = route.coordinates
-            // Раскраска по уклону — те же сегменты, что на графике высот
+            // Раскраска по уклону — та же палитра, что на графике высот
             // карточки своего маршрута. Пока высоты не догрузились
             // (см. CustomRoute.elevations, асинхронно после сохранения) —
             // сплошная фиолетовая линия, как раньше.
-            let gradeFeatures = GradeColor.mapFeatures(coordinates: coords, elevations: route.elevations ?? [])
+            let gradeGradient = GradeColor.mapGradient(coordinates: coords,
+                                                        elevations: route.elevations ?? [])
 
             var src = GeoJSONSource(id: "custom-sel-src")
-            src.data = gradeFeatures.isEmpty
-                ? .geometry(.lineString(LineString(coords)))
-                : .featureCollection(FeatureCollection(features: gradeFeatures))
+            src.data = .geometry(.lineString(LineString(coords)))
+            src.lineMetrics = gradeGradient != nil
             try? mapView.mapboxMap.addSource(src)
 
             var casing = LineLayer(id: "custom-sel-casing", source: "custom-sel-src")
@@ -2217,9 +2221,11 @@ final class Coordinator: NSObject {
             try? mapView.mapboxMap.addLayer(casing, layerPosition: .below("route-hitboxes"))
 
             var layer = LineLayer(id: "custom-sel-line", source: "custom-sel-src")
-            layer.lineColor = gradeFeatures.isEmpty
-                ? .constant(StyleColor(purple))
-                : .expression(GradeColor.mapExpression())
+            if let gradient = gradeGradient {
+                layer.lineGradient = .expression(gradient)
+            } else {
+                layer.lineColor = .constant(StyleColor(purple))
+            }
             layer.lineWidth   = .constant(4.5)
             layer.lineOpacity = .constant(0.95)
             layer.lineCap     = .constant(.round)

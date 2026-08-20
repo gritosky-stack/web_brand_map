@@ -12,12 +12,29 @@ import Foundation
 /// `hiking_routes_preference` 0,2, `SAC_scale_limit` T3, `_preferred` T1,
 /// лестницы и паромы разрешены) — так что пока пользователь не открыл экран
 /// правил, прокладка ведёт себя ровно как раньше.
+/// ⚠️ Проверено против живого `brouter.de` (21.08.2026, профиль скачан с
+/// `https://brouter.de/brouter/profiles2/hiking-beta.brf`): механизм
+/// `profile:<имя>=<значение>` работает — `iswet` и `shortest_way` меняют
+/// геометрию воспроизводимо, — но переменную, которой в профиле нет, сервер
+/// **молча игнорирует** (проверено заведомо выдуманным именем). А в
+/// глобальном контексте `hiking-beta` объявлены не все имена, которые мы
+/// шлём. Реально работают: `consider_elevation`, `iswet`, `SAC_scale_limit`,
+/// `SAC_scale_preferred`, `allow_steps`, `allow_ferries`.
+/// **Не объявлены и потому ни на что не влияют**: `consider_forest`,
+/// `consider_river`, `consider_town`, `consider_noise`,
+/// `hiking_routes_preference` (они есть в `trekking`/`hiking-mountain`, но
+/// не в `hiking-beta`). Ближайшие живые аналоги «держаться троп» в этом
+/// профиле — `prefer_hiking_routes` / `stick_to_hiking_routes` /
+/// `non_hiking_route_penalty` / `non_sticky_route_penalty`.
 struct RoutingPreferences: Codable, Equatable {
     var preferForest    = false
     var preferWater      = false
     var avoidTowns       = false
     var avoidNoise        = false
-    var minimizeElevation = false
+    /// ⚠️ По умолчанию **включено**: в `hiking-beta` зашито
+    /// `consider_elevation 1`, и с `false` приложение молча выключало бы
+    /// учёт рельефа у всех, кто экран правил даже не открывал.
+    var minimizeElevation = true
     var avoidMud          = false
     var allowSteps    = true
     var allowFerries  = true

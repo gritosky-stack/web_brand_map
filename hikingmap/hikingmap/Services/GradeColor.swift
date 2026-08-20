@@ -123,38 +123,68 @@ enum GradeColor {
         return Gradient(stops: stops)
     }
 
-    /// Фичи для карты: по одному 2-точечному отрезку на сегмент со
-    /// свойством "grade" — Mapbox раскрашивает их через `mapExpression()`.
-    /// Пустой результат (нет высот / не совпало число точек) — сигнал
-    /// вызывающей стороне откатиться на сплошную линию цвета типа маршрута.
-    static func mapFeatures(coordinates: [CLLocationCoordinate2D], elevations: [Double]) -> [Feature] {
-        guard coordinates.count == elevations.count, coordinates.count > 1 else { return [] }
-        let grades = segmentGrades(coordinates: coordinates, elevations: elevations)
-        guard grades.count == coordinates.count - 1 else { return [] }
-        var features: [Feature] = []
-        features.reserveCapacity(grades.count)
-        for i in 0..<grades.count {
-            var f = Feature(geometry: .lineString(LineString([coordinates[i], coordinates[i + 1]])))
-            f.properties = ["grade": .number(grades[i])]
-            features.append(f)
-        }
-        return features
-    }
+    /// Выражение `line-gradient` для линии маршрута — цвет по уклону вдоль
+    /// одной цельной линии. nil (нет высот / не совпало число точек) —
+    /// сигнал вызывающей стороне рисовать сплошным цветом типа маршрута.
+    ///
+    /// ⚠️ Раскраска идёт именно градиентом по **одной** `LineString`, а не
+    /// набором двухточечных отрезков со свойством "grade". Отрезки Mapbox
+    /// упрощает по-тайлово (Дуглас — Пекер, `tolerance` по умолчанию), и
+    /// каждый из них — метры длиной: ниже z≈11 они схлопывались в точку и
+    /// выкидывались, маршрут пропадал с карты целиком. У цельной линии
+    /// упрощать нечего — она видна на любом зуме, и фича в источнике одна
+    /// вместо тысяч.
+    ///
+    /// Требует у источника `lineMetrics = true` — без него `line-progress`
+    /// не считается и слой останется без цвета.
+    ///
+    /// `maxStops` — потолок числа узлов градиента: у нарисованного по тропам
+    /// маршрута точек тысячи, а на глаз хватает пары сотен (тот же приём,
+    /// что с прореживанием профиля до 200 точек на графике).
+    static func mapGradient(coordinates: [CLLocationCoordinate2D],
+                            elevations: [Double],
+                            maxStops: Int = 200) -> Exp? {
+        guard coordinates.count == elevations.count, coordinates.count > 1 else { return nil }
+        let grades = pointGrades(coordinates: coordinates, elevations: elevations)
+        guard grades.count == coordinates.count else { return nil }
 
-    /// Mapbox-выражение `line-color` по свойству "grade" — те же узлы,
-    /// что у `color(forGradePercent:)`.
-    static func mapExpression(propertyName: String = "grade") -> Exp {
-        Exp(.interpolate) {
-            Exp(.linear)
-            Exp(.get) { propertyName }
-            -25.0; rgba(DS.gradeDescentSteepUI)
-            -10.0; rgba(DS.gradeDescentGentleUI)
-             -2.0; rgba(Difficulty.easy.color)
-              2.0; rgba(Difficulty.easy.color)
-              8.0; rgba(Difficulty.medium.color)
-             16.0; rgba(Difficulty.hard.color)
-             28.0; rgba(Difficulty.expert.color)
+        // line-progress — доля пройденного пути, поэтому узлы ставим по
+        // накопленному расстоянию, а не по номеру точки: между точками
+        // маршрута разрывы очень разные.
+        var cum = [Double](repeating: 0, count: coordinates.count)
+        for i in 1..<coordinates.count {
+            cum[i] = cum[i - 1] + TrailRouter.meters(coordinates[i - 1], coordinates[i])
         }
+        guard let total = cum.last, total > 0 else { return nil }
+
+        let step = max(1, Int((Double(coordinates.count) / Double(maxStops)).rounded(.up)))
+        var indices = Array(stride(from: 0, to: coordinates.count, by: step))
+        if indices.last != coordinates.count - 1 { indices.append(coordinates.count - 1) }
+
+        // Узлы interpolate обязаны строго возрастать: две точки на одном
+        // месте дали бы одинаковый line-progress и выражение отвалилось бы.
+        var stops: [(Double, UIColor)] = []
+        stops.reserveCapacity(indices.count)
+        for i in indices {
+            let p = min(1.0, max(0.0, cum[i] / total))
+            if let last = stops.last, p <= last.0 { continue }
+            stops.append((p, color(forGradePercent: grades[i])))
+        }
+        guard stops.count > 1 else { return nil }
+        if stops[0].0 > 0 { stops.insert((0, stops[0].1), at: 0) }
+        if stops[stops.count - 1].0 < 1 { stops.append((1, stops[stops.count - 1].1)) }
+
+        // Аргументы собираем массивом, а не result builder'ом: у билдера
+        // `Exp` нет `buildArray`, циклом внутри него не пройтись.
+        var args: [Exp.Argument] = [
+            .expression(Exp(.linear)),
+            .expression(Exp(.lineProgress))
+        ]
+        for (position, color) in stops {
+            args.append(.number(position))
+            args.append(.expression(rgba(color)))
+        }
+        return Exp(operator: .interpolate, arguments: args)
     }
 
     private static func rgba(_ c: UIColor) -> Exp {
