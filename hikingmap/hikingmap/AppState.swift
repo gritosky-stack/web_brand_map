@@ -168,6 +168,12 @@ final class AppState: ObservableObject {
     }
     @Published var showOfflineMaps = false
     @Published var showAccount = false
+    /// Правила прокладки по тропам («Нарисовать» → BRouter) — выбор
+    /// пользователя переживает перезапуск, как и основа карты
+    @Published var routingPreferences: RoutingPreferences = AppState.storedRoutingPreferences {
+        didSet { AppState.storeRoutingPreferences(routingPreferences) }
+    }
+    @Published var showRoutingPreferences = false
     /// Железные дороги и станции — свой слой в топооснове (тоггл в «Слоях»)
     @Published var showRailways = true
     /// Станции, попавшие в кадр. Их рисует интерфейс, а не стиль карты:
@@ -235,9 +241,23 @@ final class AppState: ObservableObject {
         BaseMapStyle(rawValue: UserDefaults.standard.string(forKey: baseStyleKey) ?? "") ?? .satellite
     }
 
+    private static let routingPreferencesKey = "routingPreferences"
+    private static var storedRoutingPreferences: RoutingPreferences {
+        guard let data = UserDefaults.standard.data(forKey: routingPreferencesKey),
+              let decoded = try? JSONDecoder().decode(RoutingPreferences.self, from: data)
+        else { return .default }
+        return decoded
+    }
+    private static func storeRoutingPreferences(_ value: RoutingPreferences) {
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        UserDefaults.standard.set(data, forKey: routingPreferencesKey)
+    }
+
     let customRouteStore  = CustomRouteStore.shared
     let cameraFlyRequest     = PassthroughSubject<CLLocationCoordinate2D, Never>()
     let caveFlyCameraRequest = PassthroughSubject<CLLocationCoordinate2D, Never>()
+    /// Облёт к bbox — шлёт, например, выделение участка на графике высот
+    /// (см. `ProfileScrub.focusSegment`, подписка в `MapboxMapView.flyToBounds`)
     let flyBoundsRequest     = PassthroughSubject<(sw: CLLocationCoordinate2D, ne: CLLocationCoordinate2D), Never>()
     let zoomOutRequest       = PassthroughSubject<Void, Never>()
     let trackCoordUpdate     = PassthroughSubject<CLLocationCoordinate2D, Never>()
@@ -387,10 +407,11 @@ final class AppState: ObservableObject {
     private func routeLeg(_ id: UUID, from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) {
         let (segments, token) = trailSegmentsProvider?() ?? ([], 0)
         let online = isOnline
+        let preferences = routingPreferences
         Task { [weak self] in
             let outcome = await TrailRouter.route(from: from, to: to,
                                                   segments: segments, segmentsToken: token,
-                                                  allowNetwork: online)
+                                                  allowNetwork: online, preferences: preferences)
             guard let self else { return }
             await MainActor.run { self.applyLegOutcome(id, outcome, from: from, to: to) }
         }

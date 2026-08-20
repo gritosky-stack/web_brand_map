@@ -84,6 +84,7 @@ struct RouteConstructorView: View {
                     .kerning(0.5)
             }
             Spacer()
+            routingPreferencesButton
             snapToggleButton
             Button {
                 withAnimation(.spring(response: 0.3)) {
@@ -108,6 +109,28 @@ struct RouteConstructorView: View {
         .background(Color(red: 0.04, green: 0.04, blue: 0.04).opacity(0.7))
         .clipShape(Capsule())
         .overlay(Capsule().stroke(DS.accent.opacity(0.4), lineWidth: 1))
+    }
+
+    /// Правила прокладки по тропам (BRouter) — см. RoutingPreferencesView.
+    /// Подсвечена, если что-то отличается от дефолта, как «По тропам»
+    /// подсвечена своим состоянием.
+    private var routingPreferencesButton: some View {
+        let isCustomized = appState.routingPreferences != .default
+        return Button {
+            appState.showRoutingPreferences = true
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(isCustomized ? DS.accent : DS.textTertiary)
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(isCustomized ? DS.accent.opacity(0.15) : DS.glass)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(
+                    isCustomized ? DS.accent.opacity(0.45) : DS.border,
+                    lineWidth: 1
+                ))
+        }
+        .buttonStyle(.plain)
     }
 
     private var snapToggleButton: some View {

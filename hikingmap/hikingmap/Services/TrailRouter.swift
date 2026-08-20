@@ -29,12 +29,13 @@ enum TrailRouter {
                       to end: CLLocationCoordinate2D,
                       segments: [TrailSnapService.Segment],
                       segmentsToken: Int,
-                      allowNetwork: Bool) async -> TrailRouteOutcome {
+                      allowNetwork: Bool,
+                      preferences: RoutingPreferences = .default) async -> TrailRouteOutcome {
         let straight = length(of: [start, end])
         guard straight > minLegMeters else { return .straight }
 
         if allowNetwork,
-           let route = await networkRoute(start, end),
+           let route = await networkRoute(start, end, preferences: preferences),
            isPlausible(route.geometry, straight: straight) {
             return .trails(geometry: route.geometry, elevations: route.elevations)
         }
@@ -61,23 +62,29 @@ enum TrailRouter {
     private typealias NetworkRoute = (geometry: [CLLocationCoordinate2D], elevations: [Double]?)
 
     private static func networkRoute(_ a: CLLocationCoordinate2D,
-                                     _ b: CLLocationCoordinate2D) async -> NetworkRoute? {
-        if let route = await brouter(a, b) { return route }
+                                     _ b: CLLocationCoordinate2D,
+                                     preferences: RoutingPreferences) async -> NetworkRoute? {
+        if let route = await brouter(a, b, preferences: preferences) { return route }
         guard let path = await osrmFoot(a, b) else { return nil }
         return (path, nil)   // OSRM высот не отдаёт
     }
 
     /// BRouter отдаёт высоту третьим числом в каждой точке — берём её сразу
     /// и не ходим потом в сеть за профилем.
+    ///
+    /// `preferences.brouterQueryItems` — оверрайды переменных профиля
+    /// (`profile:<имя>`), см. `RoutingPreferences`. Экран правил маршрута
+    /// их не редактирует напрямую, только через дружелюбный UI.
     private static func brouter(_ a: CLLocationCoordinate2D,
-                                _ b: CLLocationCoordinate2D) async -> NetworkRoute? {
+                                _ b: CLLocationCoordinate2D,
+                                preferences: RoutingPreferences) async -> NetworkRoute? {
         var comps = URLComponents(string: "https://brouter.de/brouter")
         comps?.queryItems = [
             URLQueryItem(name: "lonlats", value: "\(fmt(a.longitude)),\(fmt(a.latitude))|\(fmt(b.longitude)),\(fmt(b.latitude))"),
             URLQueryItem(name: "profile", value: "hiking-beta"),
             URLQueryItem(name: "alternativeidx", value: "0"),
             URLQueryItem(name: "format", value: "geojson")
-        ]
+        ] + preferences.brouterQueryItems
         guard let url = comps?.url, let data = await get(url) else { return nil }
 
         // При ошибке BRouter отвечает текстом с тем же кодом 200 — разбор JSON

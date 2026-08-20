@@ -398,6 +398,13 @@ private struct CustomElevationChart: View {
 
     @EnvironmentObject var appState: AppState
     @State private var scrubIndex: Int? = nil
+    /// Выделенный жестом «двойной тап + протяжка» участок — держится, пока
+    /// не сделают новое выделение
+    @State private var selectedRange: ClosedRange<Int>? = nil
+    @State private var isRangeSelecting = false
+    /// Видимый по X участок после «щипка». nil — весь маршрут
+    @State private var visibleRange: ClosedRange<Int>? = nil
+    @State private var pinchBaseRange: ClosedRange<Int>? = nil
 
     private let purple = Color(hex: "#7B5EA7")
 
@@ -439,6 +446,13 @@ private struct CustomElevationChart: View {
         return 300
     }
 
+    private var fullRange: ClosedRange<Int> {
+        0...max(samples.count - 1, 0)
+    }
+    private var effectiveRange: ClosedRange<Int> {
+        visibleRange ?? fullRange
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             headerRow
@@ -470,6 +484,14 @@ private struct CustomElevationChart: View {
 
     private var chartBody: some View {
         Chart {
+            if let sel = selectedRange {
+                RectangleMark(
+                    xStart: .value("selStart", sel.lowerBound),
+                    xEnd:   .value("selEnd", sel.upperBound)
+                )
+                .foregroundStyle(Color.white.opacity(0.12))
+            }
+
             ForEach(samples, id: \.index) { pt in
                 AreaMark(
                     x: .value("i", pt.index),
@@ -488,6 +510,15 @@ private struct CustomElevationChart: View {
                 .interpolationMethod(.catmullRom)
             }
 
+            if let sel = selectedRange {
+                RuleMark(x: .value("selStart", sel.lowerBound))
+                    .foregroundStyle(Color.white.opacity(0.5))
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+                RuleMark(x: .value("selEnd", sel.upperBound))
+                    .foregroundStyle(Color.white.opacity(0.5))
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+            }
+
             if let idx = scrubIndex, idx < samples.count {
                 RuleMark(x: .value("scrub", idx))
                     .foregroundStyle(Color.white.opacity(0.55))
@@ -502,6 +533,7 @@ private struct CustomElevationChart: View {
             }
         }
         .chartXAxis(.hidden)
+        .chartXScale(domain: effectiveRange)
         .chartYScale(domain: minY...maxY)
         .chartYAxis {
             AxisMarks(values: .stride(by: yStride)) { val in
@@ -519,29 +551,93 @@ private struct CustomElevationChart: View {
         .chartOverlay { proxy in
             GeometryReader { geo in
                 Rectangle().fill(.clear).contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { drag in
-                                guard let anchor = proxy.plotFrame else { return }
-                                let x = drag.location.x - geo[anchor].origin.x
-                                if let rawIdx: Int = proxy.value(atX: x),
-                                   rawIdx >= 0, rawIdx < samples.count {
-                                    scrubIndex = rawIdx
-                                    ProfileScrub.publish(index: rawIdx,
-                                                         elevation: samples[rawIdx].elevation,
-                                                         coordinates: coordinates,
-                                                         cumulativeKm: cumulativeKm,
-                                                         totalKm: totalKm,
-                                                         to: appState)
-                                }
-                            }
-                            .onEnded { _ in
-                                scrubIndex = nil
-                                appState.endProfileScrub()
-                            }
-                    )
+                    .gesture(scrubGesture(proxy: proxy, geo: geo))
+                    .highPriorityGesture(rangeSelectGesture(proxy: proxy, geo: geo))
+                    .simultaneousGesture(zoomGesture())
             }
         }
         .frame(height: 120)
+    }
+
+    // MARK: - Жесты (см. ElevationChartView — тот же приём для обычных маршрутов)
+
+    private func chartIndex(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) -> Int? {
+        guard let anchor = proxy.plotFrame else { return nil }
+        let plotFrame = geo[anchor]
+        let x = location.x - plotFrame.origin.x
+        guard let rawIdx: Int = proxy.value(atX: x), rawIdx >= 0, rawIdx < samples.count else { return nil }
+        return rawIdx
+    }
+
+    private func scrubGesture(proxy: ChartProxy, geo: GeometryProxy) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { drag in
+                guard !isRangeSelecting else { return }
+                if let rawIdx = chartIndex(at: drag.location, proxy: proxy, geo: geo) {
+                    scrubIndex = rawIdx
+                    ProfileScrub.publish(index: rawIdx,
+                                         elevation: samples[rawIdx].elevation,
+                                         coordinates: coordinates,
+                                         cumulativeKm: cumulativeKm,
+                                         totalKm: totalKm,
+                                         to: appState)
+                }
+            }
+            .onEnded { _ in
+                guard !isRangeSelecting else { return }
+                scrubIndex = nil
+                appState.endProfileScrub()
+            }
+    }
+
+    private func rangeSelectGesture(proxy: ChartProxy, geo: GeometryProxy) -> some Gesture {
+        TapGesture(count: 2)
+            .sequenced(before: DragGesture(minimumDistance: 2))
+            .onChanged { value in
+                guard case .second(_, let drag?) = value else { return }
+                isRangeSelecting = true
+                guard let start = chartIndex(at: drag.startLocation, proxy: proxy, geo: geo),
+                      let current = chartIndex(at: drag.location, proxy: proxy, geo: geo)
+                else { return }
+                selectedRange = min(start, current)...max(start, current)
+            }
+            .onEnded { _ in
+                isRangeSelecting = false
+                if let range = selectedRange, range.upperBound > range.lowerBound {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    ProfileScrub.focusSegment(coordinates: coordinates, range: range, to: appState)
+                }
+            }
+    }
+
+    private func zoomGesture() -> some Gesture {
+        MagnificationGesture()
+            .onChanged { scale in
+                let base = pinchBaseRange ?? effectiveRange
+                if pinchBaseRange == nil { pinchBaseRange = base }
+                visibleRange = clampedRange(base: base, scale: scale)
+            }
+            .onEnded { _ in
+                pinchBaseRange = nil
+            }
+    }
+
+    private func clampedRange(base: ClosedRange<Int>, scale: CGFloat) -> ClosedRange<Int>? {
+        let full = fullRange
+        let minWidth = 10.0
+        let maxWidth = Double(full.upperBound - full.lowerBound)
+        guard maxWidth > minWidth, scale.isFinite, scale > 0 else { return nil }
+        let baseWidth = Double(base.upperBound - base.lowerBound)
+        let newWidth = min(maxWidth, max(minWidth, baseWidth / Double(scale)))
+        let center = Double(base.lowerBound + base.upperBound) / 2
+        var lower = Int((center - newWidth / 2).rounded())
+        var upper = Int((center + newWidth / 2).rounded())
+        if lower < full.lowerBound { upper += full.lowerBound - lower; lower = full.lowerBound }
+        if upper > full.upperBound { lower -= upper - full.upperBound; upper = full.upperBound }
+        lower = max(full.lowerBound, lower)
+        upper = min(full.upperBound, upper)
+        guard lower < upper else { return nil }
+        if lower <= full.lowerBound, upper >= full.upperBound { return nil }
+        return lower...upper
     }
 }

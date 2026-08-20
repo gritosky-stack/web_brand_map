@@ -180,6 +180,9 @@ struct ContentView: View {
         .sheet(isPresented: $appState.showOfflineMaps) {
             OfflineMapsView().environmentObject(appState)
         }
+        .sheet(isPresented: $appState.showRoutingPreferences) {
+            RoutingPreferencesView().environmentObject(appState)
+        }
         .fileImporter(
             isPresented: $showGPXImporter,
             allowedContentTypes: [.xml, .data],

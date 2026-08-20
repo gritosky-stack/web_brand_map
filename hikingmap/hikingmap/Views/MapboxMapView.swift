@@ -206,6 +206,12 @@ final class Coordinator: NSObject {
             .sink { [weak self] in self?.placeWaypointAtAim() }
             .store(in: &cancellables)
 
+        // Выделение участка на графике высот (см. ProfileScrub.focusSegment)
+        appState.flyBoundsRequest
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] bounds in self?.flyToBounds(sw: bounds.sw, ne: bounds.ne) }
+            .store(in: &cancellables)
+
         appState.$selectedRoute
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
@@ -2588,6 +2594,31 @@ final class Coordinator: NSObject {
             offset: nil
         ) else { return }
         mapView.camera.ease(to: cam, duration: 1.4, curve: .easeInOut, completion: nil)
+    }
+
+    /// Облёт к участку маршрута, выделенному на графике высот (двойной тап +
+    /// протяжка в `ElevationChartView`/`CustomElevationChart`). Тот же приём
+    /// с четырьмя углами bbox, что у `flyToRoute`, но без наклона — это
+    /// разбор конкретного куска тропы, а не обзорный облёт.
+    private func flyToBounds(sw: CLLocationCoordinate2D, ne: CLLocationCoordinate2D) {
+        guard let mapView else { return }
+        stopFollowing()
+        let corners: [CLLocationCoordinate2D] = [
+            sw,
+            CLLocationCoordinate2D(latitude: sw.latitude, longitude: ne.longitude),
+            ne,
+            CLLocationCoordinate2D(latitude: ne.latitude, longitude: sw.longitude)
+        ]
+        let screenH = UIScreen.main.bounds.height
+        let padding = UIEdgeInsets(top: 100, left: 40, bottom: screenH * 0.62, right: 40)
+        guard let cam = try? mapView.mapboxMap.camera(
+            for: corners,
+            camera: CameraOptions(bearing: 0, pitch: 0),
+            coordinatesPadding: padding,
+            maxZoom: 17,
+            offset: nil
+        ) else { return }
+        mapView.camera.ease(to: cam, duration: 0.9, curve: .easeInOut, completion: nil)
     }
 
     private func flyToOverview(on mapView: MapView) {
