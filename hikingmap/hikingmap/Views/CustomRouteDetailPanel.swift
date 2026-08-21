@@ -195,7 +195,10 @@ struct CustomRouteDetailPanel: View {
                 CustomElevationChart(
                     elevations:  data.chartElevations,
                     coordinates: data.chartCoordinates,
-                    totalKm:     route.distanceKm
+                    totalKm:     route.distanceKm,
+                    distancesKm: data.chartDistancesKm,
+                    gradeCoordinates: route.coordinates,
+                    gradeElevations:  route.elevations ?? []
                 )
                 .padding(12)
                 .background(profileBackdrop)
@@ -346,6 +349,8 @@ private struct DerivedRouteData {
 
     let chartElevations: [Double]
     let chartCoordinates: [CLLocationCoordinate2D]
+    /// Километры в точках графика — по полной геометрии, а не по прореженной
+    let chartDistancesKm: [Double]
     let stats: RouteStats
     /// Готовые цифры для плашек — каждая иначе снова шла бы по всем высотам
     let climb: (ascent: Double?, descent: Double?, min: Double?, max: Double?)
@@ -353,14 +358,12 @@ private struct DerivedRouteData {
     init(route: CustomRoute) {
         let coordinates = route.coordinates
         let elevations  = route.elevations ?? []
-        chartElevations  = DerivedRouteData.thin(elevations)
-        chartCoordinates = DerivedRouteData.thin(coordinates)
 
         climb = (route.ascentM, route.descentM, route.minElevationM, route.maxElevationM)
 
         let dummy  = CLLocationCoordinate2D(latitude: 44.0, longitude: 20.9)
         let center = coordinates.isEmpty ? dummy : coordinates[coordinates.count / 2]
-        stats = RouteStats(
+        let stats = RouteStats(
             distance: route.distanceKm,
             ascent:   route.ascentM   ?? 0,
             descent:  route.descentM  ?? 0,
@@ -374,12 +377,12 @@ private struct DerivedRouteData {
             boundsSW: center,
             photoCoordinates: []
         )
-    }
-
-    private static func thin<T>(_ values: [T]) -> [T] {
-        guard values.count > chartSamples else { return values }
-        let step = Double(values.count) / Double(chartSamples)
-        return (0..<chartSamples).map { values[Int(Double($0) * step)] }
+        self.stats = stats
+        // Прореживание — общее с обычными маршрутами: одни и те же номера
+        // точек для координат, высот и километров
+        chartElevations   = stats.elevationSampled
+        chartCoordinates  = stats.coordinatesSampled
+        chartDistancesKm  = stats.sampledDistancesKm
     }
 
     static let empty: RouteStats = {
@@ -391,253 +394,27 @@ private struct DerivedRouteData {
     }()
 }
 
-// MARK: - Elevation chart with axis labels and scrubbing
+// MARK: - Профиль высот своего маршрута
 
+/// Тонкая обёртка над общим `ProfileChart` — от профиля обычного маршрута
+/// отличается только фиолетовым акцентом.
 private struct CustomElevationChart: View {
+    let elevations: [Double]
     let coordinates: [CLLocationCoordinate2D]
-
-    @EnvironmentObject var appState: AppState
-    @State private var scrubIndex: Int? = nil
-    /// Выделенный жестом «двойной тап + протяжка» участок — держится, пока
-    /// не сделают новое выделение
-    @State private var selectedRange: ClosedRange<Int>? = nil
-    /// Чем занято текущее касание, и предыдущий тап для распознавания
-    /// двойного — см. `ElevationChartView.chartDragGesture`
-    @State private var dragKind: ProfileDragKind? = nil
-    @State private var lastTap: ProfileScrub.TapMark? = nil
-    /// Видимый по X участок после «щипка». nil — весь маршрут
-    @State private var visibleRange: ClosedRange<Int>? = nil
-    @State private var pinchBaseRange: ClosedRange<Int>? = nil
-
-    private let purple = Color(hex: "#7B5EA7")
-
-    // Считаем при создании: тело перерисовывается на каждом кадре скраба
-    private let samples: [(index: Int, elevation: Double)]
-    private let minY: Double
-    private let maxY: Double
-    private let peak: Double
-    private let bottom: Double
-
-    private let cumulativeKm: [Double]
-    private let totalKm: Double
-
-    // Раскраска по уклону — см. GradeColor, те же сегменты, что у линии
-    // своего маршрута на карте.
-    private let lineGradient: Gradient
-    private let areaGradient: Gradient
-
-    init(elevations: [Double], coordinates: [CLLocationCoordinate2D], totalKm: Double) {
-        self.coordinates = coordinates
-        self.totalKm = totalKm
-        cumulativeKm = ProfileScrub.cumulativeKm(coordinates)
-        samples = elevations.enumerated().map { (index: $0.offset, elevation: $0.element) }
-        peak    = elevations.max() ?? 0
-        bottom  = elevations.min() ?? 0
-        minY    = floor(((elevations.min() ?? 0) - 60) / 100) * 100
-        maxY    = ceil(((elevations.max() ?? 1000) + 60) / 100) * 100
-        let purpleColor = Color(hex: "#7B5EA7")
-        lineGradient = GradeColor.gradient(coordinates: coordinates, elevations: elevations,
-                                            fallback: purpleColor)
-        areaGradient = GradeColor.gradient(coordinates: coordinates, elevations: elevations,
-                                            opacity: 0.4, fallback: purpleColor)
-    }
-
-    private var yStride: Double {
-        let range = maxY - minY
-        if range < 300 { return 100 }
-        if range < 700 { return 200 }
-        return 300
-    }
-
-    private var fullRange: ClosedRange<Int> {
-        0...max(samples.count - 1, 0)
-    }
-    private var effectiveRange: ClosedRange<Int> {
-        visibleRange ?? fullRange
-    }
+    let totalKm: Double
+    /// Километры в точках графика — по полной геометрии
+    let distancesKm: [Double]
+    /// Полная геометрия для раскраски — та же, что у линии на карте
+    let gradeCoordinates: [CLLocationCoordinate2D]
+    let gradeElevations: [Double]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            headerRow
-            chartBody
-        }
-    }
-
-    private var headerRow: some View {
-        HStack {
-            Label("\(Int(peak)) м", systemImage: "mountain.2.fill")
-                .font(.caption)
-                .foregroundColor(purple)
-            Spacer()
-            if let idx = scrubIndex, idx < samples.count {
-                Text("\(Int(samples[idx].elevation)) м")
-                    .font(.system(size: 12, weight: .semibold).monospacedDigit())
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(purple.opacity(0.25))
-                    .clipShape(Capsule())
-                    .animation(.none, value: idx)
-            } else {
-                Text("Мин \(Int(bottom)) м")
-                    .font(.caption)
-                    .foregroundColor(DS.textSecondary)
-            }
-        }
-    }
-
-    private var chartBody: some View {
-        Chart {
-            if let sel = selectedRange {
-                RectangleMark(
-                    xStart: .value("selStart", sel.lowerBound),
-                    xEnd:   .value("selEnd", sel.upperBound)
-                )
-                .foregroundStyle(Color.white.opacity(0.12))
-            }
-
-            ForEach(samples, id: \.index) { pt in
-                AreaMark(
-                    x: .value("i", pt.index),
-                    yStart: .value("base", minY),
-                    yEnd:   .value("ele",  pt.elevation)
-                )
-                .foregroundStyle(LinearGradient(gradient: areaGradient, startPoint: .leading, endPoint: .trailing))
-                .interpolationMethod(.catmullRom)
-
-                LineMark(
-                    x: .value("i", pt.index),
-                    y: .value("ele", pt.elevation)
-                )
-                .foregroundStyle(LinearGradient(gradient: lineGradient, startPoint: .leading, endPoint: .trailing))
-                .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
-                .interpolationMethod(.catmullRom)
-            }
-
-            if let sel = selectedRange {
-                RuleMark(x: .value("selStart", sel.lowerBound))
-                    .foregroundStyle(Color.white.opacity(0.5))
-                    .lineStyle(StrokeStyle(lineWidth: 1))
-                RuleMark(x: .value("selEnd", sel.upperBound))
-                    .foregroundStyle(Color.white.opacity(0.5))
-                    .lineStyle(StrokeStyle(lineWidth: 1))
-            }
-
-            if let idx = scrubIndex, idx < samples.count {
-                RuleMark(x: .value("scrub", idx))
-                    .foregroundStyle(Color.white.opacity(0.55))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-
-                PointMark(
-                    x: .value("scrub", idx),
-                    y: .value("ele", samples[idx].elevation)
-                )
-                .foregroundStyle(Color.white)
-                .symbolSize(55)
-            }
-        }
-        .chartXAxis(.hidden)
-        .chartXScale(domain: effectiveRange)
-        .chartYScale(domain: minY...maxY)
-        .chartYAxis {
-            AxisMarks(values: .stride(by: yStride)) { val in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
-                    .foregroundStyle(Color.white.opacity(0.12))
-                AxisValueLabel {
-                    if let v = val.as(Double.self) {
-                        Text("\(Int(v))м")
-                            .font(.system(size: 9))
-                            .foregroundColor(DS.textSecondary)
-                    }
-                }
-            }
-        }
-        .chartOverlay { proxy in
-            GeometryReader { geo in
-                Rectangle().fill(.clear).contentShape(Rectangle())
-                    .gesture(chartDragGesture(proxy: proxy, geo: geo))
-                    .simultaneousGesture(zoomGesture())
-            }
-        }
-        .frame(height: 120)
-    }
-
-    // MARK: - Жесты (см. ElevationChartView — тот же приём для обычных маршрутов)
-
-    private func chartIndex(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) -> Int? {
-        guard let anchor = proxy.plotFrame else { return nil }
-        let plotFrame = geo[anchor]
-        let x = location.x - plotFrame.origin.x
-        guard let rawIdx: Int = proxy.value(atX: x), rawIdx >= 0, rawIdx < samples.count else { return nil }
-        return rawIdx
-    }
-
-    private func chartDragGesture(proxy: ChartProxy, geo: GeometryProxy) -> some Gesture {
-        DragGesture(minimumDistance: 0)
-            .onChanged { drag in
-                if dragKind == nil {
-                    let second = ProfileScrub.isSecondTap(after: lastTap, at: drag.startLocation)
-                    dragKind = second ? .rangeSelect : .scrub
-                    if second { selectedRange = nil }
-                }
-                if dragKind == .rangeSelect {
-                    guard let start = chartIndex(at: drag.startLocation, proxy: proxy, geo: geo),
-                          let current = chartIndex(at: drag.location, proxy: proxy, geo: geo)
-                    else { return }
-                    selectedRange = min(start, current)...max(start, current)
-                } else if let rawIdx = chartIndex(at: drag.location, proxy: proxy, geo: geo) {
-                    scrubIndex = rawIdx
-                    ProfileScrub.publish(index: rawIdx,
-                                         elevation: samples[rawIdx].elevation,
-                                         coordinates: coordinates,
-                                         cumulativeKm: cumulativeKm,
-                                         totalKm: totalKm,
-                                         to: appState)
-                }
-            }
-            .onEnded { drag in
-                if dragKind == .rangeSelect {
-                    lastTap = nil
-                    if let range = selectedRange, range.upperBound > range.lowerBound {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        ProfileScrub.focusSegment(coordinates: coordinates, range: range, to: appState)
-                    }
-                } else {
-                    scrubIndex = nil
-                    appState.endProfileScrub()
-                    lastTap = ProfileScrub.tapMark(for: drag)
-                }
-                dragKind = nil
-            }
-    }
-
-    private func zoomGesture() -> some Gesture {
-        MagnificationGesture()
-            .onChanged { scale in
-                let base = pinchBaseRange ?? effectiveRange
-                if pinchBaseRange == nil { pinchBaseRange = base }
-                visibleRange = clampedRange(base: base, scale: scale)
-            }
-            .onEnded { _ in
-                pinchBaseRange = nil
-            }
-    }
-
-    private func clampedRange(base: ClosedRange<Int>, scale: CGFloat) -> ClosedRange<Int>? {
-        let full = fullRange
-        let minWidth = 10.0
-        let maxWidth = Double(full.upperBound - full.lowerBound)
-        guard maxWidth > minWidth, scale.isFinite, scale > 0 else { return nil }
-        let baseWidth = Double(base.upperBound - base.lowerBound)
-        let newWidth = min(maxWidth, max(minWidth, baseWidth / Double(scale)))
-        let center = Double(base.lowerBound + base.upperBound) / 2
-        var lower = Int((center - newWidth / 2).rounded())
-        var upper = Int((center + newWidth / 2).rounded())
-        if lower < full.lowerBound { upper += full.lowerBound - lower; lower = full.lowerBound }
-        if upper > full.upperBound { lower -= upper - full.upperBound; upper = full.upperBound }
-        lower = max(full.lowerBound, lower)
-        upper = min(full.upperBound, upper)
-        guard lower < upper else { return nil }
-        if lower <= full.lowerBound, upper >= full.upperBound { return nil }
-        return lower...upper
+        ProfileChart(elevations: elevations,
+                     coordinates: coordinates,
+                     totalKm: totalKm,
+                     accent: Color(hex: "#7B5EA7"),
+                     distancesKm: distancesKm,
+                     gradeCoordinates: gradeCoordinates,
+                     gradeElevations: gradeElevations)
     }
 }

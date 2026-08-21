@@ -102,17 +102,61 @@ struct RouteStats {
         }
     }
 
+    // MARK: - Прореженный профиль для графика
+
+    /// Сколько точек оставляем графику: `Chart` перерисовывает их на каждом
+    /// кадре скраба, тысячи точек он не тянет
+    static let chartSampleCount = 200
+
+    /// Номера точек маршрута, попавшие в прореженный профиль. Одни и те же
+    /// для координат, высот и дистанции — иначе профиль, его километры и
+    /// точка на карте разъезжаются между собой.
+    var sampledIndices: [Int] {
+        let count = min(coordinates.count, elevations.count)
+        guard count > RouteStats.chartSampleCount else { return Array(0..<count) }
+        let step = Double(count) / Double(RouteStats.chartSampleCount)
+        return (0..<RouteStats.chartSampleCount).map { Int(Double($0) * step) }
+    }
+
+    /// Пройденные километры в прореженных точках — посчитанные по **полной**
+    /// геометрии, а не по прореженной ломаной.
+    ///
+    /// ⚠️ Раньше дистанцию считали по самой ломаной из 200 точек и растягивали
+    /// одним коэффициентом до полной длины маршрута. Сходилось это только в
+    /// сумме: ломаная срезает повороты неравномерно, и на серпантинах
+    /// «10 км» на графике оказывались 10.9 км на самом деле. Camera по такому
+    /// километру улетала мимо участка, а шкала показывала не то, что ось
+    /// (фидбэк 2026-08-22).
+    var sampledDistancesKm: [Double] {
+        let indices = sampledIndices
+        guard coordinates.count > 1, let last = indices.last, last > 0 else {
+            return Array(repeating: 0, count: indices.count)
+        }
+        var cumulative = 0.0
+        var result: [Double] = []
+        result.reserveCapacity(indices.count)
+        var cursor = 0
+        for index in indices {
+            while cursor < index {
+                cumulative += TrailRouter.meters(coordinates[cursor], coordinates[cursor + 1])
+                cursor += 1
+            }
+            result.append(cumulative / 1000)
+        }
+        return result
+    }
+
     // Downsampled to ≤200 points for chart rendering
     var elevationSampled: [Double] {
-        guard elevations.count > 200 else { return elevations }
-        let step = Double(elevations.count) / 200.0
-        return (0..<200).map { elevations[Int(Double($0) * step)] }
+        let indices = sampledIndices
+        guard elevations.count > indices.count else { return elevations }
+        return indices.map { elevations[$0] }
     }
 
     var coordinatesSampled: [CLLocationCoordinate2D] {
-        guard coordinates.count > 200 else { return coordinates }
-        let step = Double(coordinates.count) / 200.0
-        return (0..<200).map { coordinates[Int(Double($0) * step)] }
+        let indices = sampledIndices
+        guard coordinates.count > indices.count else { return coordinates }
+        return indices.map { coordinates[$0] }
     }
 
     var elevationDownsampled: [Double] { elevationSampled }

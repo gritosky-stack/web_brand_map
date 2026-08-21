@@ -60,12 +60,14 @@
 		CE0B84B32F9E365900D0AF82 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CE0B84B22F9E365900D0AF82 /* Preview Assets.xcassets */; };
 		CE0B84BD2F9E365900D0AF82 /* hikingmapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0B84BC2F9E365900D0AF82 /* hikingmapTests.swift */; };
 		CE0B84C72F9E365900D0AF82 /* hikingmapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0B84C62F9E365900D0AF82 /* hikingmapUITests.swift */; };
+		CE6B92F52F9E3ED30076358F /* ProfileChartSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE6B92F42F9E3ED30076358F /* ProfileChartSnapshot.swift */; };
 		CE0B84C92F9E365900D0AF82 /* hikingmapUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0B84C82F9E365900D0AF82 /* hikingmapUITestsLaunchTests.swift */; };
 		CE6B922E2F9E39E40076358C /* MapboxMaps in Frameworks */ = {isa = PBXBuildFile; productRef = CE6B922D2F9E39E40076358C /* MapboxMaps */; };
 		CE6B923A2F9E3B060076358C /* GPX in Resources */ = {isa = PBXBuildFile; fileRef = CE6B92372F9E3B060076358C /* GPX */; };
 		CE6B923B2F9E3B060076358C /* photos in Resources */ = {isa = PBXBuildFile; fileRef = CE6B92382F9E3B060076358C /* photos */; };
 		CE6B923C2F9E3B060076358C /* future_trips in Resources */ = {isa = PBXBuildFile; fileRef = CE6B92392F9E3B060076358C /* future_trips */; };
 		CE6B92482F9E3ED30076358C /* ElevationChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE6B923E2F9E3ED30076358C /* ElevationChartView.swift */; };
+		CE6B92F12F9E3ED30076358F /* ProfileChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE6B92F02F9E3ED30076358F /* ProfileChart.swift */; };
 		AB11223344556677889900F2 /* RoutingPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB11223344556677889900F1 /* RoutingPreferences.swift */; };
 		AB11223344556677889900F4 /* RoutingPreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB11223344556677889900F3 /* RoutingPreferencesView.swift */; };
 		CE6B92492F9E3ED30076358C /* RouteCardCarousel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE6B923F2F9E3ED30076358C /* RouteCardCarousel.swift */; };
@@ -155,11 +157,13 @@
 		CE0B84BC2F9E365900D0AF82 /* hikingmapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hikingmapTests.swift; sourceTree = "<group>"; };
 		CE0B84C22F9E365900D0AF82 /* hikingmapUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hikingmapUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE0B84C62F9E365900D0AF82 /* hikingmapUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hikingmapUITests.swift; sourceTree = "<group>"; };
+		CE6B92F42F9E3ED30076358F /* ProfileChartSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileChartSnapshot.swift; sourceTree = "<group>"; };
 		CE0B84C82F9E365900D0AF82 /* hikingmapUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hikingmapUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		CE6B92372F9E3B060076358C /* GPX */ = {isa = PBXFileReference; lastKnownFileType = folder; path = GPX; sourceTree = "<group>"; };
 		CE6B92382F9E3B060076358C /* photos */ = {isa = PBXFileReference; lastKnownFileType = folder; path = photos; sourceTree = "<group>"; };
 		CE6B92392F9E3B060076358C /* future_trips */ = {isa = PBXFileReference; lastKnownFileType = folder; path = future_trips; sourceTree = "<group>"; };
 		CE6B923E2F9E3ED30076358C /* ElevationChartView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ElevationChartView.swift; sourceTree = "<group>"; };
+		CE6B92F02F9E3ED30076358F /* ProfileChart.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProfileChart.swift; sourceTree = "<group>"; };
 		CE6B923F2F9E3ED30076358C /* RouteCardCarousel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RouteCardCarousel.swift; sourceTree = "<group>"; };
 		CE6B92402F9E3ED30076358C /* RouteDetailPanel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RouteDetailPanel.swift; sourceTree = "<group>"; };
 		CE6B92412F9E3ED30076358C /* MapboxMapView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MapboxMapView.swift; sourceTree = "<group>"; };
@@ -270,6 +274,7 @@
 			isa = PBXGroup;
 			children = (
 				CE0B84C62F9E365900D0AF82 /* hikingmapUITests.swift */,
+				CE6B92F42F9E3ED30076358F /* ProfileChartSnapshot.swift */,
 				CE0B84C82F9E365900D0AF82 /* hikingmapUITestsLaunchTests.swift */,
 			);
 			path = hikingmapUITests;
@@ -279,6 +284,7 @@
 			isa = PBXGroup;
 			children = (
 				CE6B923E2F9E3ED30076358C /* ElevationChartView.swift */,
+				CE6B92F02F9E3ED30076358F /* ProfileChart.swift */,
 				CE6B923F2F9E3ED30076358C /* RouteCardCarousel.swift */,
 				CE6B92402F9E3ED30076358C /* RouteDetailPanel.swift */,
 				CE6B92412F9E3ED30076358C /* MapboxMapView.swift */,
@@ -528,6 +534,7 @@
 				CE6B924D2F9E3ED30076358C /* Route.swift in Sources */,
 				CE6B924B2F9E3ED30076358C /* MapboxMapView.swift in Sources */,
 				CE6B92482F9E3ED30076358C /* ElevationChartView.swift in Sources */,
+				CE6B92F12F9E3ED30076358F /* ProfileChart.swift in Sources */,
 				CE6B92502F9E3ED30076358C /* DesignTokens.swift in Sources */,
 				DCB7A29FBDF54CFCB03CF46A /* SmartTimeView.swift in Sources */,
 				19DC715431D44B8F88E99A11 /* FitnessMatchView.swift in Sources */,
@@ -590,6 +597,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CE0B84C72F9E365900D0AF82 /* hikingmapUITests.swift in Sources */,
+				CE6B92F52F9E3ED30076358F /* ProfileChartSnapshot.swift in Sources */,
 				CE0B84C92F9E365900D0AF82 /* hikingmapUITestsLaunchTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

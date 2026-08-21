@@ -105,27 +105,107 @@ enum GradeColor {
         return pts
     }
 
-    /// Непрерывный горизонтальный градиент для графика высот — общий метод
-    /// для `ElevationChartView` и `CustomElevationChart`. `fallback`
-    /// используется, если высот меньше двух точек (например, ещё не
-    /// догрузились) — так график остаётся в своём привычном сплошном цвете,
-    /// а не в цвете уклона по умолчанию.
+    /// Узел раскраски: доля пройденного пути (0…1) и цвет уклона в этой
+    /// точке. Одно и то же представление и для графика, и для линии на карте
+    /// — чтобы они не начали рассказывать разные истории.
+    struct GradeStop {
+        let position: Double
+        let color: UIColor
+    }
+
+    /// Узлы раскраски по маршруту. Считаются по **полной** геометрии, как и
+    /// у линии на карте, и раскладываются по накопленному расстоянию.
+    ///
+    /// ⚠️ Именно по полной, а не по прореженному до 200 точек профилю. На
+    /// прореженных точках (у 11-километрового маршрута это шаг ~57 м)
+    /// сглаживание уклона окном в 60 м фактически не работает: цвет прыгал на
+    /// каждой точке, график становился полосатым, и на одном и том же участке
+    /// карта показывала ровный подъём, а график — чересполосицу (фидбэк
+    /// 2026-08-22).
+    ///
+    /// - `gradeResolution` — потолок числа точек для расчёта уклона. Полная
+    ///   геометрия бывает в тысячи точек, а профиль пересобирается на каждом
+    ///   кадре скраба; 800 точек — это шаг в десятки метров, мельче окна
+    ///   сглаживания, то есть на цвет уже не влияет.
+    /// - `maxStops` — потолок числа узлов в самом градиенте, как у `mapGradient`.
+    static func gradeStops(coordinates: [CLLocationCoordinate2D],
+                           elevations: [Double],
+                           gradeResolution: Int = 800,
+                           maxStops: Int = 200) -> [GradeStop] {
+        guard coordinates.count == elevations.count, coordinates.count > 1 else { return [] }
+
+        // Прореживаем вход, сохраняя концы
+        var coords = coordinates
+        var eles = elevations
+        if coordinates.count > gradeResolution {
+            let step = Double(coordinates.count) / Double(gradeResolution)
+            var indices = (0..<gradeResolution).map { Int(Double($0) * step) }
+            if indices.last != coordinates.count - 1 { indices.append(coordinates.count - 1) }
+            coords = indices.map { coordinates[$0] }
+            eles   = indices.map { elevations[$0] }
+        }
+
+        let grades = pointGrades(coordinates: coords, elevations: eles)
+        guard grades.count == coords.count, grades.count > 1 else { return [] }
+
+        var cumulative = [Double](repeating: 0, count: coords.count)
+        for i in 1..<coords.count {
+            cumulative[i] = cumulative[i - 1] + TrailRouter.meters(coords[i - 1], coords[i])
+        }
+        guard let total = cumulative.last, total > 0 else { return [] }
+
+        let step = max(1, Int((Double(coords.count) / Double(maxStops)).rounded(.up)))
+        var indices = Array(stride(from: 0, to: coords.count, by: step))
+        if indices.last != coords.count - 1 { indices.append(coords.count - 1) }
+
+        // Позиции обязаны строго расти: две точки на одном месте дают одну и
+        // ту же долю пути, и градиент отвалился бы молча
+        var stops: [GradeStop] = []
+        stops.reserveCapacity(indices.count)
+        for i in indices {
+            let position = min(1, max(0, cumulative[i] / total))
+            if let last = stops.last, position <= last.position { continue }
+            stops.append(GradeStop(position: position, color: color(forGradePercent: grades[i])))
+        }
+        guard stops.count > 1 else { return [] }
+        if stops[0].position > 0 {
+            stops.insert(GradeStop(position: 0, color: stops[0].color), at: 0)
+        }
+        if stops[stops.count - 1].position < 1 {
+            stops.append(GradeStop(position: 1, color: stops[stops.count - 1].color))
+        }
+        return stops
+    }
+
+    /// Готовый градиент для графика из уже посчитанных узлов. `fallback` —
+    /// если узлов нет (высот меньше двух точек, геометрия вырождена): график
+    /// остаётся в своём привычном сплошном цвете.
+    static func gradient(stops: [GradeStop], opacity: Double = 1.0, fallback: Color) -> Gradient {
+        guard stops.count > 1 else { return Gradient(colors: [fallback.opacity(opacity)]) }
+        return Gradient(stops: stops.map {
+            Gradient.Stop(color: Color($0.color).opacity(opacity), location: CGFloat($0.position))
+        })
+    }
+
+    /// Непрерывный горизонтальный градиент для графика высот — то же самое,
+    /// одним вызовом, когда узлы больше нигде не нужны.
     static func gradient(coordinates: [CLLocationCoordinate2D],
                           elevations: [Double],
                           opacity: Double = 1.0,
                           fallback: Color) -> Gradient {
-        let grades = pointGrades(coordinates: coordinates, elevations: elevations)
-        guard grades.count > 1 else { return Gradient(colors: [fallback.opacity(opacity)]) }
-        let stops = grades.enumerated().map { i, g in
-            Gradient.Stop(color: Color(color(forGradePercent: g)).opacity(opacity),
-                          location: CGFloat(Double(i) / Double(grades.count - 1)))
-        }
-        return Gradient(stops: stops)
+        gradient(stops: gradeStops(coordinates: coordinates, elevations: elevations),
+                 opacity: opacity, fallback: fallback)
     }
 
     /// Выражение `line-gradient` для линии маршрута — цвет по уклону вдоль
     /// одной цельной линии. nil (нет высот / не совпало число точек) —
     /// сигнал вызывающей стороне рисовать сплошным цветом типа маршрута.
+    ///
+    /// Узлы берутся из общего `gradeStops` — того же, из которого красится
+    /// график высот. Это не «для красоты одинаково»: пока у карты и графика
+    /// были свои расчёты, один и тот же участок выходил на карте ровным
+    /// подъёмом, а на графике чересполосицей, и по цвету нельзя было понять,
+    /// куда именно улетела камера (фидбэк 2026-08-22).
     ///
     /// ⚠️ Раскраска идёт именно градиентом по **одной** `LineString`, а не
     /// набором двухточечных отрезков со свойством "grade". Отрезки Mapbox
@@ -137,42 +217,11 @@ enum GradeColor {
     ///
     /// Требует у источника `lineMetrics = true` — без него `line-progress`
     /// не считается и слой останется без цвета.
-    ///
-    /// `maxStops` — потолок числа узлов градиента: у нарисованного по тропам
-    /// маршрута точек тысячи, а на глаз хватает пары сотен (тот же приём,
-    /// что с прореживанием профиля до 200 точек на графике).
     static func mapGradient(coordinates: [CLLocationCoordinate2D],
                             elevations: [Double],
                             maxStops: Int = 200) -> Exp? {
-        guard coordinates.count == elevations.count, coordinates.count > 1 else { return nil }
-        let grades = pointGrades(coordinates: coordinates, elevations: elevations)
-        guard grades.count == coordinates.count else { return nil }
-
-        // line-progress — доля пройденного пути, поэтому узлы ставим по
-        // накопленному расстоянию, а не по номеру точки: между точками
-        // маршрута разрывы очень разные.
-        var cum = [Double](repeating: 0, count: coordinates.count)
-        for i in 1..<coordinates.count {
-            cum[i] = cum[i - 1] + TrailRouter.meters(coordinates[i - 1], coordinates[i])
-        }
-        guard let total = cum.last, total > 0 else { return nil }
-
-        let step = max(1, Int((Double(coordinates.count) / Double(maxStops)).rounded(.up)))
-        var indices = Array(stride(from: 0, to: coordinates.count, by: step))
-        if indices.last != coordinates.count - 1 { indices.append(coordinates.count - 1) }
-
-        // Узлы interpolate обязаны строго возрастать: две точки на одном
-        // месте дали бы одинаковый line-progress и выражение отвалилось бы.
-        var stops: [(Double, UIColor)] = []
-        stops.reserveCapacity(indices.count)
-        for i in indices {
-            let p = min(1.0, max(0.0, cum[i] / total))
-            if let last = stops.last, p <= last.0 { continue }
-            stops.append((p, color(forGradePercent: grades[i])))
-        }
+        let stops = gradeStops(coordinates: coordinates, elevations: elevations, maxStops: maxStops)
         guard stops.count > 1 else { return nil }
-        if stops[0].0 > 0 { stops.insert((0, stops[0].1), at: 0) }
-        if stops[stops.count - 1].0 < 1 { stops.append((1, stops[stops.count - 1].1)) }
 
         // Аргументы собираем массивом, а не result builder'ом: у билдера
         // `Exp` нет `buildArray`, циклом внутри него не пройтись.
@@ -180,9 +229,9 @@ enum GradeColor {
             .expression(Exp(.linear)),
             .expression(Exp(.lineProgress))
         ]
-        for (position, color) in stops {
-            args.append(.number(position))
-            args.append(.expression(rgba(color)))
+        for stop in stops {
+            args.append(.number(stop.position))
+            args.append(.expression(rgba(stop.color)))
         }
         return Exp(operator: .interpolate, arguments: args)
     }

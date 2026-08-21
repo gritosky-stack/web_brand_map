@@ -218,7 +218,7 @@ struct PSSRouteDetailPanel: View {
                 .clipShape(RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: DS.radiusM, style: .continuous).stroke(DS.border, lineWidth: 1))
 
-            Text("Проведите пальцем по графику для навигации")
+            Text("Проведите пальцем — высота, километр и уклон участка. Двойной тап с протяжкой — выделить участок")
                 .font(.system(size: 10))
                 .foregroundColor(DS.textTertiary)
         }

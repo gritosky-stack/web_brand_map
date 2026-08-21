@@ -47,10 +47,15 @@ struct ConstructorLeg: Identifiable, Equatable {
 }
 
 /// Что показывает верхняя шкала, пока ведут ползунок по профилю высот.
+/// Участок (`segmentKm`/`segmentGrade`) — то же, что «Segment length» и
+/// «Type» в подсказке brouter.de: длина куска постоянного уклона под пальцем
+/// и сам этот уклон. nil — профиль вырожденный, участков не построить.
 struct ScrubberReadout: Equatable {
     let elevationM: Double
     let distanceKm: Double
     let totalKm: Double
+    let segmentKm: Double?
+    let segmentGrade: Double?
 }
 
 /// Снимок конструктора для «отменить/вернуть». Храним состояние целиком:
@@ -126,9 +131,16 @@ final class AppState: ObservableObject {
     @Published var scrubberReadout: ScrubberReadout?
     /// Где на экране блок профиля — карта не должна прятать бегунок под ним
     @Published var profileBlockFrame: CGRect = .zero
+    /// Какой кусок экрана занимает нижняя карточка. По нему карта считает
+    /// свободную часть кадра и держит в ней маршрут (`ensureRouteVisible`).
+    @Published var bottomPanelFrame: CGRect = .zero
     /// Прореженная геометрия маршрута, по которому ведут: по ней карта
     /// подбирает кадр, когда бегунок уезжает из видимой части
     var scrubRouteCoordinates: [CLLocationCoordinate2D] = []
+    /// Геометрия участка, выделенного на графике. Пока выделение живо, карта
+    /// держит кадр по нему, а не по всему маршруту — иначе первое же ведение
+    /// пальцем внутри выделения отбрасывало камеру на весь маршрут.
+    var profileSelectionCoordinates: [CLLocationCoordinate2D] = []
 
     /// Конец скраба: снять и метку с карты, и режим прозрачности
     func endProfileScrub() {
@@ -203,6 +215,15 @@ final class AppState: ObservableObject {
     private var networkAvailable = true
     @Published var routeListExpanded = false
     @Published var mapZoom: Double = 6.5
+    /// Стоит ли сейчас рельеф. Выше `Coordinator.terrainCutoffZoom` он
+    /// снимается ради резкости — на устройстве это видно в отладочной плашке,
+    /// иначе не отличить «сняли нарочно» от «рельеф отвалился».
+    @Published var isTerrainOn = true
+    #if DEBUG
+    /// Чем задано преувеличение рельефа прямо сейчас: выражением по зуму,
+    /// константой (запасной путь) или ничем
+    @Published var debugTerrainKind = "—"
+    #endif
 
     // Live track recording
     @Published var isRecording = false
@@ -256,9 +277,14 @@ final class AppState: ObservableObject {
     let customRouteStore  = CustomRouteStore.shared
     let cameraFlyRequest     = PassthroughSubject<CLLocationCoordinate2D, Never>()
     let caveFlyCameraRequest = PassthroughSubject<CLLocationCoordinate2D, Never>()
-    /// Облёт к bbox — шлёт, например, выделение участка на графике высот
-    /// (см. `ProfileScrub.focusSegment`, подписка в `MapboxMapView.flyToBounds`)
+    /// Обзорный облёт к bbox — шлёт выбор PSS-маршрута. Кадр берётся с
+    /// запасом и с наклоном: смотрят на маршрут целиком.
     let flyBoundsRequest     = PassthroughSubject<(sw: CLLocationCoordinate2D, ne: CLLocationCoordinate2D), Never>()
+    /// Облёт вплотную к куску маршрута — выделение участка на графике высот
+    /// (`ProfileScrub.focusSegment` → `MapboxMapView.flyToSegment`). Отдельно
+    /// от обзорного: у него свой кадр, а на одном общем оба обработчика
+    /// стартовали разом и камера дёргалась.
+    let flySegmentRequest    = PassthroughSubject<(sw: CLLocationCoordinate2D, ne: CLLocationCoordinate2D), Never>()
     let zoomOutRequest       = PassthroughSubject<Void, Never>()
     let trackCoordUpdate     = PassthroughSubject<CLLocationCoordinate2D, Never>()
     let sightingDropped      = PassthroughSubject<Sighting, Never>()

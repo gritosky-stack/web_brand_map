@@ -128,6 +128,7 @@ extension Coordinator: ViewportStatusObserver {
         mapView.viewport.idle()
         appState.locationFollowMode = .follow
 
+        lastProgrammaticFly = Date()
         mapView.camera.fly(
             to: CameraOptions(center: coord, padding: followPadding,
                               zoom: Self.userZoom, bearing: 0, pitch: 0),

@@ -238,6 +238,32 @@ struct ContentView: View {
     private var bottomPanel: some View {
         VStack(spacing: 0) {
             Spacer()
+            // Карте нужно знать, сколько снизу занято карточкой: по этому
+            // она считает свободную часть кадра и держит в ней маршрут
+            // (`Coordinator.ensureRouteVisible`).
+            bottomPanelContent
+                .background(GeometryReader { geo in
+                    Color.clear
+                        .onAppear { appState.bottomPanelFrame = geo.frame(in: .global) }
+                        .onChange(of: geo.frame(in: .global)) { _, frame in
+                            appState.bottomPanelFrame = frame
+                        }
+                })
+        }
+        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedRoute?.id)
+        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedCustomRoute?.id)
+        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.showDetailPanel)
+        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedCave?.id)
+        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedMapPoint?.id)
+        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.showCaveDetail)
+        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedPSSRoute?.id)
+        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.showPSSRouteDetail)
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+    @ViewBuilder
+    private var bottomPanelContent: some View {
+        VStack(spacing: 0) {
             // Пещера идёт первой: по ней тапают, когда на экране уже открыт
             // маршрут, и её карточка должна лечь поверх. Закрыли пещеру —
             // ветка ниже сама вернёт карточку маршрута, камеру никто не трогает.
@@ -327,15 +353,6 @@ struct ContentView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedRoute?.id)
-        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedCustomRoute?.id)
-        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.showDetailPanel)
-        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedCave?.id)
-        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedMapPoint?.id)
-        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.showCaveDetail)
-        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.selectedPSSRoute?.id)
-        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: appState.showPSSRouteDetail)
-        .ignoresSafeArea(edges: .bottom)
     }
 
     // MARK: - Floating AI button
@@ -619,12 +636,12 @@ struct ContentView: View {
                         }
                     }
                 }
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .transition(.panelRoll)
             }
 
             if appState.showLayersPanel {
                 layersSlider
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(.panelRoll)
             }
         }
     }
@@ -1472,6 +1489,7 @@ struct DebugHUD: View {
             Text(String(format: "z %.2f", appState.mapZoom))
             Text(String(format: "%.0f MB", memoryMB))
             Text("ст \(appState.stationMarkers.count)")
+            Text("рельеф \(appState.isTerrainOn ? "+" : "−") \(appState.debugTerrainKind)")
         }
         .font(.system(size: 9, weight: .medium, design: .monospaced))
         .foregroundColor(.white.opacity(0.45))
@@ -1495,12 +1513,55 @@ struct DebugHUD: View {
 }
 #endif
 
+// MARK: - Выезд панелей из-под кнопок
+
+/// Панель раскатывается из-под своей кнопки и так же скатывается обратно.
+///
+/// ⚠️ Не `.move(edge: .top)`. Тот сдвигает панель на её собственную высоту:
+/// у низкой «Карты» это и выглядит как уход под кнопку, а высокая панель
+/// слоёв (до 62% экрана) успевала пролететь через весь верхний интерфейс и
+/// уехать за верхушку экрана (фидбэк 2026-08-21). Маска по высоте не зависит
+/// от размера панели: обе прячутся ровно по нижней границе кнопок.
+private struct PanelRoll: ViewModifier, Animatable {
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(Double(progress))
+            .mask(alignment: .top) {
+                GeometryReader { geo in
+                    Rectangle()
+                        .frame(height: max(0, geo.size.height * progress))
+                }
+            }
+    }
+}
+
+extension AnyTransition {
+    static var panelRoll: AnyTransition {
+        .modifier(active: PanelRoll(progress: 0), identity: PanelRoll(progress: 1))
+    }
+}
+
 // MARK: - Шкала скраба
 
 /// Пока ведут ползунок по профилю высот, весь интерфейс сверху прячется,
 /// а вместо него остаётся эта полоска: высота и пройденный километр.
 private struct ScrubberReadoutBar: View {
     let readout: ScrubberReadout
+
+    /// Стрелка по знаку уклона — чтобы блок читался как «идём вверх», а не
+    /// как ещё одна высота
+    private static func gradeIcon(_ grade: Double) -> String {
+        if grade > 2 { return "arrow.up.right" }
+        if grade < -2 { return "arrow.down.right" }
+        return "arrow.right"
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1523,6 +1584,29 @@ private struct ScrubberReadoutBar: View {
                 Text(String(format: "/ %.1f км", readout.totalKm))
                     .font(.system(size: 11))
                     .foregroundColor(DS.textSecondary)
+            }
+
+            // Участок под пальцем: уклон и его длина — то же, что «Type» и
+            // «Segment length» в подсказке brouter.de.
+            //
+            // ⚠️ Длина здесь всегда в километрах, даже когда это полкилометра:
+            // рядом в шкале стоит высота в метрах, и «652 м» читалось как
+            // ещё одна высота, а не как длина куска (фидбэк 2026-08-21).
+            // Стрелка и цвет уклона добавлены туда же и за тем же.
+            if let segmentKm = readout.segmentKm, let grade = readout.segmentGrade {
+                Divider().background(DS.border).frame(height: 18)
+
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Image(systemName: Self.gradeIcon(grade))
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(Color(GradeColor.color(forGradePercent: grade)))
+                    Text(ProfileBands.gradeLabel(grade))
+                        .font(.system(size: 15, weight: .bold, design: .monospaced))
+                        .foregroundColor(Color(GradeColor.color(forGradePercent: grade)))
+                    Text(String(format: "%.1f км", segmentKm))
+                        .font(.system(size: 11))
+                        .foregroundColor(DS.textSecondary)
+                }
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 9)

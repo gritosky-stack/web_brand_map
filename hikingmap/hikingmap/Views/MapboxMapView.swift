@@ -66,6 +66,8 @@ struct MapboxMapView: UIViewRepresentable {
             c?.repositionStations()
             // «Резинка» до прицела тянется за камерой — считаем каждый кадр
             c?.updateConstructorAim()
+            // Рельеф снимаем и возвращаем по зуму — см. terrainCutoffZoom
+            c?.updateTerrainForCamera()
         }.store(in: &context.coordinator.cancellables)
 
         mapView.mapboxMap.onMapIdle.observe { [weak c = context.coordinator] _ in
@@ -124,6 +126,12 @@ final class Coordinator: NSObject {
     var lastGestureEnd = Date.distantPast
     /// Камера сейчас едет к бегунку — второй раз не дёргаем
     var isFramingScrub = false
+    /// Стоит ли сейчас рельеф. Выше `terrainCutoffZoom` он снимается: там
+    /// draped-проход мылит и снимок, и линии маршрутов.
+    var isTerrainOn = false
+    /// Когда мы сами последний раз отправляли камеру лететь. Пока летим,
+    /// подравнивать кадр под маршрут нельзя — анимации передерутся.
+    var lastProgrammaticFly = Date.distantPast
     /// Сколько раз подряд тайлы ответили пусто
     var trailQueryRetries = 0
     static let maxTrailQueryRetries = 6
@@ -207,9 +215,9 @@ final class Coordinator: NSObject {
             .store(in: &cancellables)
 
         // Выделение участка на графике высот (см. ProfileScrub.focusSegment)
-        appState.flyBoundsRequest
+        appState.flySegmentRequest
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] bounds in self?.flyToBounds(sw: bounds.sw, ne: bounds.ne) }
+            .sink { [weak self] bounds in self?.flyToSegment(sw: bounds.sw, ne: bounds.ne) }
             .store(in: &cancellables)
 
         appState.$selectedRoute
@@ -263,17 +271,14 @@ final class Coordinator: NSObject {
             }
             .store(in: &cancellables)
 
+        // Обзорный облёт к bbox — выбор PSS-маршрута
         appState.flyBoundsRequest
             .receive(on: DispatchQueue.main)
             .sink { [weak self] bounds in
                 guard let self, let mapView = self.mapView else { return }
                 self.stopFollowing()
-                let corners = [
-                    bounds.sw,
-                    CLLocationCoordinate2D(latitude: bounds.sw.latitude, longitude: bounds.ne.longitude),
-                    bounds.ne,
-                    CLLocationCoordinate2D(latitude: bounds.ne.latitude, longitude: bounds.sw.longitude)
-                ]
+                self.lastProgrammaticFly = Date()
+                let corners = Coordinator.corners(sw: bounds.sw, ne: bounds.ne)
                 let padding = UIEdgeInsets(top: 80, left: 40, bottom: UIScreen.main.bounds.height * 0.25, right: 40)
                 if let cam = try? mapView.mapboxMap.camera(
                     for: corners,
@@ -284,6 +289,21 @@ final class Coordinator: NSObject {
                 }
             }
             .store(in: &cancellables)
+
+        // Интерфейс устаканился (открыли/свернули карточку, раскрыли список) —
+        // проверяем, видно ли ещё маршрут, и если нет, подвигаем камеру
+        Publishers.CombineLatest4(
+            appState.$bottomPanelFrame.map { $0.height }.removeDuplicates(),
+            appState.$showDetailPanel,
+            appState.$showCustomRouteDetail,
+            appState.$routeListExpanded
+        )
+        .map { _ in () }
+        .merge(with: appState.$showPSSRouteDetail.map { _ in () },
+               appState.$showCaveDetail.map { _ in () })
+        .debounce(for: .milliseconds(450), scheduler: DispatchQueue.main)
+        .sink { [weak self] in self?.ensureRouteVisible() }
+        .store(in: &cancellables)
 
         appState.$topoAlpha
             .receive(on: DispatchQueue.main)
@@ -391,6 +411,9 @@ final class Coordinator: NSObject {
                     // и прокладка, если сети не окажется
                     refreshTileTrailSegments(force: true)
                     updateConstructorAim()
+                    // Рисуют — высоты набора снимаются с рельефа, вернём его,
+                    // если он был снят зумом
+                    updateTerrainForCamera()
                 } else {
                     updateConstructorPolyline(waypoints: [], legs: [])
                     appState.constructorAnchorScreen = nil
@@ -1252,15 +1275,7 @@ final class Coordinator: NSObject {
 
     // MARK: - Style setup
     private func setupMapLayers(_ mapView: MapView) {
-        var dem = RasterDemSource(id: "mapbox-dem")
-        dem.url      = "mapbox://mapbox.mapbox-terrain-dem-v1"
-        dem.tileSize = 256
-        dem.maxzoom  = 14.0
-        try? mapView.mapboxMap.addSource(dem)
-        var terrain = Terrain(sourceId: "mapbox-dem")
-        terrain.exaggeration = .constant(1.1)
-        try? mapView.mapboxMap.setTerrain(terrain)
-
+        setupTerrain(on: mapView)
 
         var countrySource = VectorSource(id: "country-boundaries")
         countrySource.url = "mapbox://mapbox.country-boundaries-v1"
@@ -1291,6 +1306,90 @@ final class Coordinator: NSObject {
         try? mapView.mapboxMap.addLayer(maskLayer)
 
         hideDisputedBoundaries(mapView)
+    }
+
+    // MARK: - Рельеф и резкость картинки
+
+    /// Зум, с которого рельеф снимается совсем. Причина — draped-проход:
+    /// при включённом `setTerrain` Mapbox рисует всё, что лежит под рельефом
+    /// (снимок, растры, **и линии маршрутов**), не прямо на экран, а в
+    /// текстуру на тайл DEM, и уже её натягивает на рельеф. Тайлы DEM
+    /// кончаются на z14, дальше один тайл растягивается на весь кадр — и
+    /// текстура вместе с ним. Отсюда мыло вблизи при целом снимке вдали:
+    /// подписи и интерфейс рисуются поверх, минуя drape, и остаются резкими.
+    ///
+    /// Порог подобран на глаз и вынесен сюда нарочно — это компромисс между
+    /// резкостью вблизи и рельефом на горизонте, его правят по живой карте.
+    static let terrainCutoffZoom: Double = 16.7
+    /// Гистерезис: без него на самой границе рельеф мигал бы туда-сюда
+    static let terrainCutoffHysteresis: Double = 0.35
+
+    /// Преувеличение рельефа гаснет к самому порогу — чтобы в момент, когда
+    /// рельеф снимается, снимать было уже нечего и картинка не «щёлкала»
+    /// плоскостью. Ниже 15.8 всё как раньше.
+    private static var terrainExaggeration: Exp {
+        Exp(.interpolate) {
+            Exp(.linear)
+            Exp(.zoom)
+            10.0
+            1.1
+            15.8
+            1.1
+            16.7
+            0.0
+        }
+    }
+
+    /// ⚠️ `tileSize` у DEM — 514, как во всех примерах Mapbox: тайлы
+    /// `mapbox-terrain-dem-v1` 512-пиксельные плюс пиксель рамки по краю.
+    /// Со стоявшими здесь 256 карта считала, что тайл вчетверо мельче, и
+    /// упиралась в потолок z14 на зум раньше — мыло начиналось с z14, а не
+    /// с z15.
+    private func setupTerrain(on mapView: MapView) {
+        var dem = RasterDemSource(id: "mapbox-dem")
+        dem.url      = "mapbox://mapbox.mapbox-terrain-dem-v1"
+        dem.tileSize = 514
+        dem.maxzoom  = 14.0
+        try? mapView.mapboxMap.addSource(dem)
+        isTerrainOn = false
+        updateTerrainForCamera(force: true)
+    }
+
+    /// Ставит или снимает рельеф по текущему кадру. Зовётся на каждом кадре
+    /// камеры, поэтому дешёвая: сравнение с порогом и выход.
+    func updateTerrainForCamera(force: Bool = false) {
+        guard let mapView, isStyleLoaded || force else { return }
+        let zoom = mapView.mapboxMap.cameraState.zoom
+        let threshold = Coordinator.terrainCutoffZoom
+            + (isTerrainOn ? Coordinator.terrainCutoffHysteresis : 0)
+        // В конструкторе высоты набора снимаются с того же DEM, что под
+        // рельефом (`terrainElevationProvider`): снимем рельеф — и набор со
+        // сбросом станут прочерком прямо во время рисования.
+        let wanted = zoom < threshold || appState.isConstructorMode
+        guard force || wanted != isTerrainOn else { return }
+        isTerrainOn = wanted
+        appState.isTerrainOn = wanted
+        guard wanted else {
+            mapView.mapboxMap.removeTerrain()
+            return
+        }
+        var terrain = Terrain(sourceId: "mapbox-dem")
+        terrain.exaggeration = .expression(Coordinator.terrainExaggeration)
+        do {
+            try mapView.mapboxMap.setTerrain(terrain)
+        } catch {
+            // Выражение не приняли — рельеф важнее плавного затухания:
+            // без запасного варианта `try?` тихо оставил бы карту плоской
+            terrain.exaggeration = .constant(1.1)
+            try? mapView.mapboxMap.setTerrain(terrain)
+        }
+        #if DEBUG
+        // Видно в отладочной плашке: «-» ниже порога зума означал бы, что
+        // рельеф не встал вовсе, а не что мы его сняли нарочно
+        let applied: StylePropertyValue = mapView.mapboxMap.terrainProperty("exaggeration")
+        appState.debugTerrainKind = applied.kind == .expression ? "выр"
+            : (applied.kind == .constant ? "конст" : "нет")
+        #endif
     }
 
     /// Hide disputed admin boundary lines (e.g. Serbia–Kosovo) from the base
@@ -2241,6 +2340,7 @@ final class Coordinator: NSObject {
             // Облёт — только на смену выбора: иначе камера дёргалась бы каждый
             // раз, когда в маршрут дописываются высоты.
             guard selectionChanged else { return }
+            lastProgrammaticFly = Date()
             let screenH = UIScreen.main.bounds.height
             let padding = UIEdgeInsets(top: 80, left: 40, bottom: screenH * 0.3, right: 40)
             if let cam = try? mapView.mapboxMap.camera(
@@ -2370,7 +2470,13 @@ final class Coordinator: NSObject {
 
         let map: MapboxMap = mapView.mapboxMap
         let bearing = map.cameraState.bearing
-        let route = appState.scrubRouteCoordinates.isEmpty ? [marker] : appState.scrubRouteCoordinates
+        // Пока на графике живо выделение — кадр держим по нему: ведут пальцем
+        // внутри выделенного участка, и разглядывать в этот момент весь
+        // маршрут незачем (камера отлетала от него на первом же движении).
+        let selection = appState.profileSelectionCoordinates
+        let route = !selection.isEmpty
+            ? selection
+            : (appState.scrubRouteCoordinates.isEmpty ? [marker] : appState.scrubRouteCoordinates)
 
         // Зум под весь кадр, потом ужимаем под свободный прямоугольник
         let fitted = map.camera(for: route, padding: .zero, bearing: bearing, pitch: 0)
@@ -2389,6 +2495,150 @@ final class Coordinator: NSObject {
             to: CameraOptions(center: center, padding: .zero, zoom: zoom, bearing: bearing, pitch: 0),
             duration: 0.45, curve: .easeInOut
         ) { [weak self] _ in self?.isFramingScrub = false }
+    }
+
+    // MARK: - Маршрут не должен теряться из кадра
+
+    /// Кадр, в котором точки лежат по центру **свободного куска** экрана, а
+    /// не всего кадра, при нулевых отступах камеры.
+    ///
+    /// Одна арифметика на все облёты, которые должны считаться с карточкой:
+    /// подобрать зум под весь кадр, ужать его под свободный прямоугольник и
+    /// сдвинуть центр на разницу между серединой экрана и серединой этого
+    /// прямоугольника. Та же схема, что в `keepScrubberVisible`.
+    ///
+    /// ⚠️ Отступы камеры при этом остаются нулевыми. `camera(for:coordinatesPadding:)`
+    /// вернул бы камеру с отступами, они остались бы на карте, и следующий же
+    /// наш облёт с `padding: .zero` дёрнул бы кадр на пол-экрана.
+    func cameraFitting(_ coordinates: [CLLocationCoordinate2D],
+                       into safe: CGRect,
+                       in bounds: CGRect,
+                       bearing: Double,
+                       pitch: Double,
+                       maxZoom: Double,
+                       neverCloserThanCurrent: Bool = false) -> CameraOptions? {
+        guard let mapView, safe.width > 40, safe.height > 40 else { return nil }
+        let map: MapboxMap = mapView.mapboxMap
+        let fitted = map.camera(for: coordinates, padding: .zero, bearing: bearing, pitch: pitch)
+        guard let fittedCenter = fitted.center, let fittedZoom = fitted.zoom else { return nil }
+
+        let shrink = min(safe.width / bounds.width, safe.height / bounds.height)
+        var zoom = min(maxZoom, max(5.0, fittedZoom + log2(Double(shrink))))
+        if neverCloserThanCurrent { zoom = min(zoom, map.cameraState.zoom) }
+
+        let viewCenter = CGPoint(x: bounds.midX, y: bounds.midY)
+        let offset = CGPoint(x: viewCenter.x - safe.midX, y: viewCenter.y - safe.midY)
+        let center = coordinate(from: fittedCenter, offsetPixels: offset, zoom: zoom, bearing: bearing)
+        return CameraOptions(center: center, padding: .zero, zoom: zoom, bearing: bearing, pitch: pitch)
+    }
+
+
+    /// Геометрия маршрута, который сейчас показан: обычного, своего или PSS.
+    /// Берём из `AppState`, а не запоминаем при отрисовке — так она не
+    /// разъезжается с тем, что на самом деле выбрано.
+    private var activeRouteCoordinates: [CLLocationCoordinate2D] {
+        if let route = appState.selectedRoute, let stats = appState.routeStats[route.id] {
+            return stats.coordinates
+        }
+        if let custom = appState.selectedCustomRoute { return custom.coordinates }
+        if let pss = appState.selectedPSSRoute { return pss.coordinates }
+        return []
+    }
+
+    /// Свободная часть экрана при обычном просмотре: сверху фильтры и ряд
+    /// кнопок, снизу — нижняя карточка, сколько бы она сейчас ни занимала
+    /// (её границы публикует `ContentView` в `bottomPanelFrame`).
+    private func visibleMapRect(in bounds: CGRect) -> CGRect {
+        Coordinator.visibleMapRect(in: bounds, panel: appState.bottomPanelFrame)
+    }
+
+    /// Считается отдельно от карты и без её состояния — на этой арифметике
+    /// уже дважды промахивались кадром, и её проще проверить тестом
+    /// (`VisibleMapRectTests`), чем глазами на устройстве.
+    ///
+    /// Главный инвариант: **нижняя граница никогда не заходит под карточку**.
+    /// Верхний отступ — под фильтры и ряд кнопок; если карточка съела почти
+    /// весь экран, он поджимается, но не наоборот.
+    static func visibleMapRect(in bounds: CGRect, panel: CGRect) -> CGRect {
+        let panelTop = panel.height > 0 ? panel.minY : bounds.maxY - 120
+        let bottom = max(bounds.minY, panelTop - 12)
+
+        var top = bounds.minY + 150
+        if bottom - top < 90 { top = max(bounds.minY + 56, bottom - 90) }
+        // Совсем вырожденный случай — карточка во весь экран: берём хоть
+        // какую-то полоску сверху, иначе камере нечего подбирать
+        if bottom - top < 60 { top = max(bounds.minY, bottom - 60) }
+
+        return CGRect(x: bounds.minX + 20,
+                      y: top,
+                      width: max(0, bounds.width - 40),
+                      height: max(0, bottom - top))
+    }
+
+    /// Интерфейс встал в устойчивое состояние (открыли или свернули карточку,
+    /// раскрыли список) — проверяем, видно ли ещё показанный маршрут, и если
+    /// он весь ушёл под карточку или за край, подвигаем камеру.
+    ///
+    /// Осторожность здесь важнее полноты: камеру трогаем только когда от
+    /// маршрута в свободной части кадра не осталось почти ничего, и только
+    /// если её не двигали руками только что и мы сами никуда не летим. Иначе
+    /// это превратится в дёрганье под руками у того, кто нарочно отвёл
+    /// камеру посмотреть окрестности.
+    func ensureRouteVisible(retryIfBusy: Bool = true) {
+        guard let mapView,
+              !appState.isConstructorMode,
+              !appState.isScrubbingProfile,
+              !appState.recordingEntryVisible,
+              appState.locationFollowMode == .idle,
+              !isFramingScrub,
+              activeGestures == 0,
+              Date().timeIntervalSince(lastGestureEnd) > 1.0,
+              activeRouteCoordinates.count >= 2 else { return }
+
+        // Свой облёт ещё идёт — проверять нечего, но и забывать нельзя:
+        // карточку могли раскрыть прямо во время него. Один повтор, чтобы
+        // не устроить бесконечную очередь проверок.
+        guard Date().timeIntervalSince(lastProgrammaticFly) > 1.8 else {
+            guard retryIfBusy else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) { [weak self] in
+                self?.ensureRouteVisible(retryIfBusy: false)
+            }
+            return
+        }
+
+        let bounds = mapView.bounds.isEmpty ? UIScreen.main.bounds : mapView.bounds
+        let safe = visibleMapRect(in: bounds)
+        guard safe.width > 60, safe.height > 60 else { return }
+
+        let map: MapboxMap = mapView.mapboxMap
+        let viewCenter = CGPoint(x: bounds.midX, y: bounds.midY)
+        let route = activeRouteCoordinates
+        let step = max(1, route.count / 60)
+
+        var visible = 0, total = 0
+        for i in stride(from: 0, to: route.count, by: step) {
+            total += 1
+            if safe.contains(unclampedPoint(for: route[i], on: mapView, viewCenter: viewCenter)) {
+                visible += 1
+            }
+        }
+        guard total > 0 else { return }
+        // Хоть сколько-то маршрута видно — этого достаточно. Требовать
+        // «весь маршрут в кадре» нельзя: на зуме в тропу его почти всегда
+        // видно лишь кусочком, и это нормальный режим просмотра.
+        guard Double(visible) / Double(total) < 0.12 else { return }
+
+        // Зум только уменьшаем: если маршрут влезает при нынешнем масштабе,
+        // достаточно сдвига
+        guard let cam = cameraFitting(route, into: safe, in: bounds,
+                                      bearing: map.cameraState.bearing,
+                                      pitch: map.cameraState.pitch,
+                                      maxZoom: 16.5,
+                                      neverCloserThanCurrent: true) else { return }
+
+        lastProgrammaticFly = Date()
+        stopFollowing()
+        mapView.camera.ease(to: cam, duration: 0.6, curve: .easeInOut, completion: nil)
     }
 
     /// Координата, сдвинутая от базовой на столько-то экранных точек.
@@ -2599,36 +2849,82 @@ final class Coordinator: NSObject {
             maxZoom: 14,
             offset: nil
         ) else { return }
+        lastProgrammaticFly = Date()
         mapView.camera.ease(to: cam, duration: 1.4, curve: .easeInOut, completion: nil)
     }
 
-    /// Облёт к участку маршрута, выделенному на графике высот (двойной тап +
-    /// протяжка в `ElevationChartView`/`CustomElevationChart`). Тот же приём
-    /// с четырьмя углами bbox, что у `flyToRoute`, но без наклона — это
-    /// разбор конкретного куска тропы, а не обзорный облёт.
-    private func flyToBounds(sw: CLLocationCoordinate2D, ne: CLLocationCoordinate2D) {
-        guard let mapView else { return }
-        stopFollowing()
-        let corners: [CLLocationCoordinate2D] = [
+    /// Расширенный bbox: доля от его размера, но не меньше `minDegrees` —
+    /// у выделения в полсотни метров расширять почти нечего
+    static func expanded(sw: CLLocationCoordinate2D,
+                         ne: CLLocationCoordinate2D,
+                         by fraction: Double,
+                         minDegrees: Double) -> (sw: CLLocationCoordinate2D, ne: CLLocationCoordinate2D) {
+        let dLat = max((ne.latitude - sw.latitude) * fraction, minDegrees)
+        let dLon = max((ne.longitude - sw.longitude) * fraction, minDegrees)
+        return (
+            sw: CLLocationCoordinate2D(latitude: sw.latitude - dLat, longitude: sw.longitude - dLon),
+            ne: CLLocationCoordinate2D(latitude: ne.latitude + dLat, longitude: ne.longitude + dLon)
+        )
+    }
+
+    /// Четыре угла прямоугольника — `camera(for:)` считает кадр по точкам,
+    /// а не по bbox
+    static func corners(sw: CLLocationCoordinate2D,
+                        ne: CLLocationCoordinate2D) -> [CLLocationCoordinate2D] {
+        [
             sw,
             CLLocationCoordinate2D(latitude: sw.latitude, longitude: ne.longitude),
             ne,
             CLLocationCoordinate2D(latitude: ne.latitude, longitude: sw.longitude)
         ]
-        let screenH = UIScreen.main.bounds.height
-        let padding = UIEdgeInsets(top: 100, left: 40, bottom: screenH * 0.62, right: 40)
-        guard let cam = try? mapView.mapboxMap.camera(
-            for: corners,
-            camera: CameraOptions(bearing: 0, pitch: 0),
-            coordinatesPadding: padding,
-            maxZoom: 17,
-            offset: nil
-        ) else { return }
-        mapView.camera.ease(to: cam, duration: 0.9, curve: .easeInOut, completion: nil)
+    }
+
+    /// Облёт к участку маршрута, выделенному на графике высот (двойной тап +
+    /// протяжка в `ProfileChart`). Тот же приём с четырьмя углами bbox, что
+    /// у `flyToRoute`, но без наклона — это разбор конкретного куска тропы,
+    /// а не обзорный облёт.
+    ///
+    /// ⚠️ Кадр подбирается по **видимому куску карты** — экран минус верхние
+    /// кнопки и минус карточка (`visibleMapRect`), а не по свободному месту
+    /// скраба (`scrubSafeRect`). Разница принципиальная: во время ведения
+    /// пальцем карточка растворена до 12% и картой работает всё до блока
+    /// профиля, а к моменту облёта она снова непрозрачная. С рамкой скраба
+    /// участок вставал в середину области, наполовину закрытой карточкой:
+    /// на экране оставался пустой кусок леса, а сам участок был под ней
+    /// (фидбэк 2026-08-21, Овчар).
+    private func flyToSegment(sw: CLLocationCoordinate2D, ne: CLLocationCoordinate2D) {
+        guard let mapView else { return }
+        stopFollowing()
+        let bounds = mapView.bounds.isEmpty ? UIScreen.main.bounds : mapView.bounds
+        let safe = visibleMapRect(in: bounds)
+        guard safe.width > 40, safe.height > 40 else { return }
+        // Немного воздуха вокруг участка: смотрят не на него самого, а на то,
+        // где он на тропе. Совсем короткое выделение иначе занимало бы весь
+        // кадр без единого ориентира вокруг.
+        let breathe = Coordinator.expanded(sw: sw, ne: ne, by: 0.2, minDegrees: 0.0006)
+        let corners = Coordinator.corners(sw: breathe.sw, ne: breathe.ne)
+
+        // ⚠️ Кадр считаем сами, а не через `coordinatesPadding`: тот возвращает
+        // камеру **с отступами**, и они остаются на карте. Дальше любой наш
+        // облёт с `padding: .zero` (например `keepScrubberVisible` на первом
+        // же движении пальцем по графику) сбрасывал бы их — и кадр прыгал бы
+        // на пол-экрана. Вся остальная арифметика в этом файле тоже живёт при
+        // нулевых отступах, см. «Отступы камеры» в CLAUDE.md.
+        guard let cam = cameraFitting(corners, into: safe, in: bounds,
+                                      bearing: 0, pitch: 0, maxZoom: 16.5) else { return }
+
+        // Пока летим — считаем, что кадр уже подобран: иначе `keepScrubberVisible`
+        // на первом же кадре скраба увидит бегунок «вне экрана» и перебьёт облёт
+        isFramingScrub = true
+        lastProgrammaticFly = Date()
+        mapView.camera.ease(to: cam, duration: 0.9, curve: .easeInOut) { [weak self] _ in
+            self?.isFramingScrub = false
+        }
     }
 
     private func flyToOverview(on mapView: MapView) {
         stopFollowing()
+        lastProgrammaticFly = Date()
         mapView.camera.ease(to: CameraOptions(
             center: CLLocationCoordinate2D(latitude: 44.2107, longitude: 20.9029),
             zoom: 6.5, pitch: 0
