@@ -37,6 +37,20 @@ STEPS = [
 ]
 ALPHA = 115          # из 255: видно склон, но читается и то, что под ним
 
+# ⚠️ Ширина перехода между ступенями, в градусах крутизны.
+#
+# Без неё раскраска была **жёсткой**: четыре плоских цвета с границей ровно на
+# пороге. На своём зуме это незаметно, но потолок набора — z11, а смотрят на
+# него и на z17: SDK растягивает родительский тайл в тридцать и более раз, и
+# ступенчатая граница превращается в крупную лесенку — «пикселизация прям
+# лютая» (фидбэк 2026-08-31). Мягкий переход в полтора градуса делает границу
+# плавным контуром, который переживает любое увеличение, и не стоит ни байта:
+# размер тайла тот же.
+#
+# Полтора градуса выбраны как компромисс: у́же — лесенка возвращается, шире —
+# ступени сливаются, и порог 35° перестаёт читаться как порог.
+FEATHER = 1.5
+
 
 def lonlat_to_px(lon, lat, z):
     n = TILE * (1 << z)
@@ -137,14 +151,36 @@ def slope_tile(dem, z, tx, ty):
     return top * (1 - fy[:, None]) + bot * fy[:, None]
 
 
+def _ramp():
+    """Опорные точки «крутизна → RGBA» с мягкими переходами (см. FEATHER).
+
+    Ниже первой ступени слой полностью прозрачен, дальше цвет и альфа растут
+    не скачком, а за FEATHER градусов до порога и столько же после.
+    """
+    first_deg, first_color = STEPS[0]
+    points = [
+        (first_deg - FEATHER, (*first_color, 0)),
+        (first_deg + FEATHER, (*first_color, ALPHA)),
+    ]
+    for (prev_deg, prev_color), (deg, color) in zip(STEPS, STEPS[1:]):
+        points.append((deg - FEATHER, (*prev_color, ALPHA)))
+        points.append((deg + FEATHER, (*color, ALPHA)))
+    points.append((90.0, (*STEPS[-1][1], ALPHA)))
+    xs = np.array([p[0] for p in points], np.float32)
+    ys = np.array([p[1] for p in points], np.float32)
+    return xs, ys
+
+
+_RAMP_X, _RAMP_Y = _ramp()
+
+
 def colorize(slope):
-    """Ступенчатая раскраска. Пологое — полностью прозрачно."""
-    rgba = np.zeros(slope.shape + (4,), np.uint8)
-    for limit, color in STEPS:
-        m = slope >= limit
-        if not m.any():
-            continue
-        rgba[m] = (*color, ALPHA)
+    """Раскраска по ступеням с мягкими границами. Пологое — прозрачно."""
+    rgba = np.empty(slope.shape + (4,), np.uint8)
+    for channel in range(4):
+        rgba[:, :, channel] = np.interp(
+            slope, _RAMP_X, _RAMP_Y[:, channel], left=_RAMP_Y[0, channel]
+        ).astype(np.uint8)
     return rgba if rgba[:, :, 3].any() else None
 
 
