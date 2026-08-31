@@ -1,246 +1,296 @@
 # Hiking Map iOS — Design Brief for Claude Design
 
+> Last synced with code: **31 August 2026**. Everything below is read out of the
+> repository, not from memory. Companion document: `hikingmap-map-palette.md`
+> (Russian) — the full inventory of map-layer colours with widths and opacities.
+
+---
+
 ## 1. App Overview
 
-**Name:** Hiking Map (рабочее название)  
-**Platform:** iOS 17+, SwiftUI  
-**Purpose:** Personal hiking journal + route planner for Serbia. Shows completed and planned hiking routes on an interactive 3D satellite map. Designed to eventually surpass AllTrails and Wikiloc in UX quality.  
-**Current state:** Working MVP — map with route markers, route detail panel, elevation chart, photo gallery.
+**Name:** TOTSKII Wild / Hiking Map (working title)
+**Platform:** iOS 17.2+, SwiftUI, Mapbox Maps SDK 11.9
+**Purpose:** Personal hiking journal *and* route planner for Serbia — an
+interactive 3D satellite map with completed and planned routes, official trail
+data, offline maps, route drawing, live tracking and a cinematic camera.
+**Current state:** Well past MVP. 27 routes with GPX (18 completed, 9 planned),
+plus user-drawn routes, official PSS trails, OSM trails, caves, water, shelters
+and railways. Dark UI floating over a full-screen map.
 
 ---
 
 ## 2. Design System — "Obsidian Peak"
 
-### Colors
+### 2.1 Interface colours
 
 | Token | Hex | Usage |
 |---|---|---|
 | `bg` | `#0A0A0A` | App background, darkest layer |
 | `surface` | `#141414` | Cards, panels, bottom sheets |
-| `surfaceRaised` | `#1C1C1C` | Elevated elements (popovers) |
-| `accent` | `#FF5722` | Primary CTA, active states, chart lines |
-| `completed` | `#FF4D4D` | Completed route dots and badges |
-| `planned` | `#FFD700` | Planned route dots and badges |
+| `surfaceRaised` | `#1C1C1C` | Elevated elements, stat cells, popovers |
+| `accent` | `#FF5722` | Primary CTA, active states, scrubber, search pin |
+| `completed` | `#FF4D4D` | Completed routes — dots, badges, lines |
+| `planned` | `#FFD700` | Planned routes — dots, badges, lines |
 | `textPrimary` | `#FFFFFF` | Headings, values |
 | `textSecondary` | `rgba(255,255,255,0.55)` | Labels, metadata |
 | `textTertiary` | `rgba(255,255,255,0.35)` | Hints, disabled |
 | `border` | `rgba(255,255,255,0.08)` | Card borders, dividers |
-| `borderFocus` | `rgba(255,255,255,0.18)` | Active/hovered borders |
+| `borderFocus` | `rgba(255,255,255,0.18)` | Active / hovered borders |
 | `glass` | `rgba(255,255,255,0.05)` | Glassmorphism fill |
-| `diffEasy` | `#4CAF50` | Difficulty badge |
-| `diffMedium` | `#FF9800` | Difficulty badge |
-| `diffHard` | `#F44336` | Difficulty badge |
-| `diffExpert` | `#9C27B0` | Difficulty badge |
+| `glassHover` | `rgba(255,255,255,0.09)` | Pressed glass fill |
 
-### Pin Colors (map markers)
-| Type | Color | Label |
+### 2.2 Difficulty scale
+
+| Token | Hex | Meaning |
 |---|---|---|
-| Start | `#2ECC71` (green) | S |
-| Finish | `#E74C3C` (red) | F |
-| Loop | `#FF5722` (orange) | L |
-| Peak | `#FFC107` (gold) | ▲ |
+| `diffEasy` | `#4CAF50` | ≤10 km, ≤500 m ascent |
+| `diffMedium` | `#FF9800` | 10–20 km or ≤1300 m |
+| `diffHard` | `#F44336` | 20–30 km or ≤2500 m |
+| `diffExpert` | `#9C27B0` | 30+ km or 2500+ m |
 
-### Typography
+### 2.3 Grade scale (route colouring by steepness)
+
+**One calculation feeds two places**: the route line on the map *and* the
+elevation chart. Deliberately a continuation of the difficulty scale into
+descent, not a separate colour language.
+
+| Grade | Hex | |
+|---|---|---|
+| −25 % steep descent | `#2196F3` | `gradeDescentSteep` |
+| −10 % gentle descent | `#00BCD4` | `gradeDescentGentle` |
+| ±2 % flat | `#4CAF50` | = `diffEasy` |
+| +8 % ascent | `#FF9800` | = `diffMedium` |
+| +16 % steep | `#F44336` | = `diffHard` |
+| +28 % very steep | `#9C27B0` | = `diffExpert` |
+
+⚠️ **This is the open design question — see §4.**
+
+### 2.4 Map pin colours
+
+| Type | Hex | Glyph |
+|---|---|---|
+| Start | `#2ECC71` | `S` |
+| Finish | `#E74C3C` | `F` |
+| Loop (start = finish) | `#FF5722` | `↻` |
+| Peak (highest point) | `#FFC107` | `▲` |
+| Photo on track | `#33AAFF` | camera |
+| Searched point / dropped camera | `#FF5722` | crosshair |
+| Water cluster | `#298CD9` @72 % | droplet |
+| Shelter cluster | `#9E6629` @72 % | tent |
+| Cave cluster | `#3870D9` @70 % | count |
+
+### 2.5 Paper topo palette
+
+The satellite style is repainted into a printed-map look when the topo slider
+moves right. Continuous blend — every colour must survive the midpoint too.
+
+`#F2EFE6` paper · `#C8DCB4` wood · `#DAE5C7` scrub · `#E0ECCE` grass ·
+`#EFEAD6` field · `#E0DDD8` rock · `#F2ECD9` sand · `#A3CEE3` water ·
+`#FFFCF6` roads · `#A39C90` road casing · `#8B5A2B` trails ·
+`#34312B` labels · `#8B7A8B` admin · `#1F1C18` railway (`railInk`)
+
+### 2.6 Typography
 
 | Role | Font | Size | Weight |
 |---|---|---|---|
 | Route name (detail panel) | SF Pro | 20 | Bold |
 | Section header | SF Pro | 13 | Semibold |
-| Stat value | SF Pro | 14 | Bold |
-| Stat label | SF Pro | 10 | Regular |
-| Badge text | SF Pro | 9–10 | Bold |
+| Stat value | SF Pro | 14–17 | Semibold / Bold |
+| Stat label | SF Pro | 10 | Semibold, uppercase |
+| Badge text | SF Pro | 9–11 | Bold |
 | Body / description | SF Pro | 15 | Regular |
-| Caption / hint | SF Pro | 11 | Regular |
-| Monospaced number | SF Pro Mono | 12 | Semibold |
+| Caption / hint | SF Pro | 11–12 | Regular |
+| Numbers (coordinates, stats) | SF Pro, monospaced digits | 12–16 | Semibold |
 
-### Corner Radii
-- Small: 10pt (stat cells, tags)
-- Medium: 16pt (cards, chart container)
-- Large: 22pt (bottom sheet, detail panel)
-- Pill: 999pt (filter bar, badges)
+### 2.7 Corner radii
 
-### Elevation / Shadows
-All dark — no white shadows. Use `rgba(0,0,0,0.4–0.6)` for map pins and floating elements.
+`radiusS` 10 pt (stat cells, tags) · `radiusM` 16 pt (cards, chart container) ·
+`radiusL` 22 pt (bottom sheets, panels) · pill 999 pt (buttons, badges)
 
----
+### 2.8 Elevation
 
-## 3. App Architecture (Screens)
-
-### Screen 1 — Map (Home)
-The full-screen map is always visible underneath everything.
-
-**Top bar** (floating, blurred glass pill):
-- Left: Filter segmented control — "Все" / "Пройденные" / "Планы"
-- Right: Total distance badge — `🥾 847 км`
-
-**Map layer:**
-- Mapbox Satellite Streets style
-- 3D terrain (1.1× exaggeration)
-- Dark overlay mask on non-Serbia countries
-- Route markers: pulsing dots (red = completed, gold = planned)
-- When route selected: colored route line + Start (S) / Finish (F) / Peak (▲) pins
-
-**Bottom — no route selected:**
-- Horizontal carousel of route cards (scrolls left/right)
-- Blurred dark background strip
-
-**Bottom — route selected:**
-- Route Detail Panel slides up from bottom (max 65% screen height)
-- Swipe down to close
+All shadows dark — `rgba(0,0,0,0.35–0.6)`. No white shadows anywhere.
+Floating controls: `.ultraThinMaterial` over `rgba(10,10,10,0.55–0.75)`, 1 pt
+border in `border`.
 
 ---
 
-### Screen 2 — Route Detail Panel (bottom sheet)
+## 3. Map layers, bottom to top
 
-**Header:**
-- Drag handle (pill) at top
-- Route type badge (ПРОЙДЕН / ПЛАН) + date
-- Route name (large bold)
-- X close button (circle)
+The map is the product; everything else floats over it. Full colour, width and
+opacity table: `hikingmap-map-palette.md`.
 
-**Tab bar:**
-- "Инфо" / "Фото" — underline indicator in accent orange
-
-**Info tab content (scrollable):**
-1. Stats grid (2×3):
-   - Distance, Ascent ↑, Descent ↓
-   - Max elevation, Min elevation, Duration
-2. Difficulty bar (linear progress, colored by difficulty)
-3. Elevation profile chart (interactive — drag finger → cursor moves + map marker follows)
-4. Description (collapsible after 5 lines)
-5. Instagram link button (gradient purple→pink)
-
-**Photos tab content:**
-- 3-column image grid
-- Tap → fullscreen viewer
+1. Base style (satellite or paper topo) · historical engraving · 3D terrain
+2. Slope steepness raster → trail heatmap raster
+3. **World mask** — black fill outside Serbia, 0.75 (0.96 with heatmap on)
+4. Railways and station flags
+5. OSM hiking trails
+6. PSS official trails (casing → glow → line)
+7. All-routes lines and user-drawn route lines
+8. Route marker dots
+9. **Open route** (casing → line → selected-segment highlight)
+10. Live recorded track
+11. Pins: start, finish, peak, photos
+12. Elevation-profile scrubber dot
 
 ---
 
-### Screen 3 — Fullscreen Photo Viewer
+## 4. The problem to solve first
 
-- Pure black background
-- Full-screen image (pinch to zoom, swipe left/right between photos)
-- Swipe down to dismiss
-- Top: `X` close button + photo counter (`2 / 8`)
-- Bottom (if photo has GPS): "На карте" button — flies map to photo location
+**With the heatmap, PSS trails, OSM trails and route dots switched on, you
+cannot tell which line is the route the user just opened.**
 
----
+Three causes, all documented with numbers in `hikingmap-map-palette.md`:
 
-### Screen 4 — Route Card (carousel item)
+1. **The open route has no identifying colour.** It is painted with the grade
+   scale, and every hue in that scale is already taken by something else on the
+   same map — orange is PSS, green is OSM, red is completed, purple is
+   user-drawn, blue is descent.
+2. **There is rank by type, not by role.** The three roles — *the thing you
+   opened*, *context you switched on*, *background* — all render at similar
+   saturation and similar widths (2.2–4.5 pt). Colour carries the entire load;
+   width, opacity, casing and halo barely differ. Today the *background* PSS
+   layer has a glow and the open route does not.
+3. **Fourteen hues in frame**, plus two rasters whose colours we do not control.
 
-Width: 185pt. Content:
-- Type badge + date (top row)
-- Route name (2-line max)
-- Divider
-- Stats: distance / ascent / duration (vertical layout, icon → value → unit)
-- Difficulty dot + label (bottom)
-
-Border color matches route type (red for completed, gold for planned, 22% opacity).
-
----
-
-## 4. Component Inventory
-
-### Map Pins
-1. **Route marker dot** — pulsing soft glow circle (red/gold), 44pt tap target, white ring
-2. **Start pin** — green circle with white "S", drop shadow, pin tail pointing down
-3. **Finish pin** — red circle with white "F", same treatment
-4. **Loop pin** — orange circle with "L" (for circular routes where start=finish)
-5. **Peak pin** — gold circle with "▲", for highest elevation point
-6. **Photo pin** — white/grey camera icon circle (future — marks photos with GPS)
-7. **Scrubber dot** — orange dot that moves along route when dragging elevation chart
-
-### UI Components
-1. **Filter pill** — segmented glass control, active segment = white fill + black text
-2. **Stat badge** — total km counter, glass pill with orange hiker icon
-3. **Stat cell** — dark glass card with icon / value / label (3×2 grid)
-4. **Difficulty bar** — capsule track + colored fill + label
-5. **Elevation chart** — Swift Charts area+line, interactive drag scrubber
-6. **Route card** — 185pt wide dark glass card, colored border
-7. **Tab bar** — plain text tabs, orange underline indicator
-8. **Type badge** — pill with colored border and text (ПРОЙДЕН/ПЛАН)
-9. **Instagram button** — purple→pink gradient, rounded 16pt
-10. **Photo grid cell** — square thumbnail with fill, 3-column
-11. **Photo fullscreen** — paged TabView, drag-to-dismiss
-12. **Close button** — circle, glass fill, white X icon
+**The fork to decide:** keep the grade scale on the map line (and suppress
+everything around it), or give the open route one identity colour and leave
+grade colouring to the elevation chart, where it reads better because there is
+an axis.
 
 ---
 
-## 5. Navigation Flow
+## 5. Screens and surfaces
 
-```
-App Launch
-    └── Map Screen (always visible underneath)
-            ├── Carousel visible (no route selected)
-            │       └── Tap card → Route Detail Panel opens
-            ├── Tap map marker → Route Detail Panel opens
-            └── Route Detail Panel
-                    ├── Info tab
-                    │       └── Drag elevation chart → scrubber moves on map
-                    ├── Photos tab
-                    │       └── Tap photo → Fullscreen Viewer
-                    │               └── "На карте" button (if GPS) → fly map to photo
-                    └── Swipe down / X → close panel, return to carousel
-```
+### Map (home)
+Full-screen map, always underneath everything.
 
----
+- **Top row** — filter segmented control: "Все" / "Пройденные" / "Планы" /
+  "Мои"; total distance badge.
+- **Tools row** — base map switcher ("Карта"), layers panel ("Слои"),
+  "Поиск" (coordinates), GPX import, "Нарисовать" (route constructor).
+- **Bottom left** — "Zoom Out" / "Zoom In" (to route), orbit toggle, flyover
+  speed multiplier.
+- **Bottom centre** — historical-map opacity slider (optional, same row).
+- **Bottom right** — my location, camera-drop handle.
+- **Bottom** — route card carousel, or the route detail panel when one is open.
+- Download progress strip sits above the bottom card while tile sets download.
 
-## 6. Full Feature Set
+### Layers panel ("Слои")
+Toggles: OSM trails · PSS trails · caves · water · shelters · railways ·
+trail heatmap · slope steepness · historical map (+ opacity slider) ·
+topo base slider · all trails · offline maps · account.
 
-### Currently Working
-- Interactive 3D satellite map (Mapbox, Serbia bounds locked)
-- 10 completed + 8 planned routes with GPX data
-- Route markers on map (pulsing red/gold dots)
-- Filter: All / Completed / Planned (affects both carousel AND map markers)
-- Tap marker OR carousel card → opens route detail
-- Camera flies to route with proper padding above bottom panel
-- Route line drawn on map (colored per type)
-- Start / Finish / Peak pins on map
-- Stats grid (distance, ascent, descent, elevation min/max, duration)
-- Difficulty calculation and bar
-- Interactive elevation chart with drag scrubber → moves marker on map
-- Photo gallery (3-column grid)
-- Fullscreen photo viewer (swipe between photos, drag down to dismiss)
-- Dark theme, Obsidian Peak design system
+### Route detail panel (bottom sheet)
+Drag handle · type badge + date · route name · close · tabs "Инфо" / "Фото" ·
+stats grid · difficulty bar · **elevation profile chart** · description ·
+Instagram link. Swipe down to collapse — the panel stays alive when collapsed.
 
-### Planned / In Progress
-- **Photo GPS markers** — extract EXIF coordinates from photos in bundle, show camera-icon pins on route, "На карте" button in fullscreen viewer
-- **Reviews (Firebase)** — star rating + text reviews per route, stored in Firestore
-- **Offline mode** — cache tiles and GPX for offline use (Mapbox offline packs)
-- **Live Activities** — during active hike, show distance + elevation on Dynamic Island
-- **Haptic feedback** — impact on route select, success on goal reached
-- **Share route** — share screenshot with route stats overlay
-- **Route comparison** — side-by-side stats for two routes
-- **Personal best** — track personal records per route
+### Elevation profile chart
+One shared component for all three route kinds. Drag to scrub (readout bar
+appears, UI above fades, map follows), double-tap-and-drag to select a segment
+(highlights the real route line on the map and flies the camera to it), pinch
+to zoom the X axis. X axis is in kilometres by distance, not point index.
 
----
+### Other surfaces
+Fullscreen photo viewer (paged horizontal scroll, swipe down to dismiss,
+"На трек" when the photo has GPS) · point card (searched or long-pressed
+coordinate: elevation, slope, aspect, nearest settlement / water / shelter /
+route) · coordinate search sheet (formats + last 5 queries) · route constructor
+(aim reticle, step button, undo/redo, snap toggle) · live-track HUD · offline
+maps · account sheet · AI assistant · cave and POI cards.
 
-## 7. What to Design in Claude Design
+### First-person view ("обзор с точки")
+Drag the camera handle onto the map — the camera lands on the terrain at
+eye height. Almost all UI hides; only the scale bar, compass, "Карта"/"Слои",
+the camera handle, a swipe/gyroscope control toggle and "Выйти из обзора"
+remain. Swipes or phone rotation turn the view.
 
-### Priority 1 — Core Screens (needed now)
-1. **Map screen** — full layout with top bar + carousel strip at bottom
-2. **Route detail panel** — info tab with all sections
-3. **Route card** — carousel item
-4. **Fullscreen photo viewer** — with controls
-
-### Priority 2 — Components
-5. **Map pins** — all 5 types (start, finish, loop, peak, photo)
-6. **Route marker dot** — the pulsing circle on map
-7. **Filter + km badge** — top bar elements
-8. **Elevation chart** — with scrubber cursor
-
-### Priority 3 — Empty / Loading States
-9. **Loading state** — card skeleton / spinner
-10. **Empty filter** — no routes match filter
-11. **No photos** — empty photos tab
+### Cinematic camera
+"Облёт" flies along the trail with a marker running under the camera; orbit
+circles the route keeping it framed. Speed multiplier ×0.5…×3.
 
 ---
 
-## 8. Design Principles
+## 6. Component inventory
 
-1. **Map first** — UI never competes with the map. All overlays are glass/dark with low opacity.
-2. **Data density** — stats are compact but readable. No wasted whitespace in cards.
-3. **Motion** — spring animations everywhere. Camera animations are cinematic (1.4s ease).
-4. **Colour discipline** — accent orange (#FF5722) is used sparingly. Red = completed, gold = planned. Never mix these roles.
-5. **Night-friendly** — pure black background (#0A0A0A), no bright whites outside active elements. The app should look beautiful at night in the mountains.
-6. **Touch targets** — minimum 44pt for all interactive elements on the map.
+**Map graphics** — route marker dot · start / finish / loop / peak pins ·
+photo pin · searched-point pin · dropped-camera pin · scrubber dot ·
+POI clusters (water, shelter, cave) · station flags · constructor waypoints
+and aim reticle.
+
+**Controls** — filter segmented pill · distance badge · glass icon button ·
+labelled capsule button · toggle row · opacity slider · speed multiplier chip ·
+close button · drag handle.
+
+**Data display** — stat cell · stats grid · difficulty bar · elevation chart ·
+scrubber readout bar · route card (carousel) · route list row · point card
+tiles · nearby list · download progress strip.
+
+---
+
+## 7. Feature set
+
+### Shipped
+Interactive 3D satellite map (Serbia bounds, terrain always on) · 27 GPX routes ·
+four-way filter · route detail panel · stats and difficulty · interactive
+elevation chart with scrub, segment selection and pinch zoom · grade colouring
+of line and chart · photo gallery + fullscreen viewer + GPS photo pins ·
+PSS official trails · OSM trails from vector tiles · caves, water, shelters ·
+railways and station flags · trail heatmap · slope steepness raster ·
+historical Austro-Hungarian map with opacity slider · paper topo base ·
+offline maps and tile-set downloads · route constructor with trail snapping and
+offline routing · track recording · accounts and cloud sync (Supabase) ·
+AI assistant · coordinate search and point card · long-press point card ·
+first-person terrain view with swipe and gyroscope control · flyover and orbit
+camera · my location with follow / heading modes.
+
+### Next
+Route colour system (this brief's §4) · search by name and object ·
+reviews · Live Activities · share route card · route comparison.
+
+---
+
+## 8. What to design now
+
+### Priority 1 — the route colour system (§4)
+1. **Legend sheet** — every line in scale, on both bases (dark satellite and
+   paper), with the proposed widths, opacities, casings and halos.
+2. **Before / after** — one map frame with an open route, heatmap, PSS and OSM
+   all switched on. This is the frame the whole exercise exists for.
+3. **Token table** ready to paste into `DesignTokens.swift`: entity · role tier
+   · hex on satellite · hex on paper · width pt · opacity · casing · halo.
+4. **Dim rule** — what fades and by how much when a route is open.
+5. **Pins** — twelve circle types today; how many are needed, which differ by
+   colour and which by shape or glyph.
+6. **Colour-blind check** — red and green currently carry two different
+   meanings each (completed vs OSM trails, and the difficulty scale).
+
+### Priority 2
+Layers panel information design (thirteen toggles in one list) ·
+first-person mode chrome · point card ·
+cinematic-mode controls (they currently crowd the bottom row).
+
+### Priority 3
+Loading and empty states · onboarding for the camera-drop gesture.
+
+---
+
+## 9. Design principles
+
+1. **Map first.** UI never competes with the map. Overlays are dark glass at low
+   opacity, and they get out of the way during scrub, flyover and first-person.
+2. **Rank by role, not by type.** What the user opened outranks what they
+   switched on, which outranks the background. This is the principle §4 exists
+   to enforce.
+3. **Colour discipline.** Fewer hues used decisively beats more hues used
+   politely. Red = completed, gold = planned, orange accent used sparingly —
+   never mix these roles.
+4. **Redundant encoding.** Where colour carries meaning, back it with shape,
+   glyph or width. Half of the map is looked at in sunlight on a phone.
+5. **Data density.** Stats are compact but readable; no wasted whitespace.
+6. **Motion with a reason.** Spring animations for UI, cinematic easing for the
+   camera (1.2–1.6 s). Nothing animates just to animate.
+7. **Night-friendly.** Pure black ground, no bright whites outside active
+   elements. The app should be usable at night in the mountains.
+8. **Touch targets.** Minimum 44 pt for anything interactive over the map.
