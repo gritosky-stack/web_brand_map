@@ -495,7 +495,11 @@
 
         /** Общая подготовка: убрать всё, что перебивает камеру или закрывает вид */
         prepareForCinematic(mode) {
-            if (root.setRouteDecorationsHidden) root.setRouteDecorationsHidden(true);
+            // ⚠️ Метки старта, финиша и вершины прячем только под облёт: он
+            // идёт низко над тропой, и бейджи там закрывают собой полкадра.
+            // Вращение показывает маршрут целиком и издалека — по этим меткам
+            // как раз и читается, где у него начало и где верх.
+            if (root.setRouteDecorationsHidden) root.setRouteDecorationsHidden(mode === 'flyover');
             // Карточку облёта убираем до того, как считаем свободную часть
             // экрана: иначе вращение подберёт кадр с запасом под неё снизу
             if (mode !== 'flyover') this.hideFlyoverCard();
@@ -518,8 +522,13 @@
         },
 
         onCinematicStopped() {
-            // Это не «камеру остановили», а «один режим сменился другим» —
-            // разбирать интерфейс незачем, его сейчас соберут заново
+            // Метку «где мы сейчас» снимаем всегда: при смене режима облёт
+            // кончился, и его точка иначе остаётся висеть на карте — часто
+            // в стороне от маршрута, будто съехала метка старта
+            this.clearScrub();
+            this._flyoverUnderway = false;
+            // Дальше — это не «камеру остановили», а «один режим сменился
+            // другим»: разбирать интерфейс незачем, его сейчас соберут заново
             if (this._switching) return;
             if (root.setRouteDecorationsHidden) root.setRouteDecorationsHidden(false);
             const status = document.getElementById('cinematic-status');

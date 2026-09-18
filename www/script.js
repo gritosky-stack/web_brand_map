@@ -681,6 +681,14 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
             map.getCanvas().style.cursor = ''; hoveredId = null; hoverPopup.remove();
         });
 
+        // Метки стоят на рельефе, а он приезжает тайлами уже после них —
+        // после каждого перелёта и по мере загрузки рельефа переспрашиваем
+        // их высоту (см. refreshRouteMarkerElevation)
+        map.on('moveend', refreshRouteMarkerElevation);
+        map.on('sourcedata', event => {
+            if (event.sourceId === 'mapbox-dem' && event.isSourceLoaded) refreshRouteMarkerElevation();
+        });
+
         // Если хитмап успели включить до готовности карты — добавляем сейчас
         if (_heatmapOn) toggleHeatmap(true);
     });
@@ -1959,6 +1967,23 @@ function addRouteToMap(id, coordinates, color, gradeStops) {
  * Спрятать всё, что закрывает вид во время облёта: вершину, старт/финиш и
  * метки фотографий. Возвращаются они сами, как только камеру отпустили.
  */
+/**
+ * Пересчитать высоту меток маршрута на рельефе.
+ *
+ * ⚠️ Линия маршрута ложится на 3D-поверхность, а метки старта, финиша и
+ * вершины — это DOM-элементы, и свою высоту они берут из тайла рельефа
+ * **в момент постановки**. Пока тайл не приехал, высота считается нулевой, и
+ * на наклонённой камере метка оказывается в стороне от тропы — тем дальше,
+ * чем выше место (фидбэк 2026-09-18). Сам Mapbox пересчитывает их не всегда,
+ * поэтому подталкиваем его: `setLngLat` с той же точкой заставляет метку
+ * спросить высоту заново.
+ */
+function refreshRouteMarkerElevation() {
+    [_startMarker, _finishMarker, _peakMapMarker].forEach(marker => {
+        if (marker) marker.setLngLat(marker.getLngLat());
+    });
+}
+
 /**
  * Убрать линию маршрута со стиля вместе с её источником.
  *
