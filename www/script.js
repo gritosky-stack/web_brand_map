@@ -776,7 +776,7 @@ function triggerRouteSelection(routeId) {
     map.once('moveend', () => {
         if (currentViewedRoute.id !== routeInfo.id) return;
 
-        addRouteToMap(routeInfo.id, routeData.coordinates, routeInfo.color);
+        addRouteToMap(routeInfo.id, routeData.coordinates, routeInfo.color, routeData.gradeStops);
 
         // ── Peak summit marker on the map ─────────────────────
         if (routeData.peakCoords) {
@@ -875,8 +875,10 @@ function triggerRouteSelection(routeId) {
             descWrap.classList.add('hidden');
         }
 
-        // Elevation chart
-        renderElevationChart(routeData.elevationProfile, routeData.minEle, routeData.maxEle);
+        // Профиль высот, планирование времени и кнопки камеры — всё в
+        // RouteProfile: график ведёт бегунок по карте, а выделенный на нём
+        // участок подсвечивается на линии маршрута
+        RouteProfile.show(routeInfo, routeData, routeInfo.id);
 
         // Instagram
         const igWrap = document.getElementById('panel-instagram-wrapper');
@@ -998,208 +1000,6 @@ function renderPhotosInPanel(routeInfo) {
     });
 
     showPanelPhoto(0);
-}
-
-// ── Elevation chart ───────────────────────────────────────────────────────────
-function renderElevationChart(elevationProfile, minEle, maxEle) {
-    const wrapper = document.getElementById('panel-elevation-wrapper');
-    const canvas  = document.getElementById('elevation-chart');
-    if (!canvas) return;
-
-    if (window._elevChart) { window._elevChart.destroy(); window._elevChart = null; }
-
-    if (!elevationProfile || elevationProfile.length < 3) {
-        if (wrapper) wrapper.classList.add('hidden');
-        return;
-    }
-
-    if (wrapper) wrapper.classList.remove('hidden');
-
-    const yMin = Math.max(0, (minEle || 0) - 60);
-    const yMax = (maxEle || 2000) + 90;
-    const range = yMax - yMin;
-
-    // Adaptive band step: every 50 / 100 / 200 m depending on elevation range
-    const bandStep = range > 800 ? 200 : range > 400 ? 100 : 50;
-
-    // Peak position in the profile array
-    const peakEle  = maxEle || 0;
-    const peakIdx  = elevationProfile.reduce((best, v, i) => v > elevationProfile[best] ? i : best, 0);
-
-    // ── Inline Chart.js plugins ───────────────────────────────────────────────
-    const altitudeBandsPlugin = {
-        id: 'altitudeBands',
-        beforeDraw(chart) {
-            const { ctx, scales, chartArea } = chart;
-            if (!chartArea) return;
-            const { top, bottom, left, right } = chartArea;
-            const yScale = scales.y;
-            ctx.save();
-            ctx.font = 'bold 8px system-ui,sans-serif';
-            const firstBand = Math.ceil(yMin / bandStep) * bandStep;
-            for (let alt = firstBand; alt <= yMax; alt += bandStep) {
-                const y = yScale.getPixelForValue(alt);
-                if (y < top - 2 || y > bottom + 2) continue;
-                // Horizontal reference line
-                ctx.strokeStyle = 'rgba(255,255,255,0.09)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(left, y);
-                ctx.lineTo(right, y);
-                ctx.stroke();
-                // Label pill background
-                const labelText = `${alt}м`;
-                const tw = ctx.measureText(labelText).width;
-                const px2 = left + 4, py2 = y - 11, pw = tw + 8, ph = 12, pr = 3;
-                ctx.fillStyle = 'rgba(9,9,11,0.72)';
-                ctx.beginPath();
-                if (ctx.roundRect) {
-                    ctx.roundRect(px2, py2, pw, ph, pr);
-                } else {
-                    ctx.rect(px2, py2, pw, ph);
-                }
-                ctx.fill();
-                // Label text
-                ctx.fillStyle = 'rgba(255,255,255,0.72)';
-                ctx.textAlign = 'left';
-                ctx.fillText(labelText, px2 + 4, py2 + ph - 2);
-            }
-            ctx.restore();
-        }
-    };
-
-    const peakMarkerPlugin = {
-        id: 'peakMarker',
-        afterDraw(chart) {
-            if (!peakEle) return;
-            const { ctx, scales, chartArea } = chart;
-            if (!chartArea) return;
-            const px = scales.x.getPixelForValue(peakIdx);
-            const py = scales.y.getPixelForValue(peakEle);
-
-            ctx.save();
-            // Dashed vertical line from peak down to base
-            ctx.strokeStyle = 'rgba(255,215,0,0.25)';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([2, 3]);
-            ctx.beginPath();
-            ctx.moveTo(px, chartArea.bottom);
-            ctx.lineTo(px, py + 7);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // Orange dot (same colour as the map peak pin)
-            ctx.beginPath();
-            ctx.arc(px, py, 4.5, 0, Math.PI * 2);
-            ctx.fillStyle = '#FF8C00';
-            ctx.shadowColor = 'rgba(255,140,0,0.8)';
-            ctx.shadowBlur = 10;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-
-            // Label: flip below the dot if near the top edge, keep within left/right bounds
-            ctx.font = 'bold 9px system-ui,sans-serif';
-            const labelText = `${peakEle}м`;
-            const tw = ctx.measureText(labelText).width;
-            const clampedX = Math.max(chartArea.left + tw / 2 + 4, Math.min(chartArea.right - tw / 2 - 4, px));
-            // If dot is within 18px of chart top, put label below; else above
-            const labelY = py - 10 < chartArea.top + 14 ? py + 18 : py - 10;
-
-            // Dark pill behind label
-            ctx.fillStyle = 'rgba(9,9,11,0.85)';
-            const pillW = tw + 10, pillH = 14, pillX = clampedX - pillW / 2, pillY = labelY - 11;
-            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, 4); ctx.fill(); }
-            else { ctx.fillRect(pillX, pillY, pillW, pillH); }
-
-            // Label text
-            ctx.fillStyle = '#FF8C00';
-            ctx.textAlign = 'center';
-            ctx.shadowColor = 'rgba(0,0,0,0.9)';
-            ctx.shadowBlur = 3;
-            ctx.fillText(labelText, clampedX, labelY);
-            ctx.shadowBlur = 0;
-            ctx.restore();
-        }
-    };
-
-    window._elevChart = new Chart(canvas, {
-        type: 'line',
-        data: {
-            labels: elevationProfile.map((_, i) => i),
-            datasets: [{
-                data: elevationProfile,
-                borderColor: '#ff4d4d',
-                borderWidth: 1.5,
-                backgroundColor: 'rgba(255,77,77,0.12)',
-                fill: true,
-                tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: {
-                x: { display: false },
-                y: { display: false, min: yMin, max: yMax }
-            },
-            animation: { duration: 500 }
-        },
-        plugins: [altitudeBandsPlugin, peakMarkerPlugin]
-    });
-
-    // ── Canvas interaction: hover + click/tap near peak dot → fly to peak ──
-    // Property assignment (not addEventListener) so re-renders overwrite cleanly.
-    const PEAK_HIT_PX = 28; // generous hit radius for touch
-
-    function _peakScreenX() {
-        if (!window._elevChart) return -9999;
-        const data = window._elevChart.data.datasets[0].data;
-        const idx = data.reduce((b, v, i) => v > data[b] ? i : b, 0);
-        return window._elevChart.scales.x.getPixelForValue(idx);
-    }
-    function _clientXToCanvas(clientX) {
-        const r = canvas.getBoundingClientRect();
-        return (clientX - r.left) * (canvas.width / r.width);
-    }
-    function _flyToPeakFromChart() {
-        if (!map || !currentViewedRoute) return;
-        const rd = parsedRouteDataCache[currentViewedRoute.id];
-        if (rd && rd.peakCoords) {
-            const _mob = window.innerWidth < 768;
-            map.flyTo({ center: rd.peakCoords, zoom: 16, pitch: 75,
-                bearing: map.getBearing() + 45, speed: 1.5 });
-        }
-    }
-
-    canvas.onmousemove = (e) => {
-        canvas.style.cursor = Math.abs(_clientXToCanvas(e.clientX) - _peakScreenX()) < PEAK_HIT_PX ? 'pointer' : 'default';
-    };
-    canvas.onmouseleave = () => { canvas.style.cursor = 'default'; };
-    canvas.onclick = (e) => {
-        if (Math.abs(_clientXToCanvas(e.clientX) - _peakScreenX()) < PEAK_HIT_PX) _flyToPeakFromChart();
-    };
-    // Mobile tap detection: record touchstart, check on touchend.
-    // No preventDefault anywhere so the parent panel scroll is never blocked.
-    // Distinguish tap from scroll via movement + duration thresholds.
-    let _tapSX = 0, _tapSY = 0, _tapST = 0;
-    canvas.ontouchstart = (e) => {
-        if (!e.touches.length) return;
-        _tapSX = e.touches[0].clientX;
-        _tapSY = e.touches[0].clientY;
-        _tapST = Date.now();
-    };
-    canvas.ontouchend = (e) => {
-        if (!e.changedTouches.length) return;
-        const t = e.changedTouches[0];
-        if (Math.abs(t.clientX - _tapSX) > 12 || Math.abs(t.clientY - _tapSY) > 12 || Date.now() - _tapST > 450) return;
-        if (Math.abs(_clientXToCanvas(t.clientX) - _peakScreenX()) < PEAK_HIT_PX) _flyToPeakFromChart();
-    };
 }
 
 // ── Difficulty ────────────────────────────────────────────────────────────────
@@ -1633,7 +1433,9 @@ document.getElementById('btn-back').addEventListener('click', () => {
     const carousel = document.getElementById('route-carousel-outer');
     if (carousel) carousel.style.display = '';
 
-    if (window._elevChart) { window._elevChart.destroy(); window._elevChart = null; }
+    RouteProfile.hide();
+    document.getElementById('panel-elevation-wrapper').classList.add('hidden');
+    document.getElementById('panel-time-planner-wrapper').classList.add('hidden');
 });
 
 // ── Filter ────────────────────────────────────────────────────────────────────
@@ -1751,6 +1553,10 @@ function parseGPX(gpxString) {
     let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
     let startTime = raw[0].time, endTime = raw[0].time;
 
+    // Пройденные километры в каждой точке полной геометрии: по ним считается
+    // ось X графика и километр под пальцем
+    const cumulativeKm = [];
+
     for (let i = 0; i < raw.length; i++) {
         const pt = raw[i];
         coordinates.push([pt.lon, pt.lat]);
@@ -1765,12 +1571,54 @@ function parseGPX(gpxString) {
             if (d > 0.3) totalAscent += d;
             else if (d < -0.3) totalDescent += Math.abs(d);
         }
+        cumulativeKm.push(totalDist);
     }
 
-    // Elevation profile (≤150 samples for chart)
+    // Elevation profile (≤150 samples for chart) — остаётся ради старых
+    // записей в routes_geom.json; сам график рисуется по `profile` ниже
     const step = Math.max(1, Math.floor(raw.length / 150));
     const elevationProfile = [];
     for (let i = 0; i < raw.length; i += step) elevationProfile.push(Math.round(raw[i].smoothedEle));
+
+    // ── Профиль высот и раскраска по уклону ───────────────────────────────────
+    //
+    // Профиль прореживается до 200 точек (столько же, сколько в приложении:
+    // график перерисовывается на каждом кадре ведения пальцем, тысячи точек он
+    // не тянет), НО километры и уклон в этих точках считаются по **полной**
+    // геометрии.
+    //
+    // ⚠️ И то, и другое — по полной. Дистанция по самой прореженной ломаной
+    // сходится только в сумме: ломаная срезает повороты неравномерно, и на
+    // серпантинах «10 км» на графике оказывались 10.9 км на самом деле.
+    // А уклон на прореженных точках (шаг ~90 м) не успевает сгладиться окном
+    // в 60 м, и график с картой расходятся по цвету.
+    //
+    // ⚠️ Последняя точка — обязательно финиш маршрута: при шаге `count / 200`
+    // последней оказывалась `199·step`, график обрывался чуть раньше финиша, а
+    // правый край оси X выходил короче полной дистанции из шапки карточки.
+    const smoothedEle = raw.map(pt => pt.smoothedEle);
+    const PROFILE_POINTS = 200;
+    let sampleIdx;
+    if (raw.length > PROFILE_POINTS) {
+        const s = (raw.length - 1) / (PROFILE_POINTS - 1);
+        sampleIdx = Array.from({ length: PROFILE_POINTS }, (_, i) => Math.round(i * s));
+        sampleIdx[PROFILE_POINTS - 1] = raw.length - 1;
+    } else {
+        sampleIdx = Array.from({ length: raw.length }, (_, i) => i);
+    }
+    const profile = {
+        km:  sampleIdx.map(i => cumulativeKm[i]),
+        ele: sampleIdx.map(i => smoothedEle[i]),
+        lon: sampleIdx.map(i => raw[i].lon),
+        lat: sampleIdx.map(i => raw[i].lat)
+    };
+    profile.grade = (typeof GradeColor !== 'undefined')
+        ? GradeColor.gradesAtDistances(coordinates, smoothedEle, profile.km)
+        : [];
+    // Узлы раскраски по уклону — те же, что лягут на линию маршрута на карте
+    const gradeStops = (typeof GradeColor !== 'undefined')
+        ? GradeColor.gradeStops(coordinates, smoothedEle)
+        : [];
 
     // Time estimate
     let estimatedTimeStr = '—';
@@ -1795,7 +1643,9 @@ function parseGPX(gpxString) {
         minEle: minEle === Infinity ? 0 : Math.round(minEle),
         maxEle: maxEle === -Infinity ? 0 : Math.round(maxEle),
         formattedTime: estimatedTimeStr,
-        elevationProfile
+        elevationProfile,
+        profile,
+        gradeStops
     };
 }
 
@@ -1831,6 +1681,14 @@ function _flushRouteSources() {
     requestAnimationFrame(flush);
 }
 
+function _decodeGradeStops(stops) {
+    if (!stops || !stops.length) return [];
+    if (Array.isArray(stops[0])) {
+        return stops.map(s => ({ position: s[0], rgb: [s[1], s[2], s[3]] }));
+    }
+    return stops;
+}
+
 // ── Load route data ────────────────────────────────────────────────────────────
 async function loadRouteData(routeInfo) {
     try {
@@ -1846,6 +1704,10 @@ async function loadRouteData(routeInfo) {
             if (!res.ok) throw new Error(`Failed to load ${routeInfo.file}`);
             routeData = parseGPX(await res.text());
         }
+
+        // В индексе узлы раскраски лежат плоскими массивами [доля, r, g, b] —
+        // так он втрое компактнее; разбор GPX в браузере отдаёт их объектами
+        routeData.gradeStops = _decodeGradeStops(routeData.gradeStops);
 
         routeData.photoGeoms = [];
         routeData._exifDone = false;
@@ -1934,31 +1796,60 @@ function _addStartFinishMarkers(coordinates) {
     }
 }
 
-function addRouteToMap(id, coordinates, color) {
+/**
+ * Линия открытого маршрута: обводка снизу, цветное ядро сверху.
+ *
+ * `gradeStops` — узлы раскраски по уклону (см. grade_color.js). Те же, что
+ * красят график высот: пока у карты и графика были свои расчёты, один и тот же
+ * участок выходил на карте ровным подъёмом, а на графике чересполосицей.
+ * Нет узлов (высот в треке не было) — линия остаётся сплошной, цвета типа
+ * маршрута.
+ */
+function addRouteToMap(id, coordinates, color, gradeStops) {
     if (_drawInterval)  { clearInterval(_drawInterval);  _drawInterval  = null; }
     if (_dashAnimFrame) { cancelAnimationFrame(_dashAnimFrame); _dashAnimFrame = null; }
 
     const startPt = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [coordinates[0], coordinates[0]] } };
+    const casingId = `layer-${id}-casing`;
 
     if (!map.getSource(id)) {
-        map.addSource(id, { type: 'geojson', data: startPt });
+        // lineMetrics нужны и раскраске по уклону, и подсветке выделенного на
+        // графике участка: оба считаются по `line-progress`
+        map.addSource(id, { type: 'geojson', data: startPt, lineMetrics: true });
+        map.addLayer({
+            id: casingId, type: 'line', source: id,
+            layout: { 'line-join': 'round', 'line-cap': 'round' },
+            paint: { 'line-color': '#0A0A0A', 'line-width': 7.6, 'line-opacity': 0,
+                     'line-opacity-transition': { duration: 1200, delay: 0 } }
+        });
         map.addLayer({
             id: `layer-${id}`, type: 'line', source: id,
             layout: { 'line-join': 'round', 'line-cap': 'round' },
-            paint: { 'line-color': color, 'line-width': 4, 'line-opacity': 0,
+            paint: { 'line-color': color, 'line-width': 4.2, 'line-opacity': 0,
                      'line-opacity-transition': { duration: 1200, delay: 0 } }
         });
     } else {
         map.getSource(id).setData(startPt);
         map.setPaintProperty(`layer-${id}`, 'line-opacity', 0);
+        if (map.getLayer(casingId)) map.setPaintProperty(casingId, 'line-opacity', 0);
     }
 
     // Fade in via built-in Mapbox transition (one call only)
     setTimeout(() => {
         if (map.getLayer(`layer-${id}`)) map.setPaintProperty(`layer-${id}`, 'line-opacity', 1);
+        if (map.getLayer(casingId))      map.setPaintProperty(casingId, 'line-opacity', 0.8);
     }, 30);
 
     _addStartFinishMarkers(coordinates);
+
+    // Нарастающая длина: доля нарисованного считается по расстоянию, а не по
+    // числу точек — иначе на прореженных участках градиент едет
+    const cumulative = [0];
+    for (let i = 1; i < coordinates.length; i++) {
+        cumulative.push(cumulative[i - 1] + haversineDistance(coordinates[i - 1], coordinates[i]));
+    }
+    const totalKm = cumulative[cumulative.length - 1] || 1;
+    const stops = (gradeStops && gradeStops.length > 1) ? gradeStops : null;
 
     // Progressive draw at 10fps — setData is expensive, don't run at 60fps
     const total   = coordinates.length;
@@ -1974,9 +1865,30 @@ function addRouteToMap(id, coordinates, color) {
             type: 'Feature', properties: {},
             geometry: { type: 'LineString', coordinates: coordinates.slice(0, count) }
         });
+        // ⚠️ `line-progress` считается от **нарисованной** линии, поэтому на
+        // каждом кадре градиент растягиваем на её долю: иначе, пока маршрут
+        // проявляется, цвета всего пути сжаты к его началу
+        if (stops && map.getLayer(`layer-${id}`)) {
+            const gradient = GradeColor.mapGradient(stops, cumulative[count - 1] / totalKm);
+            if (gradient) map.setPaintProperty(`layer-${id}`, 'line-gradient', gradient);
+        }
         if (p >= 1) { clearInterval(_drawInterval); _drawInterval = null; }
     }, 100);
 }
+
+/**
+ * Спрятать всё, что закрывает вид во время облёта: вершину, старт/финиш и
+ * метки фотографий. Возвращаются они сами, как только камеру отпустили.
+ */
+window.setRouteDecorationsHidden = function(hidden) {
+    const display = hidden ? 'none' : '';
+    [_peakMapMarker, _startMarker, _finishMarker].forEach(m => {
+        if (m) m.getElement().style.display = display;
+    });
+    ['photo-markers-glow', 'photo-markers-layer', 'photo-active-glow', 'photo-active-layer'].forEach(layer => {
+        if (map.getLayer(layer)) map.setLayoutProperty(layer, 'visibility', hidden ? 'none' : 'visible');
+    });
+};
 
 // ── DOMContentLoaded ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -2176,6 +2088,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Panel collapse/expand toggle
     document.getElementById('panel-toggle-btn').addEventListener('click', () => {
         document.getElementById('route-panel-group').classList.toggle('panel-collapsed');
+        // Свободная часть карты стала другой — если камера сейчас показывает
+        // маршрут, ей надо пересобрать кадр. Саму камеру стрелочка не трогает:
+        // свернуть карточку во время вращения — это не «стоп».
+        if (window.RouteProfile) RouteProfile.onPanelToggled();
     });
 
     // ── Description expand/collapse

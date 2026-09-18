@@ -6,7 +6,7 @@
  *   - Mapbox tiles/API: Network-first, fallback на кэш
  */
 
-const SHELL_VERSION = 'v3';
+const SHELL_VERSION = 'v4';
 const SHELL_CACHE   = `shell-${SHELL_VERSION}`;
 const GPX_CACHE     = 'gpx-v1';
 const PHOTO_CACHE   = 'photos-v1';
@@ -20,12 +20,16 @@ const SHELL_ASSETS = [
   '/assistant.js',
   '/route_matcher.js',
   '/pss_layer.js',
+  '/grade_color.js',
+  '/profile_chart.js',
+  '/time_planner.js',
+  '/cinematic.js',
+  '/route_profile_ui.js',
   '/routes_geom.json',
   '/routes_index.json',
   '/pss_routes_web.geojson',
   '/libs/mapbox-gl.js',
   '/libs/mapbox-gl.css',
-  '/libs/chart.js',
   '/libs/tailwind.js',
 ];
 

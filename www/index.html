@@ -9,7 +9,6 @@
     <script src="libs/mapbox-gl.js"></script>
     <link href="libs/mapbox-gl.css" rel="stylesheet" />
     <!-- Chart.js нужен только для графика высот при открытии маршрута — не блокируем разбор страницы -->
-    <script src="libs/chart.js" defer></script>
     <link rel="stylesheet" href="style.css">
     <style>
         .custom-hover-popup .mapboxgl-popup-content {
@@ -360,6 +359,169 @@
         .legend-item { display: flex; align-items: center; gap: 5px; font-size: 9px; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
         .legend-line { height: 2px; width: 20px; border-radius: 1px; }
         .legend-line.dashed { background: none; border-top: 2px dashed #FF8C00; }
+
+        /* ── Профиль высот ────────────────────────────────────────── */
+        .pc-hint {
+            margin-top: 6px; font-size: 9px; line-height: 1.4;
+            color: rgba(255,255,255,.3); letter-spacing: .02em;
+        }
+        .pc-reset {
+            color: rgba(255,255,255,.55); font-size: 9px; letter-spacing: .04em;
+            padding: 2px 8px; border-radius: 999px; cursor: pointer;
+            background: rgba(255,255,255,.07); border: 1px solid rgba(63,63,70,.7);
+        }
+        .pc-reset:hover { color: #fff; background: rgba(255,255,255,.12); }
+        .pc-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 3px 8px; border-radius: 999px;
+            background: rgba(255,255,255,.14); color: #fff;
+            font-weight: 600; font-size: 11px;
+        }
+
+        /* Пока ведут бегунок по графику или камера показывает маршрут сама,
+           строка ассистента уходит: она стоит ровно там же, где шкала, и
+           смотреть в этот момент нужно на карту, а не на интерфейс */
+        body.tw-immersive #asst-search-bar {
+            opacity: 0; pointer-events: none; transition: opacity .2s ease;
+        }
+
+        /* ── Шкала ведения по профилю ─────────────────────────────── */
+        /* Пока ведут бегунок, она стоит поверх карты: высота, пройденный
+           километр и участок под пальцем — там же, куда смотрят. */
+        #scrub-readout {
+            position: fixed; z-index: 55;
+            top: 14px; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: baseline; gap: 10px;
+            max-width: calc(100vw - 24px);
+            padding: 8px 16px; border-radius: 999px;
+            background: rgba(9,9,11,.86); border: 1px solid rgba(255,77,77,.35);
+            box-shadow: 0 6px 26px rgba(0,0,0,.6);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            color: #fff; font-size: 11px; pointer-events: none;
+            font-variant-numeric: tabular-nums;
+        }
+        #scrub-readout.hidden { display: none !important; }
+        .sr-line { display: flex; align-items: baseline; gap: 10px; font-size: 11px;
+                   color: #fff; font-variant-numeric: tabular-nums; }
+        .sr-group { display: inline-flex; align-items: baseline; gap: 3px; }
+        .sr-line b { font-size: 17px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .sr-unit { color: rgba(255,255,255,.55); font-size: 11px; }
+        .sr-icon { font-size: 10px; }
+        .sr-sep { width: 1px; height: 16px; background: rgba(255,255,255,.14); align-self: center; }
+
+        /* ── Карточка профиля во время облёта ─────────────────────── */
+        #flyover-profile {
+            position: fixed; z-index: 55;
+            left: 0; right: 0; bottom: 0;
+            padding: 12px 18px 16px;
+            background: linear-gradient(to top, rgba(9,9,11,.97) 60%, rgba(9,9,11,.82));
+            border-top: 1px solid rgba(63,63,70,.55);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 -8px 40px rgba(0,0,0,.7);
+            animation: fp-rise .32s cubic-bezier(.2,.7,.2,1) both;
+        }
+        #flyover-profile.hidden { display: none !important; }
+        @keyframes fp-rise { from { transform: translateY(100%) } to { transform: none } }
+        #flyover-profile .fp-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; flex-wrap: wrap; margin-bottom: 6px;
+        }
+        #flyover-profile .fp-controls { display: flex; align-items: center; gap: 4px; }
+        #fp-chart { width: 100%; }
+        @media (min-width: 1100px) {
+            /* На широком экране растягивать график во всю ширину незачем:
+               километр становится шире экрана, и форма профиля теряется */
+            #flyover-profile .fp-head, #fp-chart { max-width: 1040px; margin-left: auto; margin-right: auto; }
+        }
+
+        /* ── Перелистывание цифр ──────────────────────────────────── */
+        /* Время пересчитывается на каждый сдвиг ползунка, и без анимации
+           число просто подменяется — глаз не успевает заметить, что оно
+           вообще изменилось. Цифра уезжает в ту сторону, в какую поменялось
+           значение: вверх — стало больше, вниз — меньше. */
+        .tk-cell { position: relative; display: inline-block; }
+        .tk-cell .tk-out { position: absolute; left: 0; top: 0; }
+        @keyframes tk-in-up   { from { transform: translateY(.7em);  opacity: 0 } to { transform: none; opacity: 1 } }
+        @keyframes tk-out-up  { from { transform: none; opacity: 1 } to { transform: translateY(-.7em); opacity: 0 } }
+        @keyframes tk-in-down { from { transform: translateY(-.7em); opacity: 0 } to { transform: none; opacity: 1 } }
+        @keyframes tk-out-down{ from { transform: none; opacity: 1 } to { transform: translateY(.7em);  opacity: 0 } }
+        .tk-up   .tk-in  { animation: tk-in-up   .34s cubic-bezier(.2,.7,.2,1) both; }
+        .tk-up   .tk-out { animation: tk-out-up  .34s cubic-bezier(.2,.7,.2,1) both; }
+        .tk-down .tk-in  { animation: tk-in-down .34s cubic-bezier(.2,.7,.2,1) both; }
+        .tk-down .tk-out { animation: tk-out-down .34s cubic-bezier(.2,.7,.2,1) both; }
+        @media (prefers-reduced-motion: reduce) {
+            .tk-cell .tk-in, .tk-cell .tk-out { animation: none !important; }
+            .tk-cell .tk-out { display: none; }
+        }
+
+        /* ── Камера показывает маршрут сама ───────────────────────── */
+        .cine-btn {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 9px; border-radius: 999px;
+            border: 1px solid rgba(63,63,70,.8); background: rgba(255,255,255,.05);
+            color: rgba(255,255,255,.72); font-size: 10px; font-weight: 600;
+            letter-spacing: .04em; cursor: pointer;
+            transition: color .2s, background .2s, border-color .2s;
+        }
+        .cine-btn:hover { color: #fff; background: rgba(255,255,255,.1); }
+        .cine-btn.active { color: #ff4d4d; border-color: rgba(255,77,77,.6); background: rgba(255,77,77,.12); }
+
+        #cinematic-status {
+            position: fixed; z-index: 56;
+            top: 14px; left: 50%; transform: translateX(-50%);
+            padding: 9px 14px; border-radius: 16px;
+            background: rgba(9,9,11,.88); border: 1px solid rgba(255,77,77,.35);
+            box-shadow: 0 6px 26px rgba(0,0,0,.6);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            color: rgba(255,255,255,.85); font-size: 11px;
+        }
+        #cinematic-status.hidden { display: none !important; }
+        .cine-dot {
+            width: 7px; height: 7px; border-radius: 50%; background: #ff4d4d;
+            animation: cine-pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes cine-pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+        .cine-stop {
+            margin-left: 6px; padding: 3px 10px; border-radius: 999px;
+            background: rgba(255,77,77,.18); border: 1px solid rgba(255,77,77,.5);
+            color: #fff; font-size: 10px; font-weight: 700; cursor: pointer;
+        }
+        .cine-stop:hover { background: rgba(255,77,77,.3); }
+        .cine-speed-label { color: rgba(255,255,255,.35); font-size: 9px; text-transform: uppercase; letter-spacing: .1em; margin-right: 4px; }
+        .cine-speed {
+            padding: 2px 7px; border-radius: 999px; font-size: 10px; cursor: pointer;
+            color: rgba(255,255,255,.5); background: rgba(255,255,255,.06);
+            font-variant-numeric: tabular-nums;
+        }
+        .cine-speed.active { color: #fff; background: rgba(255,77,77,.4); }
+
+        /* ── Планирование времени ─────────────────────────────────── */
+        .tw-section-label {
+            font-size: 9px; font-weight: 600; letter-spacing: .1em;
+            text-transform: uppercase; color: rgba(255,255,255,.45);
+        }
+        .tw-chip {
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            padding: 8px 2px; border-radius: 12px; cursor: pointer;
+            background: rgba(255,255,255,.05); border: 1px solid rgba(63,63,70,.7);
+            transition: background .18s, border-color .18s;
+        }
+        .tw-chip .tw-chip-icon { font-size: 17px; line-height: 1; }
+        .tw-chip .tw-chip-label { font-size: 9px; color: rgba(255,255,255,.55); }
+        .tw-chip.active { background: rgba(255,77,77,.13); border-color: rgba(255,77,77,.75); }
+        .tw-chip.active .tw-chip-label { color: #fff; font-weight: 700; }
+        .tw-range {
+            -webkit-appearance: none; appearance: none; width: 100%; height: 3px;
+            border-radius: 999px; background: rgba(255,255,255,.14); outline: none;
+        }
+        .tw-range::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+            background: #ff4d4d; cursor: pointer; border: 2px solid #09090b;
+        }
+        .tw-range::-moz-range-thumb {
+            width: 16px; height: 16px; border-radius: 50%; border: 2px solid #09090b;
+            background: #ff4d4d; cursor: pointer;
+        }
     </style>
     <!-- exifr грузится по требованию (_ensureExifr в script.js): GPS фотографий
          обычно уже посчитан в routes_geom.json -->
@@ -637,10 +799,27 @@
 
                 <!-- Elevation Profile -->
                 <div id="panel-elevation-wrapper" class="hidden px-5 pt-4 pb-3 border-b border-zinc-800/60 shrink-0">
-                    <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-2">Профиль высот</div>
-                    <div style="position:relative;height:90px;">
-                        <canvas id="elevation-chart"></canvas>
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="text-zinc-400 text-[9px] uppercase tracking-widest">Профиль высот</div>
+                        <!-- Камера, которая показывает маршрут сама -->
+                        <div id="panel-camera-buttons" class="hidden items-center gap-1.5">
+                            <button id="btn-flyover" class="cine-btn" title="Облёт вдоль маршрута">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l18-8L3 4v6l12 2-12 2z"/></svg>
+                                Облёт
+                            </button>
+                            <button id="btn-orbit" class="cine-btn" title="Вращение вокруг маршрута">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 3v5h-5"/></svg>
+                                Вокруг
+                            </button>
+                        </div>
                     </div>
+                    <div id="profile-chart"></div>
+                </div>
+
+                <!-- Планирование времени -->
+                <div id="panel-time-planner-wrapper" class="hidden px-5 py-4 border-b border-zinc-800/60 shrink-0">
+                    <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-3">Планирование времени</div>
+                    <div id="time-planner"></div>
                 </div>
 
                 <!-- Description -->
@@ -756,6 +935,45 @@
         </div>
     </div>
 
+    <!-- Шкала ведения по профилю: пока ведут бегунок по графику, высота,
+         пройденный километр и участок под пальцем стоят поверх карты -->
+    <div id="scrub-readout" class="sr-line hidden"></div>
+
+    <!-- Камера ведёт себя сама: идёт облёт или вращение -->
+    <div id="cinematic-status" class="hidden">
+        <div class="flex items-center gap-2">
+            <span class="cine-dot"></span>
+            <span id="cinematic-title">Облёт по маршруту</span>
+            <button class="cine-stop" data-cinematic-stop>Стоп</button>
+        </div>
+        <div id="cinematic-speeds" class="flex items-center gap-1 mt-1.5">
+            <span class="cine-speed-label">Скорость</span>
+            <button class="cine-speed" data-speed="0.5">×0.5</button>
+            <button class="cine-speed active" data-speed="1">×1</button>
+            <button class="cine-speed" data-speed="1.5">×1.5</button>
+            <button class="cine-speed" data-speed="2">×2</button>
+            <button class="cine-speed" data-speed="3">×3</button>
+        </div>
+    </div>
+
+    <!-- Профиль высот во время облёта: карточка маршрута в этот момент
+         свёрнута, а видеть, где именно идёт камера и что будет дальше, надо -->
+    <div id="flyover-profile" class="hidden">
+        <div class="fp-head">
+            <div id="fp-readout" class="sr-line"></div>
+            <div class="fp-controls">
+                <span class="cine-speed-label">Скорость</span>
+                <button class="cine-speed" data-speed="0.5">×0.5</button>
+                <button class="cine-speed active" data-speed="1">×1</button>
+                <button class="cine-speed" data-speed="1.5">×1.5</button>
+                <button class="cine-speed" data-speed="2">×2</button>
+                <button class="cine-speed" data-speed="3">×3</button>
+                <button class="cine-stop" data-cinematic-stop>Стоп</button>
+            </div>
+        </div>
+        <div id="fp-chart"></div>
+    </div>
+
     <!-- Desktop Route Carousel -->
     <div id="route-carousel-outer" class="fixed bottom-0 left-0 right-0 z-40 overflow-hidden pointer-events-none">
         <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none"></div>
@@ -800,7 +1018,14 @@
          FIREBASE_CONFIG заполнен — см. script.js -->
 
     <script src="route_matcher.js"></script>
+    <!-- Раскраска по уклону грузится до script.js: её же расчётом пользуется
+         parseGPX, собирая профиль маршрута -->
+    <script src="grade_color.js"></script>
+    <script src="profile_chart.js"></script>
+    <script src="time_planner.js"></script>
+    <script src="cinematic.js"></script>
     <script src="script.js"></script>
+    <script src="route_profile_ui.js"></script>
     <script src="pss_layer.js"></script>
     <script src="assistant.js"></script>
     <script>

@@ -29,6 +29,10 @@ global.DOMParser = DOMParser;
 
 const src = fs.readFileSync(path.join(WWW, 'script.js'), 'utf8');
 
+// Раскраска по уклону — тем же кодом, что и в браузере: файл кладёт GradeColor
+// в глобальную область, откуда его видит и parseGPX
+new Function(fs.readFileSync(path.join(WWW, 'grade_color.js'), 'utf8'))();
+
 // ── Достаём из script.js то, что нужно для разбора ────────────────────────────
 function extractFunction(name) {
     const start = src.indexOf(`function ${name}(`);
@@ -136,7 +140,26 @@ function readGps(file) {
 // ── Сборка ────────────────────────────────────────────────────────────────────
 const round = n => +n.toFixed(COORD_PRECISION);
 const routes = extractRoutes();
-const index  = { version: 1, generated: new Date().toISOString().slice(0, 10), routes: {} };
+// version 2 — добавились `profile` (профиль высот с километрами и уклоном) и
+// `gradeStops` (узлы раскраски по уклону). Старый индекс сайт переживёт:
+// маршрут без этих полей просто не получит графика с раскраской.
+const index  = { version: 2, generated: new Date().toISOString().slice(0, 10), routes: {} };
+
+/** Профиль — плоскими массивами и с округлением: иначе индекс распухает втрое */
+function packProfile(profile) {
+    return {
+        km:    profile.km.map(v => +v.toFixed(4)),      // 0.1 м
+        ele:   profile.ele.map(v => +v.toFixed(1)),
+        lon:   profile.lon.map(round),
+        lat:   profile.lat.map(round),
+        grade: (profile.grade || []).map(v => +v.toFixed(2))
+    };
+}
+
+/** Узлы раскраски — [доля пути, r, g, b] */
+function packStops(stops) {
+    return (stops || []).map(s => [+s.position.toFixed(5), s.rgb[0], s.rgb[1], s.rgb[2]]);
+}
 
 let totalPhotos = 0, withGps = 0, skipped = 0;
 
@@ -175,6 +198,8 @@ for (const [id, route] of Object.entries(routes)) {
         maxEle:           data.maxEle,
         formattedTime:    data.formattedTime,
         elevationProfile: data.elevationProfile,
+        profile:          packProfile(data.profile),
+        gradeStops:       packStops(data.gradeStops),
         photoGps: photos
     };
     console.log(`  ${id.padEnd(10)} ${route.name}: ${data.coordinates.length} точек, ` +
