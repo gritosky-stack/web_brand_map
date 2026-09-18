@@ -475,6 +475,33 @@ function addToKmCounter(km) {
 // ── Pulsing dots ───────────────────────────────────────────────────────────────
 const size = 64;
 
+/**
+ * Кадр пульсации: перерисовывать чаще двенадцати раз в секунду незачем.
+ *
+ * ⚠️ Возвращать `true` на **каждом** кадре нельзя: этим иконка говорит карте
+ * «я изменилась», и карта перезаливает её текстуру и рисует новый кадр —
+ * шестьдесят раз в секунду, бесконечно, даже когда камера стоит. На спутнике
+ * с рельефом это постоянная нагрузка на видеокарту: у неё кончались ресурсы,
+ * подписи на карте рассыпались в цветные полоски, а браузер утаскивал за
+ * собой машину (фидбэк 2026-09-18). Между перерисовками просим следующий
+ * кадр таймером — иначе, вернув `false`, анимация на неподвижной карте
+ * заснула бы навсегда.
+ */
+function pulseDue(image, periodMs) {
+    const now = performance.now();
+    if (now - (image._lastFrame || 0) >= periodMs) {
+        image._lastFrame = now;
+        return true;
+    }
+    if (!image._wake) {
+        image._wake = setTimeout(() => {
+            image._wake = null;
+            if (window.map) map.triggerRepaint();
+        }, periodMs);
+    }
+    return false;
+}
+
 const pulsingDot = {
     width: size, height: size, data: new Uint8Array(size * size * 4),
     onAdd() {
@@ -483,9 +510,9 @@ const pulsingDot = {
         this.context = c.getContext('2d', { willReadFrequently: true });
     },
     render() {
-        const now = performance.now();
-        if (now - (this._lastFrame || 0) >= 80) {
-            this._lastFrame = now;
+        if (!pulseDue(this, 80)) return false;
+        {
+            const now = performance.now();
             const t = (now % 2000) / 2000;
             const r = (size / 2) * 0.25;
             const or = (size / 2) * 0.75 * t + r;
@@ -513,9 +540,9 @@ const futurePulsingDot = {
         this.context = c.getContext('2d', { willReadFrequently: true });
     },
     render() {
-        const now = performance.now();
-        if (now - (this._lastFrame || 0) >= 80) {
-            this._lastFrame = now;
+        if (!pulseDue(this, 80)) return false;
+        {
+            const now = performance.now();
             const t = (now % 2400) / 2400;
             const r = (size / 2) * 0.25;
             const or = (size / 2) * 0.75 * t + r;
@@ -546,6 +573,12 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
         interactive: true,
         antialias: false,
         fadeDuration: 0,
+        // Потолок на кэш тайлов: спутник с рельефом набирает текстуры быстро,
+        // а держать их все в памяти видеокарты незачем — при долгом движении
+        // камеры она уходила в отказ вместе с атласом подписей. Значение
+        // выше обычного размера кадра, чтобы при вращении не появлялись
+        // дыры вместо только что показанных тайлов.
+        maxTileCacheSize: 200,
         maxBounds: [[17.2, 41.0], [24.4, 47.4]],
         renderWorldCopies: false
     });
@@ -553,6 +586,18 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
 
     {
         const canvas = map.getCanvas();
+
+        // ⚠️ Потеря контекста WebGL — это не «немного подтормаживает»: карта
+        // остаётся на экране, но её текстуры уже мусор, и подписи городов
+        // рассыпаются в цветные полоски. Восстановить это на месте Mapbox не
+        // умеет, поэтому пересобираем страницу — но только по-настоящему
+        // потеряв контекст, а не при каждой просадке.
+        canvas.addEventListener('webglcontextlost', event => {
+            event.preventDefault();
+            console.warn('[map] потерян контекст WebGL — перезагружаю страницу');
+            setTimeout(() => location.reload(), 300);
+        });
+
         canvas.style.filter = 'blur(14px) brightness(0.5)';
         map.once('idle', () => {
             canvas.style.transition = 'filter 1.4s ease';
@@ -727,9 +772,7 @@ function triggerRouteSelection(routeId) {
     _removeStartFinishMarkers();
 
     if (currentViewedRoute && currentViewedRoute.id !== routeInfo.id) {
-        if (map.getLayer(`layer-${currentViewedRoute.id}`)) {
-            map.setPaintProperty(`layer-${currentViewedRoute.id}`, 'line-opacity', 0);
-        }
+        removeRouteLine(currentViewedRoute.id);
         if (map.getLayer('photo-markers-glow')) {
             map.setFilter('photo-markers-glow', ['==', 'routeId', 'none']);
             map.setFilter('photo-markers-hitbox', ['==', 'routeId', 'none']);
@@ -1421,9 +1464,7 @@ document.getElementById('btn-back').addEventListener('click', () => {
     if (map.getSource('photo-active-source')) {
         map.getSource('photo-active-source').setData({ type: 'FeatureCollection', features: [] });
     }
-    if (map.getLayer(`layer-${currentViewedRoute.id}`)) {
-        map.setPaintProperty(`layer-${currentViewedRoute.id}`, 'line-opacity', 0);
-    }
+    removeRouteLine(currentViewedRoute.id);
     map.flyTo({
         center: [20.9029, 44.2107], zoom: 6.5, pitch: 0, bearing: 0, speed: 1.2,
         padding: { top: 0, bottom: 0, left: 0, right: 0 }
@@ -1832,6 +1873,9 @@ function addRouteToMap(id, coordinates, color, gradeStops) {
     const startPt = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [coordinates[0], coordinates[0]] } };
     const casingId = `layer-${id}-casing`;
 
+    // На карте живёт линия ровно одного маршрута — показываемого
+    Object.keys(routes).forEach(other => { if (other !== id) removeRouteLine(other); });
+
     if (!map.getSource(id)) {
         // lineMetrics нужны и раскраске по уклону, и подсветке выделенного на
         // графике участка: оба считаются по `line-progress`
@@ -1915,6 +1959,26 @@ function addRouteToMap(id, coordinates, color, gradeStops) {
  * Спрятать всё, что закрывает вид во время облёта: вершину, старт/финиш и
  * метки фотографий. Возвращаются они сами, как только камеру отпустили.
  */
+/**
+ * Убрать линию маршрута со стиля вместе с её источником.
+ *
+ * ⚠️ Раньше закрытый маршрут просто получал `line-opacity: 0`, и его слои
+ * оставались в стиле навсегда. Прозрачный слой карта всё равно рисует на
+ * каждом кадре: открыв десяток маршрутов, вы получали два десятка линий с
+ * метриками и градиентами в каждом кадре. На спутнике с рельефом это в итоге
+ * и укладывало видеокарту (фидбэк 2026-09-18).
+ */
+function removeRouteLine(id) {
+    if (!id || !map.getStyle) return;
+    // Подсветка выделенного участка живёт на том же источнике — без неё
+    // источник удалить нельзя
+    if (window.RouteProfile) RouteProfile.clearSelection();
+    [`layer-${id}`, `layer-${id}-casing`].forEach(layer => {
+        if (map.getLayer(layer)) map.removeLayer(layer);
+    });
+    if (map.getSource(id)) map.removeSource(id);
+}
+
 window.setRouteDecorationsHidden = function(hidden) {
     const display = hidden ? 'none' : '';
     [_peakMapMarker, _startMarker, _finishMarker].forEach(m => {

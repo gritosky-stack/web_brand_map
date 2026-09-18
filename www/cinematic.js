@@ -461,6 +461,13 @@
 
         _stepFlyover(dt) {
             this.elapsed += dt * Math.max(0.25, this.speed);
+            // Кадр обновляем тридцать раз в секунду — как и на вращении.
+            // Движение от этого не грубеет (камера идёт медленно), а работы
+            // карте вдвое меньше: на спутнике с рельефом это разница между
+            // «летит» и «спотыкается».
+            this._flyAccumulator = (this._flyAccumulator || 0) + dt;
+            if (this._flyAccumulator < 1 / 30 && this.elapsed < this.duration) return;
+            this._flyAccumulator = 0;
             const progress = Math.min(1, this.elapsed / this.duration);
             const travelled = progress * this.totalMeters;
             const here = this._coordinateAt(travelled);
