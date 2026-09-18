@@ -65,6 +65,13 @@
                 setTimeout(() => this.chart && this.chart.resize(), 480);
             }
 
+            // Линия на карте упрощена и короче настоящего маршрута на 5–8 %.
+            // Чтобы облёт и график говорили об одном месте, держим рядом две
+            // шкалы её вершин: метры вдоль самой линии (по ним идёт камера) и
+            // километры по полной геометрии (по ним размечен график).
+            this._lineMeters = root.GradeColor.cumulativeMeters(routeData.coordinates);
+            this._lineKm = routeData.coordKm;
+
             this.showTimePlanner(routeInfo, routeData);
             this.showCameraButtons();
         },
@@ -93,6 +100,28 @@
             // описания маршрута, если она есть
             this.planner.setRoute(routeData.distance,
                                   routeInfo.overrideAscent != null ? routeInfo.overrideAscent : routeData.ascent);
+        },
+
+        /**
+         * Километр маршрута по пройденным вдоль линии метрам. Обе шкалы
+         * монотонны и заданы в одних и тех же вершинах — переводим одним
+         * бинарным поиском.
+         */
+        routeKmAt(meters) {
+            const cum = this._lineMeters, km = this._lineKm;
+            // Старый индекс без `coordKm` — честно возвращаем то, что есть
+            if (!cum || !km || km.length !== cum.length) return meters / 1000;
+            if (meters <= 0) return km[0];
+            const last = cum.length - 1;
+            if (meters >= cum[last]) return km[last];
+            let lo = 0, hi = last;
+            while (lo + 1 < hi) {
+                const mid = (lo + hi) >> 1;
+                if (cum[mid] <= meters) lo = mid; else hi = mid;
+            }
+            const span = cum[hi] - cum[lo];
+            const t = span > 0 ? (meters - cum[lo]) / span : 0;
+            return km[lo] + (km[hi] - km[lo]) * t;
         },
 
         // MARK: - Бегунок на карте
@@ -167,6 +196,20 @@
          */
         readoutHTML(info) {
             const GC = root.GradeColor;
+            // ⚠️ Пока камера подлетает к началу маршрута, данных о точке ещё
+            // нет — но место под них уже занято прочерками. Иначе блок
+            // появлялся секундой позже и сдвигал собой кнопки: скорость и
+            // «Стоп» прыгали влево одним кадром.
+            if (!info) {
+                const total = this.routeData ? this.routeData.distance.toFixed(1) : '—';
+                return `<span class="sr-group"><span class="sr-icon">▲</span>` +
+                       `<b>—</b><span class="sr-unit">м</span></span>` +
+                       `<span class="sr-sep"></span>` +
+                       `<span class="sr-group"><b>—</b>` +
+                       `<span class="sr-unit">/ ${total} км</span></span>` +
+                       `<span class="sr-sep"></span>` +
+                       `<span class="sr-group"><b>—</b></span>`;
+            }
             let html =
                 `<span class="sr-group"><span class="sr-icon">▲</span>` +
                 `<b>${Math.round(info.elevation)}</b><span class="sr-unit">м</span></span>` +
@@ -361,6 +404,8 @@
             // у облёта своя карточка снизу; ведут они себя одинаково
             document.querySelectorAll('[data-cinematic-stop]').forEach(btn =>
                 btn.addEventListener('click', () => this.stopCinematic()));
+            const pause = document.getElementById('btn-flyover-pause');
+            if (pause) pause.addEventListener('click', () => this.togglePause());
             document.querySelectorAll('.cine-speed').forEach(btn => {
                 btn.addEventListener('click', () => this.setSpeed(+btn.dataset.speed));
             });
@@ -385,8 +430,30 @@
             if (!this.camera && this.map) {
                 this.camera = new root.CinematicCamera(this.map);
                 this.camera.onStop = () => this.onCinematicStopped();
+                this.camera.onPauseChange = paused => this.onPauseChanged(paused);
             }
             return this.camera;
+        },
+
+        /**
+         * Пауза облёта. На паузе карта целиком в руках человека — крутить,
+         * приближать, ходить по ней; режим при этом не кончается, карточка
+         * остаётся, и «Продолжить» возвращает камеру на тот же метр.
+         */
+        togglePause() {
+            const camera = this.camera;
+            if (!camera || !camera.isRunning) return;
+            if (camera.paused) camera.resume(); else camera.pause();
+        },
+
+        onPauseChanged(paused) {
+            const button = document.getElementById('btn-flyover-pause');
+            if (button) {
+                button.textContent = paused ? 'Продолжить' : 'Пауза';
+                button.classList.toggle('resumed', paused);
+            }
+            const card = document.getElementById('flyover-profile');
+            if (card) card.classList.toggle('paused', paused);
         },
 
         /** Нажали кнопку. Тот же режим вторым нажатием — это «стоп». */
@@ -429,6 +496,9 @@
         /** Общая подготовка: убрать всё, что перебивает камеру или закрывает вид */
         prepareForCinematic(mode) {
             if (root.setRouteDecorationsHidden) root.setRouteDecorationsHidden(true);
+            // Карточку облёта убираем до того, как считаем свободную часть
+            // экрана: иначе вращение подберёт кадр с запасом под неё снизу
+            if (mode !== 'flyover') this.hideFlyoverCard();
             if (this.chart) this.chart.endScrub();
             this.clearScrub();
             this._flyoverUnderway = false;
@@ -507,6 +577,11 @@
             const host = document.getElementById('fp-chart');
             if (!card || !host || !this.routeData || !this.routeData.profile) return;
             card.classList.remove('hidden');
+            // Стрелочка свёрнутой панели висит внизу по центру — ровно там,
+            // где у карточки ось с километрами; на телефоне она накрывала
+            // подпись под бегунком
+            document.body.classList.add('tw-flyover');
+            this.onPauseChanged(false);
             // Метка облёта пойдёт поверх всего, что успело лечь на карту
             if (this.ensureScrubLayers()) this.raiseScrubLayers();
             this.hideFlyoverChart();
@@ -519,7 +594,7 @@
                 height: window.innerWidth < 768 ? 96 : 132
             });
             const readout = document.getElementById('fp-readout');
-            if (readout) readout.innerHTML = '';
+            if (readout) readout.innerHTML = this.readoutHTML(null);
             // Карточка появилась уже после того, как камера взяла кадр —
             // отдаём ей новую свободную часть экрана
             if (this.camera) this.camera.padding = this.padding();
@@ -527,7 +602,8 @@
 
         hideFlyoverCard() {
             const card = document.getElementById('flyover-profile');
-            if (card) card.classList.add('hidden');
+            if (card) { card.classList.add('hidden'); card.classList.remove('paused'); }
+            document.body.classList.remove('tw-flyover');
             this.hideFlyoverChart();
         },
 
@@ -547,7 +623,7 @@
                 });
             }
             if (!this.flyoverChart) return;
-            const info = this.flyoverChart.setCursor(travelledMeters / 1000);
+            const info = this.flyoverChart.setCursor(this.routeKmAt(travelledMeters));
             const readout = document.getElementById('fp-readout');
             if (info && readout) readout.innerHTML = this.readoutHTML(info);
         },
@@ -558,7 +634,10 @@
          * Саму камеру при этом не трогаем: стрелочка не «стоп».
          */
         onPanelToggled() {
-            if (this.camera && this.camera.isRunning) this.camera.updatePadding(this.padding());
+            if (!this.camera || !this.camera.isRunning) return;
+            // 450 мс — ровно столько же едет сама панель (её переход в CSS),
+            // так что карта растягивается вслед за ней, а не рывком в конце
+            this.camera.updatePadding(this.padding(), 450);
         }
     };
 

@@ -422,11 +422,29 @@
         }
         #flyover-profile.hidden { display: none !important; }
         @keyframes fp-rise { from { transform: translateY(100%) } to { transform: none } }
+        /* Данные о точке — над управлением, обе строки прижаты вправо:
+           слева от них остаётся сам график, и ничто никуда не прыгает, когда
+           появляются цифры */
         #flyover-profile .fp-head {
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 12px; flex-wrap: wrap; margin-bottom: 6px;
+            display: flex; align-items: flex-end; justify-content: flex-end;
+            flex-direction: column; gap: 6px; margin-bottom: 8px;
         }
         #flyover-profile .fp-controls { display: flex; align-items: center; gap: 4px; }
+        #flyover-profile #fp-readout { justify-content: flex-end; }
+        /* На паузе карта в руках человека — карточка отходит на второй план */
+        #flyover-profile.paused { border-top-color: rgba(255,255,255,.25); }
+        .cine-pause {
+            padding: 3px 10px; border-radius: 999px; cursor: pointer;
+            background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.22);
+            color: #fff; font-size: 10px; font-weight: 700; white-space: nowrap;
+        }
+        .cine-pause:hover { background: rgba(255,255,255,.16); }
+        .cine-pause.resumed { background: rgba(76,175,80,.22); border-color: rgba(76,175,80,.6); }
+        /* Стрелочка свёрнутой панели стоит там же, где ось километров.
+           Селектор длинный не от хорошей жизни: показывает её правило
+           `#route-panel-group.sidebar-open #panel-toggle-btn`, и перебить его
+           можно только не менее подробным */
+        body.tw-flyover #route-panel-group.sidebar-open #panel-toggle-btn { display: none; }
         #fp-chart { width: 100%; }
         @media (min-width: 1100px) {
             /* На широком экране растягивать график во всю ширину незачем:
@@ -494,6 +512,30 @@
             font-variant-numeric: tabular-nums;
         }
         .cine-speed.active { color: #fff; background: rgba(255,77,77,.4); }
+
+        /* Рамка фокуса от браузера перебивала собственную обводку кнопок */
+        .cine-btn:focus, .cine-speed:focus, .cine-stop:focus, .cine-pause:focus { outline: none; }
+        .cine-btn:focus-visible, .cine-speed:focus-visible,
+        .cine-stop:focus-visible, .cine-pause:focus-visible {
+            outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px;
+        }
+
+        @media (max-width: 767px) {
+            /* Сверху на телефоне уже стоят логотип и «Меню» — плашки уходят
+               под них и держатся в одну строку: с переносом шкала
+               разрасталась на три строки и накрывала собой шапку */
+            #scrub-readout, #cinematic-status {
+                top: 66px; max-width: calc(100vw - 20px);
+                padding: 7px 12px; font-size: 10px;
+            }
+            #scrub-readout { gap: 7px; white-space: nowrap; overflow: hidden; }
+            .sr-line b { font-size: 14px; }
+            .sr-line .sr-unit { font-size: 10px; }
+            #cinematic-status { white-space: nowrap; }
+            #flyover-profile { padding: 10px 12px 14px; }
+            #flyover-profile .fp-controls { gap: 3px; }
+            .cine-speed { padding: 2px 6px; }
+        }
 
         /* ── Планирование времени ─────────────────────────────────── */
         .tw-section-label {
@@ -968,6 +1010,7 @@
                 <button class="cine-speed" data-speed="1.5">×1.5</button>
                 <button class="cine-speed" data-speed="2">×2</button>
                 <button class="cine-speed" data-speed="3">×3</button>
+                <button id="btn-flyover-pause" class="cine-pause">Пауза</button>
                 <button class="cine-stop" data-cinematic-stop>Стоп</button>
             </div>
         </div>

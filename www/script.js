@@ -1632,6 +1632,25 @@ function parseGPX(gpxString) {
 
     const simplified = simplifyRDP(coordinates, 0.00012);
 
+    // Километры вершин упрощённой линии, посчитанные по **полной** геометрии.
+    //
+    // ⚠️ Без этого облёт и график расходятся. Камера идёт по той же ломаной,
+    // что нарисована на карте, а она срезает повороты и короче настоящего
+    // маршрута на 5–8 % (до 1.8 км на дневном переходе). Пройденные камерой
+    // метры — это метры ломаной, и если разметить ими график, посчитанный по
+    // полной геометрии, бегунок на нём отстаёт от метки на тропе. RDP
+    // оставляет подмножество исходных точек, поэтому соответствие точное:
+    // идём по обеим ломаным одним курсором.
+    const coordKm = [];
+    {
+        let cursor = 0;
+        for (const pt of simplified) {
+            while (cursor < coordinates.length - 1 &&
+                   (coordinates[cursor][0] !== pt[0] || coordinates[cursor][1] !== pt[1])) cursor++;
+            coordKm.push(cumulativeKm[cursor]);
+        }
+    }
+
     return {
         coordinates: simplified,
         peakCoords,
@@ -1645,7 +1664,8 @@ function parseGPX(gpxString) {
         formattedTime: estimatedTimeStr,
         elevationProfile,
         profile,
-        gradeStops
+        gradeStops,
+        coordKm
     };
 }
 
@@ -1832,6 +1852,9 @@ function addRouteToMap(id, coordinates, color, gradeStops) {
         map.getSource(id).setData(startPt);
         map.setPaintProperty(`layer-${id}`, 'line-opacity', 0);
         if (map.getLayer(casingId)) map.setPaintProperty(casingId, 'line-opacity', 0);
+        // Перевыбрали тот же маршрут — снимаем прошлую раскраску: линия сейчас
+        // снова проявляется с нуля, и старый градиент лёг бы на огрызок
+        map.setPaintProperty(`layer-${id}`, 'line-gradient', null);
     }
 
     // Fade in via built-in Mapbox transition (one call only)
@@ -1865,15 +1888,27 @@ function addRouteToMap(id, coordinates, color, gradeStops) {
             type: 'Feature', properties: {},
             geometry: { type: 'LineString', coordinates: coordinates.slice(0, count) }
         });
-        // ⚠️ `line-progress` считается от **нарисованной** линии, поэтому на
-        // каждом кадре градиент растягиваем на её долю: иначе, пока маршрут
-        // проявляется, цвета всего пути сжаты к его началу
-        if (stops && map.getLayer(`layer-${id}`)) {
-            const gradient = GradeColor.mapGradient(stops, cumulative[count - 1] / totalKm);
-            if (gradient) map.setPaintProperty(`layer-${id}`, 'line-gradient', gradient);
+        if (p >= 1) {
+            clearInterval(_drawInterval);
+            _drawInterval = null;
+            applyGrade();
         }
-        if (p >= 1) { clearInterval(_drawInterval); _drawInterval = null; }
     }, 100);
+
+    // ⚠️ Раскраску по уклону включаем **один раз**, когда линия дорисована.
+    //
+    // `line-progress` считается от нарисованной части, поэтому во время
+    // проявления градиент пришлось бы растягивать на неё на каждом кадре — а
+    // это полсотни пересборок выражения из двух сотен узлов и столько же
+    // перезаливок буфера на каждый открытый маршрут. На слабой машине карта
+    // от этого заикалась, а на промежуточных кадрах маршрут местами оставался
+    // цвета обводки, будто линия оборвалась (фидбэк 2026-09-18). Пока линия
+    // проявляется, она сплошного цвета своего типа — как было до раскраски.
+    function applyGrade() {
+        if (!stops || !map.getLayer(`layer-${id}`)) return;
+        const gradient = GradeColor.mapGradient(stops, 1);
+        if (gradient) map.setPaintProperty(`layer-${id}`, 'line-gradient', gradient);
+    }
 }
 
 /**

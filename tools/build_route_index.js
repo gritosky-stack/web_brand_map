@@ -200,6 +200,9 @@ for (const [id, route] of Object.entries(routes)) {
         elevationProfile: data.elevationProfile,
         profile:          packProfile(data.profile),
         gradeStops:       packStops(data.gradeStops),
+        // Километры вершин линии по полной геометрии — по ним облёт и график
+        // говорят об одном и том же месте
+        coordKm:          data.coordKm.map(v => +v.toFixed(4)),
         photoGps: photos
     };
     console.log(`  ${id.padEnd(10)} ${route.name}: ${data.coordinates.length} точек, ` +

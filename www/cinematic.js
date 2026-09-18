@@ -161,32 +161,42 @@
         constructor(map) {
             this.map = map;
             this.mode = 'off';
+            this.paused = false;
             this.speed = 1;
             this._frame = null;
             this._onFinish = null;
+            // Каждый запуск получает свой номер: отложенные колбэки (подлёт в
+            // стартовую позу) проверяют его и не будят цикл, который уже не
+            // тот. ⚠️ Без этого «остановили и сразу запустили снова» оставляло
+            // два покадровых цикла на одной карте — они двигали камеру каждый
+            // по-своему, и вращение начинало дёргаться, а после остановки
+            // дёргалось уже обычное управление мышью.
+            this._token = 0;
             this._watchUser();
         }
 
         get isRunning() { return this.mode !== 'off'; }
 
         /**
-         * Камера бросается по первому касанию карты рукой: отбирать
-         * управление ровно тогда, когда его только что попросили обратно, —
-         * худшее, что можно сделать.
+         * Камера бросается по первому касанию карты рукой — но по-разному:
+         * облёт встаёт на паузу (можно осмотреться и продолжить с того же
+         * места), вращение прекращается совсем. Отбирать управление ровно
+         * тогда, когда его только что попросили обратно, нельзя ни в том, ни
+         * в другом случае.
          */
         _watchUser() {
             const canvas = this.map.getCanvasContainer();
             const bail = () => {
-                if (!this.isRunning) return;
-                // Камеру забрали рукой — интерфейсу это знать важнее всего:
-                // разворачивать поверх карты карточку в этот момент значит
-                // закрыть ровно то, ради чего её и забрали
+                if (!this.isRunning || this.paused) return;
+                // ⚠️ `stoppedByUser` ставим только на настоящей остановке:
+                // пауза — это не «камеру забрали», и после неё карточку
+                // маршрута вернуть как раз надо
+                if (this.mode === 'flyover') { this.pause(); return; }
                 this.stoppedByUser = true;
                 this.stop();
             };
             ['mousedown', 'touchstart', 'wheel', 'dblclick'].forEach(type =>
                 canvas.addEventListener(type, bail, { passive: true }));
-            this._bail = bail;
         }
 
         /**
@@ -218,6 +228,7 @@
             this.elapsed = 0;
             this.mode = 'flyover';
             this._onFinish = opts.onFinish || null;
+            const token = ++this._token;
 
             // Насколько вперёд смотрит камера: слишком близко — азимут пляшет
             // на каждом изгибе тропы, слишком далеко — камера срезает повороты
@@ -233,7 +244,7 @@
                 duration: 1600, easing: t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
             });
             this.map.once('moveend', () => {
-                if (this.mode !== 'flyover') return;
+                if (token !== this._token || this.mode !== 'flyover') return;
                 this.headingReady = true;
                 this._startLoop();
                 if (opts.onStarted) opts.onStarted();
@@ -263,50 +274,117 @@
             this.orbitRoute = route;
             this.orbitPivot = centroid(route);
             this.orbitBearing = this.map.getBearing();
-
-            // ⚠️ Если маршрут и так весь в кадре — зум не трогаем вовсе. Иначе
-            // с приближенного маршрута камера отскакивает на обзор половины
-            // страны.
-            const fit = new OrbitFit(route, safeWidth, safeHeight);
-            const currentZoom = this.map.getZoom();
-            const visible = this._routeFitsOnScreen(route, pad, box);
-            this.orbitZoom = b => (visible ? currentZoom : fit.zoomForBearing(b));
+            this.orbitZoom = this._fitZoom(route, pad, box);
+            this._orbitAccumulator = 0;
+            const token = ++this._token;
 
             this.map.easeTo({
-                center: this.orbitPivot, zoom: this.orbitZoom(this.orbitBearing),
+                center: this.orbitPivot, zoom: this.orbitZoom,
                 bearing: this.orbitBearing, pitch: ORBIT_PITCH, padding: pad,
                 duration: 1200
             });
             this.map.once('moveend', () => {
-                if (this.mode !== 'orbit') return;
+                if (token !== this._token || this.mode !== 'orbit') return;
                 this._startLoop();
             });
         }
 
         /**
-         * Свободная часть экрана изменилась (карточку свернули или вернули).
-         * У вращения от неё зависит не только сдвиг, но и подобранный зум —
-         * пересобираем кадр, иначе маршрут наполовину уезжает под карточку.
+         * Один зум на весь оборот — тот, при котором маршрут влезает в кадр
+         * при **любом** азимуте.
+         *
+         * ⚠️ В приложении камера «дышит»: подъезжает ближе там, где маршрут
+         * повёрнут вдоль экрана. На вебе от этого пришлось отказаться.
+         * Непрерывно меняющийся зум заставляет карту пересчитывать покрытие
+         * тайлами на каждом кадре и то и дело пересекать границу уровня:
+         * спутниковые тайлы начинали мигать белым, рельеф оставался, а через
+         * минуту вращения всё вставало колом (фидбэк 2026-09-18). Постоянный
+         * зум — это ровно один набор тайлов на весь оборот.
          */
-        updatePadding(pad) {
-            this.padding = pad;
-            if (this.mode !== 'orbit' || !this.orbitRoute) return;
-            const box = this.map.getCanvas().getBoundingClientRect();
-            const safeWidth = box.width - pad.left - pad.right;
-            const safeHeight = box.height - pad.top - pad.bottom;
-            if (!(safeWidth > 60 && safeHeight > 60)) return;
-            const fit = new OrbitFit(this.orbitRoute, safeWidth, safeHeight);
-            this.orbitZoom = b => fit.zoomForBearing(b);
+        _fitZoom(route, pad, box) {
+            const fit = new OrbitFit(route, box.width - pad.left - pad.right,
+                                            box.height - pad.top - pad.bottom);
+            // Если маршрут и так весь в кадре — зум не трогаем вовсе: иначе с
+            // приближенного маршрута камера отскакивает на обзор половины страны
+            if (this._routeFitsOnScreen(route, pad, box)) return this.map.getZoom();
+            let lowest = Infinity;
+            for (let d = 0; d < 360; d += 5) lowest = Math.min(lowest, fit.zoomForBearing(d));
+            return lowest;
+        }
+
+        // MARK: - Пауза
+
+        /**
+         * Пауза облёта: карту отдаём человеку целиком — вращать, приближать,
+         * ходить по ней. Режим при этом не кончается, карточка профиля
+         * остаётся, и по «Продолжить» полёт идёт дальше с того же метра.
+         */
+        pause() {
+            if (this.mode === 'off' || this.paused) return;
+            this.paused = true;
+            if (this._frame) cancelAnimationFrame(this._frame);
+            this._frame = null;
+            // Поза на момент паузы: к ней и вернёмся, если карту увели в сторону
+            this.pausedCamera = {
+                center: this.map.getCenter(),
+                zoom: this.map.getZoom(),
+                bearing: this.map.getBearing(),
+                pitch: this.map.getPitch()
+            };
+            if (this.onPauseChange) this.onPauseChange(true);
+        }
+
+        /**
+         * Продолжить. Если карту за это время увели — сначала возвращаемся в
+         * ту же позу, и только потом летим дальше: иначе полёт продолжится
+         * где-то за кадром, и непонятно, куда смотреть.
+         */
+        resume() {
+            if (!this.paused || this.mode === 'off') return;
+            const pose = this.pausedCamera;
+            const token = this._token;
+            const go = () => {
+                if (token !== this._token || this.mode === 'off') return;
+                this.paused = false;
+                if (this.onPauseChange) this.onPauseChange(false);
+                this._startLoop();
+            };
+            if (!pose || !this._cameraMoved(pose)) { go(); return; }
+            let resumed = false;
+            const once = () => { if (!resumed) { resumed = true; go(); } };
+            this.map.easeTo({
+                center: pose.center, zoom: pose.zoom, bearing: pose.bearing,
+                pitch: pose.pitch, padding: this.padding, duration: 900
+            });
+            this.map.once('moveend', once);
+            // Страховка: возврат идёт анимацией, а она не доедет, если вкладку
+            // увели в фон — полёт не должен остаться запаузенным навсегда
+            setTimeout(once, 1400);
+        }
+
+        /** Заметно ли камера уехала от позы, в которой её поставили на паузу */
+        _cameraMoved(pose) {
+            const center = this.map.getCenter();
+            const metres = root.GradeColor.meters([center.lng, center.lat], [pose.center.lng, pose.center.lat]);
+            return metres > 25
+                || Math.abs(this.map.getZoom() - pose.zoom) > 0.05
+                || Math.abs(shortestTurn(this.map.getBearing(), pose.bearing)) > 1
+                || Math.abs(this.map.getPitch() - pose.pitch) > 1;
         }
 
         stop() {
             if (this._frame) cancelAnimationFrame(this._frame);
             this._frame = null;
+            if (this._padFrame) cancelAnimationFrame(this._padFrame);
+            this._padFrame = null;
             const wasRunning = this.mode !== 'off';
             const onFinish = this._onFinish;
             this.mode = 'off';
+            this.paused = false;
             this._onFinish = null;
             this.points = null;
+            this.orbitRoute = null;
+            this._token++;
             // Интерфейсу нужно знать и про «бросили руками», и про «долетели»
             if (wasRunning && this.onStop) this.onStop();
             return onFinish;
@@ -319,18 +397,64 @@
          */
         setSpeed(value) { this.speed = value; }
 
+        /**
+         * Свободная часть экрана изменилась (карточку свернули или вернули).
+         *
+         * ⚠️ Едем к новому кадру **плавно и ровно столько же**, сколько едет
+         * сама карточка: мгновенная подмена `padding` (а у вращения вместе с
+         * ним и зума) читалась как рывок карты посреди спокойного движения.
+         */
+        updatePadding(pad, duration) {
+            const ms = duration === undefined ? 450 : duration;
+            const from = Object.assign({}, this.padding);
+            const fromZoom = this.orbitZoom;
+            let toZoom = this.orbitZoom;
+            if (this.mode === 'orbit' && this.orbitRoute) {
+                const box = this.map.getCanvas().getBoundingClientRect();
+                if (box.width - pad.left - pad.right > 60 && box.height - pad.top - pad.bottom > 60) {
+                    toZoom = this._fitZoom(this.orbitRoute, pad, box);
+                }
+            }
+            if (this._padFrame) cancelAnimationFrame(this._padFrame);
+            if (!(ms > 0)) { this.padding = pad; this.orbitZoom = toZoom; return; }
+
+            const t0 = performance.now();
+            // Та же кривая, что у перехода самой карточки в CSS
+            const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            const step = now => {
+                const p = Math.min(1, (now - t0) / ms);
+                const e = ease(p);
+                this.padding = {
+                    top:    from.top    + (pad.top    - from.top)    * e,
+                    right:  from.right  + (pad.right  - from.right)  * e,
+                    bottom: from.bottom + (pad.bottom - from.bottom) * e,
+                    left:   from.left   + (pad.left   - from.left)   * e
+                };
+                if (fromZoom !== undefined) this.orbitZoom = fromZoom + (toZoom - fromZoom) * e;
+                // На паузе покадрового цикла нет — двигаем карту сами
+                if (this.paused) this.map.setPadding(this.padding);
+                this._padFrame = p < 1 ? requestAnimationFrame(step) : null;
+            };
+            this._padFrame = requestAnimationFrame(step);
+        }
+
         // MARK: - Покадровое ведение
 
         _startLoop() {
+            if (this._frame) cancelAnimationFrame(this._frame);
             this._lastFrameAt = performance.now();
+            const token = this._token;
             const tick = now => {
+                if (token !== this._token) return;
                 // Потолок на случай ухода вкладки в фон
                 const dt = Math.min(0.1, Math.max(0, (now - this._lastFrameAt) / 1000));
                 this._lastFrameAt = now;
                 if (this.mode === 'flyover') this._stepFlyover(dt);
                 else if (this.mode === 'orbit') this._stepOrbit(dt);
                 else return;
-                if (this.mode !== 'off') this._frame = requestAnimationFrame(tick);
+                if (this.mode !== 'off' && !this.paused && token === this._token) {
+                    this._frame = requestAnimationFrame(tick);
+                }
             };
             this._frame = requestAnimationFrame(tick);
         }
@@ -366,8 +490,14 @@
 
         _stepOrbit(dt) {
             this.orbitBearing = normalize(this.orbitBearing + 360 / ORBIT_PERIOD * dt);
+            // ⚠️ Кадр обновляем не чаще тридцати раз в секунду. Оборот идёт
+            // почти минуту, и на глаз разницы с шестьюдесятью нет, а карта при
+            // наклонённой камере на спутнике перерисовывается вдвое реже.
+            this._orbitAccumulator += dt;
+            if (this._orbitAccumulator < 1 / 30) return;
+            this._orbitAccumulator = 0;
             this.map.jumpTo({
-                center: this.orbitPivot, zoom: this.orbitZoom(this.orbitBearing),
+                center: this.orbitPivot, zoom: this.orbitZoom,
                 bearing: this.orbitBearing, pitch: ORBIT_PITCH, padding: this.padding
             });
         }
