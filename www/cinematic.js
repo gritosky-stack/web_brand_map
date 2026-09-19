@@ -20,9 +20,12 @@
     // Наклон для облёта. Ниже — вид «из-за плеча», выше — почти вид сверху,
     // на котором пропадает весь смысл рельефа.
     const FLYOVER_PITCH = 64;
-    // Зум облёта: на широте Сербии это примерно 1.7 м на точку экрана — тропа
-    // читается вместе с формой склона вокруг неё.
-    const FLYOVER_ZOOM = 15.2;
+    // Зум облёта на экране телефона. В приложении 15.2, но на сайте так
+    // выходило слишком низко — тропа во весь экран, а склонов вокруг не видно
+    // (фидбэк 2026-09-19). Чуть выше — и видно, куда тропа идёт дальше.
+    const FLYOVER_ZOOM = 14.7;
+    // Сколько секунд пути подгружаем заранее, до старта (см. _preloadAhead)
+    const PRELOAD_SECONDS = 5;
     // Наклон вращения — рельеф ещё объёмный, но маршрут целиком лежит в кадре
     const ORBIT_PITCH = 58;
     // Полный оборот, секунд
@@ -239,6 +242,9 @@
             this.headingReady = false;
 
             this.flyoverZoom = this._flyoverZoom();
+            // Тайлы первых секунд полёта заказываем ещё до подлёта к старту
+            this._preloadedTo = 0;
+            this._preloadAhead(0, this._groundSpeed() * PRELOAD_SECONDS);
             this.map.easeTo({
                 center: start, zoom: this.flyoverZoom, bearing: this.heading,
                 pitch: FLYOVER_PITCH, padding: this.padding,
@@ -246,9 +252,14 @@
             });
             this.map.once('moveend', () => {
                 if (token !== this._token || this.mode !== 'flyover') return;
-                this.headingReady = true;
-                this._startLoop();
-                if (opts.onStarted) opts.onStarted();
+                // Стартуем, когда карта вокруг начала дорисовалась (но ждём не
+                // дольше пары секунд): первые кадры облёта — самые заметные,
+                // и дыры в них видны на любом записанном видео
+                this._whenTilesReady(token, 2200, () => {
+                    this.headingReady = true;
+                    this._startLoop();
+                    if (opts.onStarted) opts.onStarted();
+                });
             });
         }
 
@@ -278,6 +289,14 @@
             this.orbitZoom = this._fitZoom(route, pad, box);
             const token = ++this._token;
 
+            // Тайлы на весь оборот — заранее: иначе первый круг вращения
+            // проявляет карту кусками
+            for (let b = 0; b < 360; b += 45) {
+                try {
+                    this.map.jumpTo({ center: this.orbitPivot, zoom: this.orbitZoom, bearing: b,
+                                      pitch: ORBIT_PITCH, padding: pad, preloadOnly: true });
+                } catch (e) { break; }
+            }
             this.map.easeTo({
                 center: this.orbitPivot, zoom: this.orbitZoom,
                 bearing: this.orbitBearing, pitch: ORBIT_PITCH, padding: pad,
@@ -337,7 +356,67 @@
             const free = Math.min(box.width - pad.left - pad.right, box.height - pad.top - pad.bottom);
             if (!(free > 100)) return FLYOVER_ZOOM;
             // 390 — ширина телефона, под которую подобран зум в приложении
-            return Math.min(FLYOVER_ZOOM + 1.3, Math.max(FLYOVER_ZOOM, FLYOVER_ZOOM + Math.log2(free / 390)));
+            return Math.min(FLYOVER_ZOOM + 1.0, Math.max(FLYOVER_ZOOM, FLYOVER_ZOOM + Math.log2(free / 390)));
+        }
+
+        // MARK: - Подгрузка тайлов наперёд
+
+        /** Скорость камеры по земле, м/с — с учётом множителя */
+        _groundSpeed() {
+            if (!(this.duration > 0)) return FLYOVER_METERS_PER_SECOND * (this.speed || 1);
+            return this.totalMeters / this.duration * Math.max(0.25, this.speed || 1);
+        }
+
+        /** Поза камеры облёта в точке маршрута — такая же, как в полёте */
+        _poseAt(meters) {
+            const here = this._coordinateAt(meters);
+            return {
+                center: here, zoom: this.flyoverZoom, pitch: FLYOVER_PITCH, padding: this.padding,
+                bearing: bearing(here, this._coordinateAt(meters + this.lookAhead))
+            };
+        }
+
+        /**
+         * Заказать тайлы для поз камеры впереди по маршруту, не двигая её
+         * (`jumpTo` с `preloadOnly`). Только **до старта** — для первых
+         * секунд полёта, пока камера подлетает к началу.
+         *
+         * ⚠️ Подгрузку наперёд прямо в полёте пробовали и убрали: каждая
+         * наклонённая поза тянет свой набор дальних тайлов горизонта, и
+         * облёт падал с 14 до 8–10 кадров в секунду (замер 2026-09-19) —
+         * заметно хуже, чем редкие недогруженные куски. Тайлы и так пошли
+         * быстрее, когда перестали проходить через service worker.
+         */
+        _preloadAhead(fromMeters, toMeters) {
+            if (!this.points || !(this.totalMeters > 0)) return;
+            // Шаг — меньше половины видимого у центра куска земли: около
+            // 180 точек экрана (на зуме 14.7 это ≈380 м), чтобы соседние позы
+            // перекрывались и между ними не оставалось незаказанных тайлов
+            const lat = this.points[0][1];
+            const metersPerPoint = 78271.516 * Math.cos(rad(lat)) / Math.pow(2, this.flyoverZoom);
+            const step = Math.max(120, metersPerPoint * 180);
+            let m = Math.max(fromMeters, this._preloadedTo || 0);
+            const end = Math.min(this.totalMeters, toMeters);
+            let count = 0;
+            while (m <= end && count < 12) {
+                try { this.map.jumpTo(Object.assign(this._poseAt(m), { preloadOnly: true })); } catch (e) { return; }
+                this._preloadedTo = m + step;
+                m += step;
+                count++;
+            }
+        }
+
+        /** Дождаться, пока карта дорисует видимое, но не дольше `maxMs` */
+        _whenTilesReady(token, maxMs, done) {
+            const t0 = performance.now();
+            const check = () => {
+                if (token !== this._token) return;
+                let ready = false;
+                try { ready = this.map.areTilesLoaded(); } catch (e) { ready = true; }
+                if (ready || performance.now() - t0 > maxMs) done();
+                else setTimeout(check, 100);
+            };
+            check();
         }
 
         // MARK: - Пауза
@@ -521,6 +600,7 @@
                 pitch: FLYOVER_PITCH, padding: this.padding
             });
             if (this.onProgress) this.onProgress(here, progress, travelled);
+
 
             if (progress < 1) return;
             const onFinish = this.stop();

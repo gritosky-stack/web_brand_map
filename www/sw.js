@@ -1,12 +1,13 @@
 /* Service Worker — TOTSKII Wild
  * Стратегии:
- *   - App shell (HTML/CSS/JS/libs): Cache-first, обновление в фоне
+ *   - App shell (HTML/CSS/JS/libs): Network-first мимо HTTP-кэша, кэш —
+ *     только когда сети нет (с таймаутом, чтобы в горах не ждать вечно)
  *   - GPX треки: Cache-first (меняются редко)
- *   - Фото: Cache-first с лимитом 120 записей (Network-first слишком медленно в горах)
- *   - Mapbox tiles/API: Network-first, fallback на кэш
+ *   - Фото: Cache-first с лимитом записей (Network-first слишком медленно в горах)
+ *   - Mapbox: стиль, спрайты и шрифты — Network-first; **тайлы не трогаем**
  */
 
-const SHELL_VERSION = 'v11';
+const SHELL_VERSION = 'v12';
 const SHELL_CACHE   = `shell-${SHELL_VERSION}`;
 const GPX_CACHE     = 'gpx-v1';
 const PHOTO_CACHE   = 'photos-v1';
@@ -39,7 +40,10 @@ const SHELL_ASSETS = [
 self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(SHELL_CACHE).then(cache => cache.addAll(SHELL_ASSETS))
+    // cache: 'reload' — мимо HTTP-кэша браузера: иначе в кэш новой версии
+  // ложились старые файлы, которые браузер ещё держал у себя
+  caches.open(SHELL_CACHE).then(cache =>
+    cache.addAll(SHELL_ASSETS.map(url => new Request(url, { cache: 'reload' }))))
   );
 });
 
@@ -64,9 +68,14 @@ self.addEventListener('fetch', event => {
   // Только GET
   if (request.method !== 'GET') return;
 
-  // Mapbox tiles / API — network-first, fallback кэш
+  // Mapbox. ⚠️ Тайлы идут мимо service worker'а, прямо браузеру (у них свои
+  // заголовки кэширования). Раньше через него шёл каждый тайл: ждали сеть,
+  // потом писали в Cache Storage — при облёте это сотни тайлов в секунду
+  // через одно узкое место с записью на диск, и карта отставала от камеры
+  // тёмными дырами и мыльными заглушками (фидбэк 2026-09-19). Сохраняем
+  // только маленькое и нужное для запуска без сети: стиль, спрайты, шрифты.
   if (url.hostname.includes('mapbox.com') || url.hostname.includes('mapbox.cn')) {
-    event.respondWith(networkFirst(request, SHELL_CACHE));
+    if (/\/(styles|fonts)\//.test(url.pathname)) event.respondWith(networkFirst(request, SHELL_CACHE));
     return;
   }
 
@@ -82,11 +91,13 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // App shell и всё остальное с того же origin.
-  // Отдаём из кэша сразу, а в фоне подтягиваем свежую версию — иначе правки
-  // в script.js/index.html не доезжают до тех, кто уже открывал сайт.
+  // App shell и всё остальное с того же origin — сначала сеть.
+  // ⚠️ Было «из кэша сразу, свежее в фоне»: новая версия сайта доезжала только
+  // со второй-третьей загрузки, а фоновое обновление вдобавок брало файлы из
+  // HTTP-кэша браузера — на телефоне подолгу работал старый код, и уже
+  // исправленные баги «не исправлялись». Кэш — только без сети.
   if (url.origin === self.location.origin) {
-    event.respondWith(staleWhileRevalidate(request, SHELL_CACHE));
+    event.respondWith(networkFirstShell(request, SHELL_CACHE));
     return;
   }
 });
@@ -104,15 +115,25 @@ async function cacheFirst(request, cacheName) {
   return response;
 }
 
-async function staleWhileRevalidate(request, cacheName) {
-  const cached = await caches.match(request);
-  const network = fetch(request).then(response => {
+// Сеть (мимо HTTP-кэша, но с условным запросом — неизменённый файл придёт
+// коротким 304), а если за 4 с не ответила или её нет — кэш
+async function networkFirstShell(request, cacheName) {
+  const network = fetch(request, { cache: 'no-cache' }).then(response => {
     if (response.ok) {
-      caches.open(cacheName).then(cache => cache.put(request, response.clone()));
+      const copy = response.clone();
+      caches.open(cacheName).then(cache => cache.put(request, copy));
     }
     return response;
-  }).catch(() => cached);
-  return cached || network;
+  });
+  network.catch(() => {});   // проигравший гонку запрос не должен ронять SW
+  const timeout = new Promise(resolve => setTimeout(resolve, 4000));
+  try {
+    const response = await Promise.race([network, timeout]);
+    if (response) return response;
+  } catch (e) { /* сети нет — ниже кэш */ }
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  return network;
 }
 
 async function networkFirst(request, cacheName) {
