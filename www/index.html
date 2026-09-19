@@ -427,6 +427,11 @@
             #layers-panel { bottom: 218px; }
         }
         #layers-panel.open { display: flex; }
+        /* Слоёв стало много — панель листается, а не уходит за верх экрана */
+        #layers-panel { max-height: calc(100dvh - 68px - 90px); overflow-y: auto; overscroll-behavior: contain; }
+        @media (min-width: 768px) {
+            #layers-panel { max-height: calc(100dvh - 218px - 24px); }
+        }
         .layer-row {
             display: flex; align-items: center; justify-content: space-between; gap: 10px;
             padding: 9px 10px; border-radius: 10px; cursor: pointer;
@@ -808,8 +813,30 @@
             <path d="M16.86 4.49l2.65 2.65M4 20l4.2-.9L19.1 8.2a1.9 1.9 0 000-2.65l-.65-.65a1.9 1.9 0 00-2.65 0L4.9 15.8 4 20z"/>
         </svg>
     </button>
+    <!-- «Моя локация» (my_location.js) -->
+    <button id="btn-my-location" aria-label="Моё местоположение" title="Моё местоположение">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2.8 20 21l-8-4-8 4z" transform="rotate(45 12 12)"/>
+        </svg>
+    </button>
     <!-- Layers panel -->
     <div id="layers-panel">
+        <!-- Основа: растры под всем остальным (extra_layers.js) -->
+        <div class="layer-section layer-section-first">Основа</div>
+        <label class="layer-row">
+            <span class="layer-name">⛰ Топооснова<em>OpenTopoMap вместо спутника</em></span>
+            <input type="checkbox" id="layer-topo" class="layer-switch">
+        </label>
+        <label class="layer-row">
+            <span class="layer-name">🗺 Историческая карта <span id="layer-histmap-lock" class="layer-lock hidden">🔒</span><em>«Спецкарта» 1:75 000, 1900-е</em></span>
+            <input type="checkbox" id="layer-histmap" class="layer-switch">
+        </label>
+        <div id="histmap-alpha-row" class="layer-slider hidden">
+            <input id="histmap-alpha" type="range" min="10" max="100" step="1" class="tw-range" aria-label="Прозрачность исторической карты">
+            <span id="histmap-alpha-value" class="tabular-nums"></span>
+        </div>
+
+        <div class="layer-section">Тропы и рельеф</div>
         <label class="layer-row">
             <span class="layer-name">Маршруты линиями<em>все треки на обзоре</em></span>
             <input type="checkbox" id="layer-lines" class="layer-switch">
@@ -818,8 +845,26 @@
             <span class="layer-name">🔥 Хитмап троп<em id="layer-heat-hint"></em></span>
             <input type="checkbox" id="layer-heat" class="layer-switch">
         </label>
+        <label class="layer-row">
+            <span class="layer-name"><span><i class="layer-swatch" style="background:#FF8C1A"></i>Тропы ПСС</span><em>маркированные, 289 маршрутов</em></span>
+            <input type="checkbox" id="layer-pss" class="layer-switch">
+        </label>
+        <label class="layer-row">
+            <span class="layer-name"><span><i class="layer-swatch" style="background:#59D96B"></i>Тропы OSM</span><em>тропинки и грунтовки, видны вблизи</em></span>
+            <input type="checkbox" id="layer-osm" class="layer-switch">
+        </label>
+        <label class="layer-row">
+            <span class="layer-name">Крутизна склонов
+                <em class="slope-legend"><i style="background:#FFD740"></i>30°<i style="background:#FF8C21"></i>35°<i style="background:#E83829"></i>40°<i style="background:#A02497"></i>45°</em></span>
+            <input type="checkbox" id="layer-slope" class="layer-switch">
+        </label>
+
         <!-- Вода и укрытия (map_points.js) — как «Объекты на карте» в приложении -->
         <div class="layer-section">Объекты на карте</div>
+        <label class="layer-row">
+            <span class="layer-name">🚂 Железные дороги<em>пути и станции</em></span>
+            <input type="checkbox" id="layer-rail" class="layer-switch">
+        </label>
         <label class="layer-row">
             <span class="layer-name">💧 Вода<em>родники, колонки, колодцы</em></span>
             <input type="checkbox" id="layer-water" class="layer-switch">
@@ -827,6 +872,10 @@
         <label class="layer-row">
             <span class="layer-name">🏠 Укрытия и кемпинги<em>дома, навесы, кемпинги</em></span>
             <input type="checkbox" id="layer-shelter" class="layer-switch">
+        </label>
+        <label class="layer-row">
+            <span class="layer-name">🕳️ Пещеры<em>из OpenStreetMap</em></span>
+            <input type="checkbox" id="layer-caves" class="layer-switch">
         </label>
         <!-- Обещать воду там, где её может не быть, нельзя: оговорка стоит
              здесь, чтобы её увидели до того, как построят на этом план -->
@@ -1125,6 +1174,12 @@
                     <div id="time-planner"></div>
                 </div>
 
+                <!-- Погода по маршруту (weather.js) -->
+                <div id="panel-weather-wrapper" class="hidden px-5 py-4 border-b border-zinc-800/60 shrink-0">
+                    <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-3">Погода на маршруте</div>
+                    <div id="route-weather"></div>
+                </div>
+
                 <!-- Description -->
                 <div id="panel-description-wrapper" class="hidden p-5 border-b border-zinc-800/60 shrink-0">
                     <div id="panel-desc-body" style="position:relative;overflow:hidden;">
@@ -1338,6 +1393,7 @@
     <script src="grade_color.js"></script>
     <script src="profile_chart.js"></script>
     <script src="time_planner.js"></script>
+    <script src="weather.js"></script>
     <script src="cinematic.js"></script>
     <script src="route_marks.js"></script>
     <script src="photo_viewer.js"></script>
@@ -1348,6 +1404,10 @@
     <script src="account.js"></script>
     <script src="route_builder.js"></script>
     <script src="map_points.js"></script>
+    <script src="premium.js"></script>
+    <script src="extra_layers.js"></script>
+    <script src="point_insight.js"></script>
+    <script src="my_location.js"></script>
     <script>
       // На localhost кэш service worker только мешает: правка в файле не
       // видна, пока не сбросишь его руками. Там прошлый снимаем, новый не ставим.

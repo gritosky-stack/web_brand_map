@@ -30,6 +30,8 @@
     const SDK               = 'libs/supabase.js';   // ~220 КБ — грузим после карты
     const MINE_COLOR        = '#7A5EA6';
     const ID_PREFIX         = 'my_';
+    // Чужой маршрут, открытый по ссылке (`#shared_<id>`)
+    const SHARED_PREFIX     = 'shared_';
     const RETURN_HASH_KEY   = 'tw-auth-return-hash';
 
     let client = null;
@@ -166,6 +168,8 @@
         const data = toRouteData(p);
         row._ok = !!data;
         if (!data) return;
+        // Свой же маршрут, открытый по своей ссылке, — одна метка, а не две
+        if (routes[SHARED_PREFIX + row.id]) unregisterUserRoute(SHARED_PREFIX + row.id);
         const recorded = parseDate(p.date) || parseDate(row.recorded_at);
         registerUserRoute({
             id: routeIdOf(row.id), cloudId: row.id, file: null,
@@ -189,8 +193,9 @@
         if (loadingRoutes) return loadingRoutes;
         loadingRoutes = (async () => {
             try {
-                const { data, error } = await client.from('routes')
-                    .select('id,name,distance_km,recorded_at,updated_at,payload');
+                // `*`, а не список колонок: `shared` появляется только после
+                // миграции в schema.sql, и до неё явный список ронял бы загрузку
+                const { data, error } = await client.from('routes').select('*');
                 if (error) throw error;
                 const seen = new Set();
                 for (const row of data || []) {
@@ -296,17 +301,140 @@
         }
     }
 
-    function downloadGPX(cloudId) {
-        const row = rows.get(cloudId);
-        if (!row) return;
-        const blob = new Blob([gpxString(row.payload)], { type: 'application/gpx+xml' });
+    function saveBlob(blob, name) {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = (row.payload.name || 'route').replace(/[\\/:*?"<>|]/g, '_') + '.gpx';
+        a.download = (name || 'route').replace(/[\\/:*?"<>|]/g, '_') + '.gpx';
         document.body.appendChild(a);
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    function downloadGPX(cloudId) {
+        const row = rows.get(cloudId);
+        if (!row) return;
+        saveBlob(new Blob([gpxString(row.payload)], { type: 'application/gpx+xml' }), row.payload.name);
+    }
+
+    /**
+     * GPX маршрута каталога — исходный файл как есть (с временем и высотами
+     * записи), а не пересобранный из упрощённой линии. Закрыт premium.js.
+     */
+    async function downloadCatalogGPX(routeInfo) {
+        if (!routeInfo || !routeInfo.file) return;
+        if (window.Premium && !Premium.require('gpx')) return;
+        try {
+            const res = await fetch(encodeURI(routeInfo.file));
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            saveBlob(new Blob([await res.text()], { type: 'application/gpx+xml' }), routeInfo.name);
+        } catch (e) {
+            console.warn('[account] GPX каталога:', e);
+            toast('Не удалось скачать GPX');
+        }
+    }
+
+    // ── Поделиться ссылкой ──────────────────────────────────────────────────
+    //
+    // Маршрут открывается по ссылке `#shared_<id>` всем, у кого она есть, —
+    // даже без входа. Читать чужую строку `routes` RLS не даёт, поэтому
+    // ссылка работает через функцию базы `get_shared_route(id)` (security
+    // definer, schema.sql): она отдаёт маршрут, только если владелец поставил
+    // `shared = true`. Id — UUID, перебором его не найти; а списка «всех
+    // расшаренных» нет вовсе.
+
+    function shareLink(cloudId) {
+        return `${location.origin}${location.pathname}#${SHARED_PREFIX}${cloudId}`;
+    }
+
+    async function copyLink(link) {
+        // На телефоне — системное «Поделиться»: прямо в чат группы
+        if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+            try { await navigator.share({ url: link }); return; } catch (e) {
+                if (e && e.name === 'AbortError') return;
+            }
+        }
+        try {
+            await navigator.clipboard.writeText(link);
+            toast('Ссылка скопирована — её можно отправить в чат');
+        } catch (e) {
+            window.prompt('Ссылка на маршрут', link);
+        }
+    }
+
+    async function setShared(cloudId, shared) {
+        const row = rows.get(cloudId);
+        if (!row) return false;
+        // Правка доступа — не правка маршрута: `updated_at` не трогаем, иначе
+        // приложение сочло бы это новой версией
+        const { error } = await client.from('routes').update({ shared }).eq('id', cloudId);
+        if (error) {
+            console.warn('[account] доступ по ссылке:', error);
+            toast(/column|shared/i.test(error.message || '')
+                ? 'Ссылки ещё не включены в базе — нужна миграция из schema.sql'
+                : 'Не удалось изменить доступ по ссылке');
+            return false;
+        }
+        row.shared = shared;
+        return true;
+    }
+
+    let sharedHandled = null;
+
+    /** Открыть чужой маршрут по `#shared_<id>`. Вход для этого не нужен */
+    async function openShared() {
+        const hash = location.hash.slice(1);
+        if (!hash.startsWith(SHARED_PREFIX) || !client) return;
+        const cloudId = hash.slice(SHARED_PREFIX.length);
+        if (!cloudId || sharedHandled === cloudId) return;
+        sharedHandled = cloudId;
+
+        const go = id => {
+            const run = () => triggerRouteSelection(id);
+            if (map.getLayer('route-markers-layer')) run(); else map.once('load', run);
+        };
+        // Своя ссылка — это свой маршрут
+        if (rows.has(cloudId)) { go(routeIdOf(cloudId)); return; }
+
+        try {
+            const { data, error } = await client.rpc('get_shared_route', { route_id: cloudId });
+            if (error) throw error;
+            const row = Array.isArray(data) ? data[0] : data;
+            if (!row || !row.payload) { toast('Маршрут по ссылке не найден — возможно, доступ закрыли'); return; }
+            if (rows.has(cloudId)) { go(routeIdOf(cloudId)); return; }
+            const routeData = toRouteData(row.payload);
+            if (!routeData) { toast('В маршруте по ссылке нет трека'); return; }
+            const id = SHARED_PREFIX + cloudId;
+            registerUserRoute({
+                id, cloudId, file: null, name: row.payload.name || row.name || 'Маршрут', color: MINE_COLOR,
+                future: false, mine: true, shared: true, payload: row.payload,
+                overrideAscent: null, overrideDescent: null, overrideTime: null, overrideMinEle: null,
+                date: (parseDate(row.payload.date) || new Date()).toISOString(),
+                description: null, instagramUrl: null, photos: [], videos: []
+            }, routeData);
+            go(id);
+        } catch (e) {
+            console.warn('[account] маршрут по ссылке:', e);
+            sharedHandled = null;
+            toast('Не удалось открыть маршрут по ссылке');
+        }
+    }
+
+    /** «Сохранить себе» — копия чужого маршрута в свои, под новым id */
+    async function saveSharedCopy(routeInfo) {
+        if (!user) { openModal(); return; }
+        const now = new Date().toISOString();
+        const p = Object.assign({}, routeInfo.payload, { id: newId(), date: now, updatedAt: now });
+        try {
+            await saveRow(p);
+            unregisterUserRoute(routeInfo.id);
+            history.replaceState(null, '', location.pathname + location.search);
+            showSaved(p.id);
+            toast('Сохранено в «Мои» — появится и в приложении');
+        } catch (e) {
+            console.warn('[account] сохранение копии:', e);
+            toast('Не удалось сохранить маршрут');
+        }
     }
 
     /** Ссылка вида `#my_<id>` открывается, как только маршруты приехали. */
@@ -447,6 +575,8 @@
             if (routes[id] && parsedRouteDataCache[id]) {
                 const go = () => triggerRouteSelection(id);
                 if (map.getLayer('route-markers-layer')) go(); else map.once('load', go);
+            } else if (id.startsWith(SHARED_PREFIX)) {
+                openShared();       // вошли со страницы маршрута по ссылке
             }
         }
     }
@@ -457,6 +587,7 @@
     const USER_ICON = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.1a7.5 7.5 0 0115 0A17.9 17.9 0 0112 21.75c-2.68 0-5.22-.58-7.5-1.65z"/></svg>';
     const UPLOAD_ICON = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4"/></svg>';
 
+    const DOWNLOAD_ICON = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4"/></svg>';
     const PEN_ICON = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.86 4.49l2.65 2.65M4 20l4.2-.9L19.1 8.2a1.9 1.9 0 000-2.65l-.65-.65a1.9 1.9 0 00-2.65 0L4.9 15.8 4 20z"/></svg>';
 
     function statsLine() {
@@ -637,13 +768,19 @@
 
     let lastAnnounced = null;
     function announce() {
-        if (state === lastAnnounced) return;
-        lastAnnounced = state;
+        // Со сменой почты тоже: от неё зависят закрытые функции (premium.js)
+        const key = state + '|' + (user && user.email || '');
+        if (key === lastAnnounced) return;
+        lastAnnounced = key;
         document.dispatchEvent(new CustomEvent('tw-account', { detail: { state } }));
     }
 
     function render() {
         announce();
+        // Замок на «Скачать GPX» каталога зависит от того, кто вошёл
+        if (typeof currentViewedRoute !== 'undefined' && currentViewedRoute && !currentViewedRoute.mine) {
+            renderPanelActions(currentViewedRoute);
+        }
         renderButtons();
         renderModal();
         renderStrip();
@@ -652,9 +789,37 @@
     }
 
     /** Действия в карточке своего маршрута: переименовать, скачать, удалить. */
+    const LOCK = '<span class="tw-lock" aria-hidden="true">🔒</span>';
+
+    function renderCatalogActions(box, routeInfo) {
+        const locked = !(window.Premium && Premium.allowed());
+        box.classList.remove('hidden');
+        box.innerHTML = `
+            <button class="tw-btn tw-btn-ghost" id="cat-act-gpx">${DOWNLOAD_ICON}Скачать GPX${locked ? LOCK : ''}</button>
+            <p class="tw-note mt-2">Трек для навигатора, часов или OsmAnd.</p>`;
+        box.querySelector('#cat-act-gpx').onclick = () => downloadCatalogGPX(routeInfo);
+    }
+
+    function renderSharedActions(box, routeInfo) {
+        box.classList.remove('hidden');
+        box.innerHTML = `
+            <div class="text-zinc-500 text-[10px] uppercase tracking-widest mb-3">Маршрут по ссылке</div>
+            <div class="flex flex-col gap-2">
+                ${state === 'unavailable' ? '' : `<button class="tw-btn tw-btn-mine" id="sh-act-save">${user ? 'Сохранить себе' : 'Войти и сохранить себе'}</button>`}
+                <button class="tw-btn tw-btn-ghost" id="sh-act-gpx">Скачать GPX</button>
+            </div>
+            <p class="tw-note mt-3">Этим маршрутом с вами поделились. Сохранённая копия попадёт в «Мои» и в приложение.</p>`;
+        const save = box.querySelector('#sh-act-save');
+        if (save) save.onclick = () => saveSharedCopy(routeInfo);
+        box.querySelector('#sh-act-gpx').onclick = () =>
+            saveBlob(new Blob([gpxString(routeInfo.payload)], { type: 'application/gpx+xml' }), routeInfo.name);
+    }
+
     function renderPanelActions(routeInfo) {
         const box = document.getElementById('panel-my-actions');
         if (!box) return;
+        if (routeInfo && routeInfo.shared) { renderSharedActions(box, routeInfo); return; }
+        if (routeInfo && !routeInfo.mine && routeInfo.file) { renderCatalogActions(box, routeInfo); return; }
         if (!routeInfo || !routeInfo.mine) { box.classList.add('hidden'); box.innerHTML = ''; return; }
         const id = routeInfo.cloudId;
         box.classList.remove('hidden');
@@ -665,6 +830,11 @@
                 <button class="tw-btn tw-btn-mine" style="width:auto" id="my-rename-save">OK</button>
             </div>
             <div class="flex flex-col gap-2">
+                <button class="tw-btn tw-btn-mine" id="my-act-share">Поделиться ссылкой</button>
+                <div id="my-share-state" class="hidden tw-share-state">
+                    <span>🔗 Открыт по ссылке</span>
+                    <button id="my-act-unshare">Закрыть доступ</button>
+                </div>
                 <button class="tw-btn tw-btn-ghost" id="my-act-rename">Переименовать</button>
                 <button class="tw-btn tw-btn-ghost" id="my-act-gpx">Скачать GPX</button>
                 <button class="tw-btn tw-btn-danger" id="my-act-delete">Удалить</button>
@@ -685,6 +855,29 @@
             if (e.key === 'Escape') box.querySelector('#my-rename').classList.add('hidden');
         };
         box.querySelector('#my-act-gpx').onclick = () => downloadGPX(id);
+
+        const shareBtn = box.querySelector('#my-act-share');
+        const shareState = box.querySelector('#my-share-state');
+        const syncShare = () => {
+            const row = rows.get(id);
+            shareState.classList.toggle('hidden', !(row && row.shared));
+            shareBtn.textContent = row && row.shared ? 'Скопировать ссылку' : 'Поделиться ссылкой';
+        };
+        syncShare();
+        shareBtn.onclick = async () => {
+            const row = rows.get(id);
+            if (!(row && row.shared)) {
+                shareBtn.disabled = true;
+                const ok = await setShared(id, true);
+                shareBtn.disabled = false;
+                if (!ok) return;
+                syncShare();
+            }
+            copyLink(shareLink(id));
+        };
+        box.querySelector('#my-act-unshare').onclick = async () => {
+            if (await setShared(id, false)) { syncShare(); toast('Доступ по ссылке закрыт'); }
+        };
 
         // Удаление — в два нажатия, без системного confirm()
         const del = box.querySelector('#my-act-delete');
@@ -774,7 +967,16 @@
         // В Capacitor-обёртке Google не пускает вход во встроенном WebView —
         // там есть нативное приложение, входить нужно в нём
         if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) {
-            state = 'unavailable'; render(); return;
+            state = 'unavailable'; render();
+            // Маршрут по ссылке входа не требует — его покажем и здесь
+            if (location.hash.startsWith('#' + SHARED_PREFIX)) {
+                try {
+                    await _loadScript(SDK);
+                    client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+                    openShared();
+                } catch (e) { /* без SDK — без ссылок */ }
+            }
+            return;
         }
         const input = document.getElementById('my-gpx-input');
         input.addEventListener('change', () => {
@@ -806,6 +1008,11 @@
         });
         if (hadError) { cleanUrl(); openModal(); }
 
+        // Маршрут по ссылке. Сессию не ждём: вход для него не нужен, а свой
+        // маршрут `openShared` узнает, если строки уже приехали
+        openShared();
+        window.addEventListener('hashchange', openShared);
+
         // Маршрут, записанный в телефоне, подтягиваем, когда вкладка снова
         // на экране — без realtime-подписки
         document.addEventListener('visibilitychange', () => {
@@ -820,7 +1027,9 @@
         cancelDelete() { deleteStep = 'idle'; errorMsg = null; renderModal(); },
         confirmDelete: deleteAccount,
         /** loading | signedOut | working | signedIn | unavailable */
-        status() { return state === 'signedIn' && !user ? 'signedOut' : state; }
+        status() { return state === 'signedIn' && !user ? 'signedOut' : state; },
+        /** Почта вошедшего — по ней premium.js открывает закрытые функции */
+        email() { return user && user.email ? user.email.toLowerCase() : null; }
     };
     window.MyRoutes = {
         onFilterChange(type) { filter = type; renderMobileList(); },

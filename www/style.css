@@ -310,3 +310,133 @@ body.tw-drawing #poi-card, body.tw-immersive #poi-card { display: none !importan
     display: flex; align-items: center; justify-content: center;
     color: rgba(255,255,255,.6); background: rgba(255,255,255,.08);
 }
+
+/* ── Остальные слои (extra_layers.js) ──────────────────────────────────────── */
+.layer-section-first { margin-top: 2px; padding-top: 2px; border-top: 0; }
+.layer-swatch { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin: 0 6px 3px 0; vertical-align: middle; }
+.layer-lock { font-size: 10px; opacity: .8; }
+.layer-lock.hidden { display: none; }
+.slope-legend { display: flex; align-items: center; gap: 3px; }
+.slope-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-left: 3px; }
+.slope-legend i:first-child { margin-left: 0; }
+.layer-slider { display: flex; align-items: center; gap: 10px; padding: 0 10px 8px; }
+.layer-slider.hidden { display: none; }
+.layer-slider input { flex: 1; }
+.layer-slider span { font-size: 11px; color: rgba(255,255,255,.7); width: 32px; text-align: right; }
+
+/* ── Закрытые функции (premium.js) ─────────────────────────────────────────── */
+.pm-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.pm-badge {
+    flex: none; width: 56px; height: 56px; border-radius: 16px; font-size: 28px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+}
+.pm-badge-works {
+    background: repeating-linear-gradient(-45deg, rgba(255,179,71,.14) 0 6px, rgba(0,0,0,0) 6px 12px), rgba(255,179,71,.06);
+    border-color: rgba(255,179,71,.35);
+}
+.pm-title { color: #fff; font-size: 17px; font-weight: 600; }
+.pm-sub { color: rgba(255,255,255,.5); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
+.pm-sub-works { color: #FFB347; }
+.pm-gear { animation: pm-spin 6s linear infinite; }
+@keyframes pm-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .pm-gear { animation: none; } }
+
+/* ── Карточка точки (point_insight.js) — SearchedPointPanel ────────────────── */
+#insight-card {
+    position: fixed; z-index: 46; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+    max-width: 420px; margin: 0 auto; padding: 14px 16px 16px;
+    display: none; flex-direction: column; gap: 12px;
+    background: rgba(10,10,10,.84); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.5);
+}
+#insight-card.open { display: flex; animation: rb-pop .3s ease; }
+@media (min-width: 768px) { #insight-card { bottom: 180px; } }
+body.tw-drawing #insight-card, body.tw-immersive #insight-card { display: none !important; }
+@media (min-width: 768px) {
+    body.route-open #insight-card { left: 392px; right: 12px; bottom: 24px; }
+}
+@media (max-width: 767px) {
+    body.route-open #insight-card { top: calc(84px + env(safe-area-inset-top)); bottom: auto; z-index: 65; }
+}
+.ins-head { display: flex; align-items: flex-start; gap: 8px; }
+.ins-coords { flex: 1; min-width: 0; }
+.ins-title { color: #fff; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ins-sub { color: rgba(255,255,255,.55); font-size: 11.5px; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.ins-btn {
+    flex: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,.65); background: rgba(255,255,255,.08);
+}
+.ins-btn:hover { color: #fff; background: rgba(255,255,255,.14); }
+.ins-tiles { display: flex; gap: 10px; }
+.ins-tile { flex: 1; min-width: 0; min-height: 46px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.07); }
+.ins-tile-h { color: rgba(255,255,255,.5); font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 3px; }
+.ins-tile-v { color: #fff; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.ins-tile-v.ins-small { font-size: 12px; }
+.ins-near { display: flex; flex-direction: column; gap: 2px; }
+.ins-row {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 6px; margin: 0 -6px; border-radius: 8px;
+    text-align: left; cursor: default; color: #fff; font-size: 13px; box-sizing: content-box;
+}
+.ins-row.ins-link { cursor: pointer; }
+.ins-row.ins-link:hover { background: rgba(255,255,255,.07); }
+.ins-row-emoji { flex: none; width: 18px; text-align: center; }
+.ins-row-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ins-row-dist { flex: none; color: rgba(255,255,255,.55); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* ── Моя локация (my_location.js) ──────────────────────────────────────────── */
+#btn-my-location {
+    position: fixed; z-index: 30; right: 14px; bottom: 182px;
+    width: 40px; height: 40px; border-radius: 12px;
+    background: rgba(12,12,14,.92); border: 1px solid rgba(63,63,70,.6);
+    color: rgba(255,255,255,.55); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: color .2s, background .2s, border-color .2s;
+    box-shadow: 0 4px 20px rgba(0,0,0,.6);
+}
+#btn-my-location:hover { background: rgba(25,25,28,.98); color: rgba(255,255,255,.9); }
+#btn-my-location.active { color: #5AA2FF; border-color: rgba(47,128,237,.6); background: rgba(47,128,237,.14); }
+#btn-my-location.active svg { fill: currentColor; }
+#btn-my-location.locating svg { animation: myloc-pulse 1s ease-in-out infinite; }
+@keyframes myloc-pulse { 50% { opacity: .3; } }
+@media (min-width: 768px) { #btn-my-location { bottom: 332px; } }
+body.tw-immersive #btn-my-location, body.tw-flyover #btn-my-location, body.tw-drawing #btn-my-location { display: none; }
+
+/* ── Погода по маршруту (weather.js) ───────────────────────────────────────── */
+.wx-loading { color: rgba(255,255,255,.45); font-size: 12px; }
+.wx-days { display: flex; gap: 6px; overflow-x: auto; margin: 0 -20px 10px; padding: 0 20px; scroll-behavior: smooth; }
+.wx-day {
+    flex: none; padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 500; white-space: nowrap;
+    color: rgba(255,255,255,.6); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); cursor: pointer;
+}
+.wx-day:first-letter { text-transform: uppercase; }
+.wx-day.active { color: #000; background: #fff; border-color: #fff; }
+.wx-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; }
+.wx-card { padding: 10px; border-radius: 12px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); min-width: 0; }
+.wx-card-h { color: rgba(255,255,255,.45); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wx-main { display: flex; align-items: center; gap: 8px; }
+.wx-icon { font-size: 24px; line-height: 1; }
+.wx-temp { color: #fff; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wx-temp small { color: rgba(255,255,255,.45); font-size: 13px; font-weight: 500; }
+.wx-desc { color: rgba(255,255,255,.7); font-size: 11px; margin: 4px 0 6px; }
+.wx-line { color: rgba(255,255,255,.6); font-size: 11px; line-height: 1.6; font-variant-numeric: tabular-nums; }
+.wx-line.wx-warn { color: #FFB347; }
+.wx-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; color: rgba(255,255,255,.55); font-size: 11px; }
+.wx-apply {
+    padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer;
+    color: #fff; background: rgba(255,77,77,.18); border: 1px solid rgba(255,77,77,.4);
+}
+.wx-apply:disabled { cursor: default; color: rgba(255,255,255,.45); background: transparent; border-color: rgba(255,255,255,.1); }
+.wx-credit { margin-top: 8px; color: rgba(255,255,255,.3); font-size: 9.5px; }
+
+/* ── Поделиться ссылкой, GPX каталога (account.js) ─────────────────────────── */
+.tw-lock { font-size: 12px; margin-left: 2px; opacity: .8; }
+.tw-share-state {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 12px; border-radius: 10px; font-size: 12px; color: #C4B0E8;
+    background: rgba(122,94,166,.14); border: 1px solid rgba(122,94,166,.35);
+}
+.tw-share-state.hidden { display: none; }
+.tw-share-state button { color: rgba(255,255,255,.6); font-size: 11px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.tw-share-state button:hover { color: #fff; }

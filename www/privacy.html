@@ -48,11 +48,14 @@
        а также технический идентификатор аккаунта. Пароль мы не получаем и не храним.</p>
     <h3>Ваши маршруты</h3>
     <p>Маршруты, которые вы нарисовали, записали или загрузили файлом GPX, пока вы вошли в аккаунт, хранятся в облаке:
-       название, дата, точки маршрута (координаты), длина и высоты. Их видите только вы.</p>
-    <h3>Геолокация (только приложение)</h3>
+       название, дата, точки маршрута (координаты), длина и высоты. Их видите только вы — пока сами не включите
+       для маршрута «Поделиться ссылкой»: тогда его увидит любой, у кого есть ссылка. Доступ можно закрыть в любой момент.</p>
+    <h3>Геолокация</h3>
     <p>Приложение с вашего разрешения использует местоположение, чтобы показать вас на карте и записать трек похода,
        в том числе в фоне во время записи. Местоположение обрабатывается на устройстве; в облако попадает только
-       записанный трек, если вы сами сохранили его как маршрут, будучи в аккаунте. Сайт вашу геолокацию не запрашивает.</p>
+       записанный трек, если вы сами сохранили его как маршрут, будучи в аккаунте. Сайт запрашивает местоположение,
+       только когда вы нажали кнопку «Моё местоположение», и использует его лишь в браузере, чтобы показать точку на карте, —
+       никуда его не отправляет и не сохраняет.</p>
     <h3>Данные на вашем устройстве</h3>
     <p>Настройки (например, правила прокладки маршрута), черновик рисуемого маршрута и копии файлов сайта для работы
        без сети хранятся в браузере или в приложении на вашем устройстве и к нам не передаются. Сайт не использует
@@ -70,7 +73,8 @@
         <li><b>BRouter</b> (brouter.de) и <b>OSRM</b> (routing.openstreetmap.de) — прокладка маршрута по тропам. Когда вы рисуете маршрут, им передаются координаты соседних точек маршрута, без данных аккаунта.</li>
         <li><b>OpenStreetMap</b> и <b>OpenTopoMap</b> — тайлы карты (хитмап троп, топооснова).</li>
         <li><b>Open-Elevation</b> — высоты точек маршрута в приложении, если их не удалось получить иначе.</li>
-        <li><b>Cloudflare</b> — хранение наборов карт и фото для приложения.</li>
+        <li><b>Open-Meteo</b> — прогноз погоды по маршруту. Получает координаты и высоту старта и высшей точки открытого маршрута, без данных аккаунта и вашего местоположения.</li>
+        <li><b>Cloudflare</b> — хранение наборов карт (историческая карта, крутизна склонов) и фото для приложения и сайта.</li>
         <li>Хостинг сайта и сеть доставки файлов (jsDelivr) — отдача файлов сайта.</li>
     </ul>
     <p>Эти сервисы могут обрабатывать данные за пределами Сербии, в том числе в ЕС и США. Мы раскрываем данные
@@ -132,11 +136,13 @@
        profile photo, and a technical account identifier. We never receive or store your password.</p>
     <h3>Your routes</h3>
     <p>Routes you draw, record or upload as GPX while signed in are stored in the cloud: name, date, route points
-       (coordinates), length and elevations. Only you can see them.</p>
-    <h3>Location (app only)</h3>
+       (coordinates), length and elevations. Only you can see them — unless you turn on “Share link” for a route:
+       then anyone with the link can view it. You can revoke access at any time.</p>
+    <h3>Location</h3>
     <p>With your permission the app uses your location to show you on the map and to record a hike, including in the
        background while recording. Location is processed on your device; only a recorded track that you choose to save
-       as a route while signed in is uploaded. The website does not request your location.</p>
+       as a route while signed in is uploaded. The website asks for your location only when you press “My location”
+       and uses it solely in the browser to show the dot on the map — it is neither sent anywhere nor stored.</p>
     <h3>Data on your device</h3>
     <p>Settings (such as routing preferences), a route draft and offline copies of site files are kept in your browser
        or app on your device and are not sent to us. The website uses no tracking cookies; sign-in data is kept in
@@ -154,7 +160,8 @@
         <li><b>BRouter</b> (brouter.de) and <b>OSRM</b> (routing.openstreetmap.de) — trail routing; while you draw a route they receive the coordinates of adjacent route points, without account data.</li>
         <li><b>OpenStreetMap</b> and <b>OpenTopoMap</b> — map tiles (trail heatmap, topographic base map).</li>
         <li><b>Open-Elevation</b> — route elevations in the app when not otherwise available.</li>
-        <li><b>Cloudflare</b> — storage of map packs and photos for the app.</li>
+        <li><b>Open-Meteo</b> — route weather forecast; receives the coordinates and elevation of the start and highest point of the open route, without account data or your location.</li>
+        <li><b>Cloudflare</b> — storage of map packs (historical map, slope steepness) and photos for the app and website.</li>
         <li>Website hosting and file delivery network (jsDelivr) — serving site files.</li>
     </ul>
     <p>These services may process data outside Serbia, including in the EU and the US. We disclose data to

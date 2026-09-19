@@ -116,3 +116,30 @@ $$;
 
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+-- ─────────────────────────── Маршрут по ссылке ─────────────────────────
+-- Сайт даёт «Поделиться ссылкой» (`#shared_<id>`): маршрут видят все, у кого
+-- есть ссылка, даже без входа. RLS при этом не ослабляем — политики на
+-- select остаются «только владелец». Чужой маршрут отдаёт функция с правами
+-- владельца и только по точному id и только если владелец включил `shared`.
+-- Списка «всех расшаренных» нет, а id — UUID, перебором его не найти.
+--
+-- Колонку правит только владелец (политика «владелец правит» выше).
+-- Приложение пишет строку upsert'ом без этой колонки — значение сохраняется.
+--   Сайт: client.from('routes').update({ shared: true }).eq('id', id)
+--         client.rpc('get_shared_route', { route_id: id })
+alter table public.routes add column if not exists shared boolean not null default false;
+
+create or replace function public.get_shared_route(route_id text)
+returns table (id text, name text, payload jsonb, updated_at timestamptz)
+language sql
+stable
+security definer set search_path = ''
+as $$
+    select r.id, r.name, r.payload, r.updated_at
+    from public.routes r
+    where r.id = route_id and r.shared
+$$;
+
+revoke all on function public.get_shared_route(text) from public;
+grant execute on function public.get_shared_route(text) to anon, authenticated;

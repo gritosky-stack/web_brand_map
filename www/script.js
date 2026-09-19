@@ -107,6 +107,8 @@ function toggleHeatmap(on) {
         id: 'heatmap-layer', type: 'raster', source: 'heatmap-source',
         paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 }
     }, below);
+    // Над гравюрой и крутизной, под тропами — общий порядок в extra_layers.js
+    if (window.ExtraLayers) ExtraLayers.restack();
 }
 
 // ── Route data ─────────────────────────────────────────────────────────────────
@@ -885,6 +887,11 @@ function triggerRouteSelection(routeId) {
             badge.style.cssText = 'background:rgba(255,140,0,.2);border:1px solid rgba(255,140,0,.5);color:#FFB347;';
             badge.textContent = 'ПЛАН';
             badge.classList.remove('hidden');
+        } else if (routeInfo.shared) {
+            badge.className = 'inline-flex items-center gap-1.5 mb-2 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider';
+            badge.style.cssText = 'background:rgba(122,94,166,.25);border:1px solid rgba(122,94,166,.6);color:#C4B0E8;';
+            badge.textContent = 'ПОДЕЛИЛИСЬ';
+            badge.classList.remove('hidden');
         } else if (routeInfo.mine) {
             badge.className = 'inline-flex items-center gap-1.5 mb-2 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider';
             badge.style.cssText = 'background:rgba(122,94,166,.25);border:1px solid rgba(122,94,166,.6);color:#C4B0E8;';
@@ -954,6 +961,7 @@ function triggerRouteSelection(routeId) {
         // RouteProfile: график ведёт бегунок по карте, а выделенный на нём
         // участок подсвечивается на линии маршрута
         RouteProfile.show(routeInfo, routeData, routeInfo.id);
+        if (window.RouteWeather) RouteWeather.show(routeInfo, routeData);
 
         // Instagram
         const igWrap = document.getElementById('panel-instagram-wrapper');
@@ -1528,6 +1536,7 @@ document.getElementById('btn-back').addEventListener('click', () => {
     RouteProfile.hide();
     document.getElementById('panel-elevation-wrapper').classList.add('hidden');
     document.getElementById('panel-time-planner-wrapper').classList.add('hidden');
+    if (window.RouteWeather) RouteWeather.hide();
 });
 
 // ── Filter ────────────────────────────────────────────────────────────────────
@@ -2174,7 +2183,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('layer-heat-hint').textContent = HEATMAP_SOURCE.hint;
 
-        const syncBtn = () => btn.classList.toggle('lines-active', _showLines || _heatmapOn);
+        const syncBtn = () => btn.classList.toggle('lines-active',
+            _showLines || _heatmapOn || !!(window.ExtraLayers && ExtraLayers.anyOn()));
+        window.syncLayersBtn = syncBtn;
 
         btn.addEventListener('click', (e) => {
             e.stopPropagation();

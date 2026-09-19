@@ -20,20 +20,25 @@
         tap:     { emoji: '🚰', title: 'Колонка' },
         hut:     { emoji: '🏠', title: 'Дом' },
         shelter: { emoji: '⛺️', title: 'Навес' },
-        camp:    { emoji: '🏕', title: 'Кемпинг' }
+        camp:    { emoji: '🏕', title: 'Кемпинг' },
+        cave:    { emoji: '🕳️', title: 'Пещера' }
     };
 
     // Цвет кластеров — чтобы вода и крыша различались и на спутнике
     const SETS = {
         water:   { file: 'water.geojson',    kinds: ['spring', 'well', 'tap'],     cluster: 'rgba(41,140,217,.72)' },
-        shelter: { file: 'shelters.geojson', kinds: ['hut', 'shelter', 'camp'],    cluster: 'rgba(158,102,41,.72)' }
+        shelter: { file: 'shelters.geojson', kinds: ['hut', 'shelter', 'camp'],    cluster: 'rgba(158,102,41,.72)' },
+        // Пещеры — `caves.geojson` приложения, приведённый к тем же полям
+        // (`kind`, `nameSr`, `ele`), плюс длина и глубина. Их меньше, и
+        // кластер распадается раньше — как `cave-src` в приложении
+        cave:    { file: 'caves.geojson',    kinds: ['cave'],                      cluster: 'rgba(56,112,217,.70)', clusterMaxZoom: 11 }
     };
 
-    const on = { water: false, shelter: false };
+    const on = { water: false, shelter: false, cave: false };
 
     // Свечение выделенной точки — цвет её набора, но ярче кластера
-    const GLOW = { water: '#4FB3FF', shelter: '#FFB347' };
-    const setOf = kind => (SETS.water.kinds.includes(kind) ? 'water' : 'shelter');
+    const GLOW = { water: '#4FB3FF', shelter: '#FFB347', cave: '#8FB4FF' };
+    const setOf = kind => Object.keys(SETS).find(set => SETS[set].kinds.includes(kind)) || 'shelter';
 
     const ids = set => ({
         src: `${set}-poi-src`,
@@ -59,6 +64,38 @@
         return { image: ctx.getImageData(0, 0, px, px), ratio };
     }
 
+    /**
+     * Пещера — свой значок, как `makeCaveIcon` приложения: синий круг с белой
+     * горой и аркой входа. Эмодзи 🕳 — чёрный овал — на тёмной подложке терялся.
+     */
+    function caveIcon(size) {
+        const ratio = 2, px = size * ratio;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = px;
+        const ctx = canvas.getContext('2d');
+        const accent = 'rgb(71,133,235)';
+        const c = px / 2, r = px * 0.37;
+        ctx.shadowColor = 'rgba(71,133,235,.55)'; ctx.shadowBlur = px * 0.28;
+        ctx.fillStyle = 'rgba(71,133,235,.16)';
+        ctx.beginPath(); ctx.arc(c, c, r * 1.35, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 4 * ratio; ctx.shadowOffsetY = 1.5 * ratio;
+        ctx.fillStyle = accent;
+        ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowColor = 'transparent'; ctx.shadowOffsetY = 0;
+        ctx.save();
+        ctx.beginPath(); ctx.arc(c, c, r - 1.5 * ratio, 0, Math.PI * 2); ctx.clip();
+        const baseY = c + r * 0.35, peakY = c - r * 0.65, halfW = r * 0.78, archR = r * 0.30;
+        ctx.fillStyle = 'rgba(255,255,255,.93)';
+        ctx.beginPath(); ctx.moveTo(c, peakY); ctx.lineTo(c - halfW, baseY); ctx.lineTo(c + halfW, baseY);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = accent;
+        ctx.beginPath(); ctx.moveTo(c - archR, baseY + 2 * ratio); ctx.lineTo(c - archR, baseY);
+        ctx.arc(c, baseY, archR, Math.PI, 0); ctx.lineTo(c + archR, baseY + 2 * ratio);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+        return { image: ctx.getImageData(0, 0, px, px), ratio };
+    }
+
     // Русское имя предпочтительнее сербского, сербское — латинского
     const NAME = ['coalesce', ['get', 'nameRu'], ['get', 'name'], ['get', 'nameSr'], ''];
 
@@ -71,7 +108,7 @@
         for (const kind of cfg.kinds) {
             const name = 'poi-' + kind;
             if (!map.hasImage(name)) {
-                const pin = emojiPin(KINDS[kind].emoji, 34);
+                const pin = kind === 'cave' ? caveIcon(34) : emojiPin(KINDS[kind].emoji, 34);
                 map.addImage(name, pin.image, { pixelRatio: pin.ratio });
             }
         }
@@ -80,7 +117,7 @@
             type: 'geojson', data: cfg.file,
             // Колонки в городах стоят плотно — без кластеров до крупного зума
             // карта превратилась бы в кашу из значков
-            cluster: true, clusterRadius: 55, clusterMaxZoom: 13,
+            cluster: true, clusterRadius: 55, clusterMaxZoom: cfg.clusterMaxZoom || 13,
             attribution: '© OpenStreetMap contributors'
         });
 
@@ -175,7 +212,7 @@
             id: 'poi-selected-glow', type: 'circle', source: 'poi-selected',
             paint: {
                 'circle-radius': 30, 'circle-blur': 0.55, 'circle-opacity': 1,
-                'circle-color': ['match', ['get', 'set'], 'water', GLOW.water, GLOW.shelter],
+                'circle-color': ['match', ['get', 'set'], 'water', GLOW.water, 'cave', GLOW.cave, GLOW.shelter],
                 'circle-pitch-alignment': 'viewport'
             }
         });
@@ -232,6 +269,9 @@
         if (yes(p.fee)) parts.push('платно');
         const ele = number(p.ele);
         if (ele != null) parts.push(`${Math.round(ele)} м`);
+        const length = number(p.length), depth = number(p.depth);
+        if (length != null) parts.push(`длина ${Math.round(length)} м`);
+        if (depth != null) parts.push(`глубина ${Math.round(depth)} м`);
         return parts.join(' · ') || 'OpenStreetMap';
     }
 
@@ -284,6 +324,7 @@
         };
         bind('layer-water', 'water');
         bind('layer-shelter', 'shelter');
+        bind('layer-caves', 'cave');
         // Включили до готовности карты — доставим слои, когда она встанет
         if (window.map) window.map.on('load', () => {
             for (const set of Object.keys(on)) if (on[set]) setVisible(set, true);
@@ -293,8 +334,8 @@
         // приложении. Клик по самой плашке до карты не доходит.
         if (window.map) window.map.on('click', e => {
             if (!current) return;
-            const layers = ['water-poi-layer', 'water-poi-cluster-bg', 'shelter-poi-layer',
-                            'shelter-poi-cluster-bg', 'poi-selected-icon'].filter(l => window.map.getLayer(l));
+            const layers = Object.keys(SETS).flatMap(set => [ids(set).sym, ids(set).bg])
+                .concat('poi-selected-icon').filter(l => window.map.getLayer(l));
             const hit = layers.length && window.map.queryRenderedFeatures(e.point, { layers }).length;
             if (!hit) hideCard();
         });

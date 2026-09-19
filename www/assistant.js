@@ -626,8 +626,8 @@
       </div>
       <div id="asst-panel-input-wrap">
         <input id="asst-panel-input" type="text" autocomplete="off"
-          placeholder="Опиши, что ищешь…"
-          aria-label="Поиск маршрута">
+          placeholder="Опиши, что ищешь, или вставь координаты…"
+          aria-label="Поиск маршрута или координат">
         <button id="asst-panel-go" aria-label="Найти">Найти</button>
       </div>
       <div id="asst-panel-body"></div>
@@ -895,6 +895,14 @@
 
   // ── Run search ─────────────────────────────────────────────
   function runSearch(query) {
+    // Координаты или ссылка на карту — это не запрос к подбору, а точка:
+    // летим к ней и показываем карточку (point_insight.js)
+    if (query && window.PointInsight && PointInsight.searchCoordinates(query)) {
+      closePanel();
+      document.getElementById('asst-search-input').value = '';
+      document.getElementById('asst-panel-input').value = '';
+      return;
+    }
     if (!query || !window.RouteMatcher) return;
     lastQuery = query;
 
