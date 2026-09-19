@@ -443,14 +443,18 @@ let _carouselHW = 0;           // shared carousel half-width cache
 let _drawInterval   = null;    // interval for progressive line drawing
 let _dashAnimFrame  = null;    // animation frame for continuous flow after draw
 let _selectedRouteId = null;   // route whose pulsing dot is currently hidden
-let _activeFilterType = 'all'; // current Все/Отчёты/Планы filter
+let _activeFilterType = 'all'; // current Все/Отчёты/Планы/Мои filter
 
 // Combined marker filter: applies type filter + always hides the selected route dot
 function _applyMarkerFilter() {
     if (!map || !map.getLayer('route-markers-layer')) return;
+    // Свои маршруты, как в приложении, видны в «Мои» и во «Все», но не в
+    // «Отчётах»: статуса «пройден/план» у них нет
+    const isMine = ['==', ['get', 'mine'], true];
     let f = null;
-    if (_activeFilterType === 'completed') f = ['==', ['get', 'future'], false];
+    if (_activeFilterType === 'completed') f = ['all', ['==', ['get', 'future'], false], ['!', isMine]];
     else if (_activeFilterType === 'planned') f = ['==', ['get', 'future'], true];
+    else if (_activeFilterType === 'mine') f = isMine;
     if (_selectedRouteId) {
         const ex = ['!=', ['get', 'id'], _selectedRouteId];
         f = f ? ['all', f, ex] : ex;
@@ -460,10 +464,13 @@ function _applyMarkerFilter() {
 
     // Mirror filter to overview lines (only relevant when lines are visible)
     if (map.getLayer('overview-lines-completed')) {
-        const showCompleted = _showLines && _activeFilterType !== 'planned';
-        const showPlanned   = _showLines && _activeFilterType !== 'completed';
-        map.setLayoutProperty('overview-lines-completed', 'visibility', showCompleted ? 'visible' : 'none');
-        map.setLayoutProperty('overview-lines-planned',   'visibility', showPlanned   ? 'visible' : 'none');
+        const t = _activeFilterType;
+        const vis = on => (_showLines && on) ? 'visible' : 'none';
+        map.setLayoutProperty('overview-lines-completed', 'visibility', vis(t === 'all' || t === 'completed'));
+        map.setLayoutProperty('overview-lines-planned',   'visibility', vis(t === 'all' || t === 'planned'));
+        if (map.getLayer('overview-lines-mine')) {
+            map.setLayoutProperty('overview-lines-mine',  'visibility', vis(t === 'all' || t === 'mine'));
+        }
     }
 }
 
@@ -527,65 +534,44 @@ function pulseDue(image, periodMs) {
     return false;
 }
 
-const pulsingDot = {
-    width: size, height: size, data: new Uint8Array(size * size * 4),
-    onAdd() {
-        const c = document.createElement('canvas');
-        c.width = this.width; c.height = this.height;
-        this.context = c.getContext('2d', { willReadFrequently: true });
-    },
-    render() {
-        if (!pulseDue(this, 80)) return false;
-        {
+/**
+ * Пульсирующая точка маршрута. Три цвета — по типу: пройденный, план и свой
+ * (фиолетовый, как `customUI` в приложении).
+ */
+function makePulsingDot(rgb, fill, periodMs) {
+    return {
+        width: size, height: size, data: new Uint8Array(size * size * 4),
+        onAdd() {
+            const c = document.createElement('canvas');
+            c.width = this.width; c.height = this.height;
+            this.context = c.getContext('2d', { willReadFrequently: true });
+        },
+        render() {
+            if (!pulseDue(this, 80)) return false;
             const now = performance.now();
-            const t = (now % 2000) / 2000;
+            const t = (now % periodMs) / periodMs;
             const r = (size / 2) * 0.25;
             const or = (size / 2) * 0.75 * t + r;
             const ctx = this.context;
             ctx.clearRect(0, 0, size, size);
             const g = ctx.createRadialGradient(size/2,size/2,r, size/2,size/2,or);
-            g.addColorStop(0, `rgba(255,77,77,${0.7*(1-t)})`);
-            g.addColorStop(1, 'rgba(255,77,77,0)');
+            g.addColorStop(0, `rgba(${rgb},${0.7*(1-t)})`);
+            g.addColorStop(1, `rgba(${rgb},0)`);
             ctx.beginPath(); ctx.arc(size/2,size/2,or,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
             ctx.beginPath(); ctx.arc(size/2,size/2,r,0,Math.PI*2);
-            ctx.shadowColor='rgba(255,77,77,0.9)'; ctx.shadowBlur=15;
-            ctx.fillStyle='#ff4d4d'; ctx.fill(); ctx.shadowBlur=0;
+            ctx.shadowColor=`rgba(${rgb},0.9)`; ctx.shadowBlur=15;
+            ctx.fillStyle=fill; ctx.fill(); ctx.shadowBlur=0;
             ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.lineWidth=2.5; ctx.stroke();
             this.data = ctx.getImageData(0,0,size,size).data;
+            return true;
         }
-        return true;
-    }
-};
+    };
+}
 
-const futurePulsingDot = {
-    width: size, height: size, data: new Uint8Array(size * size * 4),
-    onAdd() {
-        const c = document.createElement('canvas');
-        c.width = this.width; c.height = this.height;
-        this.context = c.getContext('2d', { willReadFrequently: true });
-    },
-    render() {
-        if (!pulseDue(this, 80)) return false;
-        {
-            const now = performance.now();
-            const t = (now % 2400) / 2400;
-            const r = (size / 2) * 0.25;
-            const or = (size / 2) * 0.75 * t + r;
-            const ctx = this.context;
-            ctx.clearRect(0, 0, size, size);
-            const g = ctx.createRadialGradient(size/2,size/2,r, size/2,size/2,or);
-            g.addColorStop(0, `rgba(255,200,0,${0.7*(1-t)})`);
-            g.addColorStop(1, 'rgba(255,200,0,0)');
-            ctx.beginPath(); ctx.arc(size/2,size/2,or,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
-            ctx.beginPath(); ctx.arc(size/2,size/2,r,0,Math.PI*2);
-            ctx.shadowColor='rgba(255,180,0,0.9)'; ctx.shadowBlur=15;
-            ctx.fillStyle='#FFD700'; ctx.fill(); ctx.shadowBlur=0;
-            ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.lineWidth=2.5; ctx.stroke();
-            this.data = ctx.getImageData(0,0,size,size).data;
-        }
-        return true;
-    }
-};
+const MINE_COLOR = '#7A5EA6';
+const pulsingDot       = makePulsingDot('255,77,77',   '#ff4d4d', 2000);
+const futurePulsingDot = makePulsingDot('255,200,0',   '#FFD700', 2400);
+const minePulsingDot   = makePulsingDot('150,120,200', MINE_COLOR, 2200);
 
 // ── Map init ───────────────────────────────────────────────────────────────────
 let map;
@@ -654,6 +640,7 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
 
         map.addImage('pulsing-dot', pulsingDot, { pixelRatio: 1.5 });
         map.addImage('future-pulsing-dot', futurePulsingDot, { pixelRatio: 1.5 });
+        map.addImage('mine-pulsing-dot', minePulsingDot, { pixelRatio: 1.5 });
 
         // ── Overview lines (toggleable background, added below markers) ──
         // Initialise with whatever routes have already finished loading (race-safe)
@@ -661,7 +648,7 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
         // Под подписями — см. drapeBeforeId
         map.addLayer({
             id: 'overview-lines-completed', type: 'line', source: 'overview-lines',
-            filter: ['==', ['get', 'future'], false],
+            filter: ['all', ['==', ['get', 'future'], false], ['!=', ['get', 'mine'], true]],
             layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
             paint: { 'line-color': '#ff4d4d', 'line-width': 3, 'line-opacity': 0.85 }
         }, drapeBeforeId());
@@ -671,13 +658,22 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
             layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
             paint: { 'line-color': '#FF8C00', 'line-width': 3, 'line-opacity': 0.85, 'line-dasharray': [2, 2.5] }
         }, drapeBeforeId());
+        map.addLayer({
+            id: 'overview-lines-mine', type: 'line', source: 'overview-lines',
+            filter: ['==', ['get', 'mine'], true],
+            layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+            paint: { 'line-color': MINE_COLOR, 'line-width': 3, 'line-opacity': 0.85 }
+        }, drapeBeforeId());
 
         map.addSource('route-markers', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 
         map.addLayer({
             id: 'route-markers-layer', type: 'symbol', source: 'route-markers',
             layout: {
-                'icon-image': ['case', ['==', ['get', 'future'], true], 'future-pulsing-dot', 'pulsing-dot'],
+                'icon-image': ['case',
+                    ['==', ['get', 'mine'], true],   'mine-pulsing-dot',
+                    ['==', ['get', 'future'], true], 'future-pulsing-dot',
+                    'pulsing-dot'],
                 'icon-pitch-alignment': 'map', 'icon-allow-overlap': true
             }
         });
@@ -705,7 +701,7 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
             if (hoveredId !== id) {
                 hoveredId = id;
                 hoverPopup.setLngLat(e.features[0].geometry.coordinates)
-                    .setHTML(`<div class="text-xs font-semibold tracking-wide">${routes[id].name}</div>`)
+                    .setHTML(`<div class="text-xs font-semibold tracking-wide">${_esc(routes[id].name)}</div>`)
                     .addTo(map);
             }
         });
@@ -836,6 +832,7 @@ function triggerRouteSelection(routeId) {
     // Hide carousel
     const carousel = document.getElementById('route-carousel-outer');
     if (carousel) carousel.style.display = 'none';
+    document.body.classList.add('route-open');   // прячет ленту «Мои»
 
     // fitBounds auto-calculates zoom so the full route is visible.
     // Padding compensates for the sidebar (desktop left) or bottom drawer (mobile).
@@ -885,6 +882,11 @@ function triggerRouteSelection(routeId) {
             badge.style.cssText = 'background:rgba(255,140,0,.2);border:1px solid rgba(255,140,0,.5);color:#FFB347;';
             badge.textContent = 'ПЛАН';
             badge.classList.remove('hidden');
+        } else if (routeInfo.mine) {
+            badge.className = 'inline-flex items-center gap-1.5 mb-2 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider';
+            badge.style.cssText = 'background:rgba(122,94,166,.25);border:1px solid rgba(122,94,166,.6);color:#C4B0E8;';
+            badge.textContent = 'МОЙ';
+            badge.classList.remove('hidden');
         } else {
             badge.innerHTML = '';
             badge.className = 'hidden';
@@ -904,11 +906,14 @@ function triggerRouteSelection(routeId) {
         }
 
         // Stats
+        // У своего маршрута высот может не быть (нарисован без рельефа) —
+        // тогда прочерк, а не «0 m»
+        const _m = v => v == null ? '—' : `${v} m`;
         document.getElementById('panel-dist').textContent    = `${routeData.distance} km`;
-        document.getElementById('panel-ascent').textContent  = `${routeInfo.overrideAscent  ?? routeData.ascent} m`;
-        document.getElementById('panel-descent').textContent = `${routeInfo.overrideDescent ?? routeData.descent} m`;
-        document.getElementById('panel-min-ele').textContent = `${routeInfo.overrideMinEle  ?? routeData.minEle} m`;
-        document.getElementById('panel-max-ele').textContent = `${routeData.maxEle} m`;
+        document.getElementById('panel-ascent').textContent  = _m(routeInfo.overrideAscent  ?? routeData.ascent);
+        document.getElementById('panel-descent').textContent = _m(routeInfo.overrideDescent ?? routeData.descent);
+        document.getElementById('panel-min-ele').textContent = _m(routeInfo.overrideMinEle  ?? routeData.minEle);
+        document.getElementById('panel-max-ele').textContent = _m(routeData.maxEle);
         document.getElementById('panel-time').textContent    = routeInfo.overrideTime ?? routeData.formattedTime;
 
         // Description with collapse
@@ -973,6 +978,11 @@ function triggerRouteSelection(routeId) {
         document.getElementById('panel-difficulty-label').style.color = _diff.color;
         document.getElementById('panel-difficulty-fill').style.width  = _diff.pct + '%';
         document.getElementById('panel-difficulty-fill').style.background = _diff.color;
+
+        // Отзывы — только у маршрутов каталога; у своего вместо них действия
+        // (переименовать, скачать, удалить) — см. account.js
+        document.getElementById('tab-btn-reviews').style.display = routeInfo.mine ? 'none' : '';
+        if (window.MyRoutes) MyRoutes.renderPanelActions(routeInfo);
 
         // Rating bar — reset for new route; reviews load lazily when tab opened
         _reviewsRouteId = null;
@@ -1506,6 +1516,7 @@ document.getElementById('btn-back').addEventListener('click', () => {
 
     const carousel = document.getElementById('route-carousel-outer');
     if (carousel) carousel.style.display = '';
+    document.body.classList.remove('route-open');
 
     RouteProfile.hide();
     document.getElementById('panel-elevation-wrapper').classList.add('hidden');
@@ -1515,12 +1526,15 @@ document.getElementById('btn-back').addEventListener('click', () => {
 // ── Filter ────────────────────────────────────────────────────────────────────
 window.setFilter = function(type) {
     _activeFilterType = type;
-    ['all', 'completed', 'planned'].forEach(t => {
+    ['all', 'completed', 'planned', 'mine'].forEach(t => {
         [document.getElementById(`filter-${t}`), document.getElementById(`filter-${t}-mob`)].forEach(el => {
             if (el) el.classList.toggle('active', t === type);
         });
     });
     _applyMarkerFilter();
+    // В «Мои» вместо карусели каталога — своя лента (account.js)
+    document.body.classList.toggle('filter-mine', type === 'mine');
+    if (window.MyRoutes) MyRoutes.onFilterChange(type);
 
     document.querySelectorAll('.carousel-card').forEach(card => {
         const route = routes[card.dataset.routeId];
@@ -1824,6 +1838,38 @@ async function loadRouteData(routeInfo) {
         console.error('Error loading GPX:', err);
     }
 }
+
+/**
+ * Свой маршрут из облака (account.js) — в ту же модель, что и каталог:
+ * `routes`, кэш геометрии, метка и линия обзора. Повторный вызов с тем же
+ * id заменяет маршрут (переименовали, пришла свежая версия из приложения).
+ */
+window.registerUserRoute = function(routeInfo, routeData) {
+    window.unregisterUserRoute(routeInfo.id, true);
+    routes[routeInfo.id] = routeInfo;
+    parsedRouteDataCache[routeInfo.id] = routeData;
+    const props = { id: routeInfo.id, future: false, mine: true };
+    // Без высот вершины нет — метка в середине трека, как в приложении
+    const c = routeData.coordinates;
+    routeFeatures.push({ type: 'Feature', properties: props,
+                         geometry: { type: 'Point', coordinates: routeData.peakCoords || c[Math.floor(c.length / 2)] } });
+    _overviewFeatures.push({ type: 'Feature', properties: props,
+                             geometry: { type: 'LineString', coordinates: routeData.coordinates } });
+    _flushRouteSources();
+};
+
+window.unregisterUserRoute = function(id, keepOpen) {
+    if (!routes[id]) return;
+    if (!keepOpen && currentViewedRoute && currentViewedRoute.id === id) {
+        document.getElementById('btn-back').click();
+    }
+    delete routes[id];
+    delete parsedRouteDataCache[id];
+    const drop = arr => { const i = arr.findIndex(f => f.properties.id === id); if (i >= 0) arr.splice(i, 1); };
+    drop(routeFeatures);
+    drop(_overviewFeatures);
+    _flushRouteSources();
+};
 
 function _removeStartFinishMarkers() {
     RouteMarks.clear();

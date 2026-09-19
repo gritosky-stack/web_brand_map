@@ -43,7 +43,7 @@
             this.routeInfo = routeInfo;
             this.lineSourceId = lineSourceId;
 
-            const accent = routeInfo.future ? '#FF8C00' : '#ff4d4d';
+            const accent = routeInfo.color || (routeInfo.future ? '#FF8C00' : '#ff4d4d');
             const wrapper = document.getElementById('panel-elevation-wrapper');
             const host = document.getElementById('profile-chart');
             const profile = routeData.profile;
@@ -751,7 +751,7 @@
                 profile: this.routeData.profile,
                 stops: this.routeData.gradeStops,
                 totalKm: this.routeData.distance,
-                accent: this.routeInfo && this.routeInfo.future ? '#FF8C00' : '#ff4d4d',
+                accent: this.routeInfo ? this.routeInfo.color || (this.routeInfo.future ? '#FF8C00' : '#ff4d4d') : '#ff4d4d',
                 interactive: false,
                 height: window.innerWidth < 768 ? 64 : 84
             });

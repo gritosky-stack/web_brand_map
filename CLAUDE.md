@@ -86,6 +86,30 @@ Congress (public domain), собранные конвейером `tools/tiles/`
 Слой кладётся под `world-mask`, но современные подписи и горизонтали остаются
 поверх него: по ним видно, где ты на старой карте.
 
+## Профиль и «Мои» маршруты на сайте
+`www/account.js` — **тот же** аккаунт, что в приложении: общий проект Supabase
+(адрес и anon-ключ — копия `hikingmap/hikingmap/Supabase.plist`; ключ публичный,
+доступ режет RLS из `hikingmap/supabase/schema.sql`). Вход — Google через
+Supabase Auth, PKCE-редирект обратно на страницу (`?code=…`). Адрес сайта
+(`https://totskiiwild.com/**`, для разработки `http://localhost:8765/**`)
+обязан быть в Redirect URLs панели Supabase, иначе после Google вернёт на Site URL.
+SDK (`libs/supabase.js`, UMD) грузится лениво, после `load`. В Capacitor-обёртке
+вход выключен: Google не пускает OAuth во встроенном WebView.
+
+Свои маршруты — таблица `routes`, `payload` = `CustomRoute` приложения как есть
+(`id, name, date, waypointLats, waypointLons, distanceKm, elevations?, updatedAt`).
+Приложение решает конфликты по `updated_at`, поэтому любая правка на сайте
+двигает и колонку, и `payload.updatedAt`. На карте свой маршрут — обычная
+запись в `routes` с `mine: true` и id `my_<uuid>` (`registerUserRoute` в
+`script.js`), геометрию и цифры считает тот же `parseGPX`. Как в приложении,
+свои видны во «Все» и «Мои», но не в «Отчётах»/«Планах»; цвет `#7A5EA6`
+(`customUI`). На сайте их можно загрузить из GPX, переименовать, скачать, удалить.
+
+⚠️ supabase-swift пишет даты в `payload` **без** часового пояса
+(`2026-09-21T14:13:20.500` — это UTC), а JS читает такую строку как местное
+время. `parseDate` в `account.js` дописывает `Z`; сайт пишет `toISOString()` —
+приложение его читает.
+
 ## Профиль высот, раскраска и камера на сайте
 Перенесено из приложения (`hikingmap/`) один в один, файлы в `www/`:
 - `grade_color.js` — цвет по локальному уклону. **Один расчёт** кормит и линию
