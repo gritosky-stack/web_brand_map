@@ -176,28 +176,142 @@
             const g = f.geometry;
             const lines = g.type === 'LineString' ? [g.coordinates]
                 : g.type === 'MultiLineString' ? g.coordinates : [];
-            for (const line of lines) {
-                if (line.length < 2) continue;
-                // Одна и та же тропа приезжает кусками из соседних тайлов и
-                // заново из каждого зума — ключ по концам и числу вершин
-                const a = line[0], b = line[line.length - 1];
-                const key = `${a[0].toFixed(5)},${a[1].toFixed(5)}|${b[0].toFixed(5)},${b[1].toFixed(5)}|${line.length}`;
-                if (trailCache.has(key)) continue;
-                trailCache.set(key, { type: 'Feature', properties: {},
-                                      geometry: { type: 'LineString', coordinates: line } });
-                added++;
-            }
+            for (const line of lines) added += addTrailLine(line) ? 1 : 0;
         }
-        // Потолок: самые старые куски уходят первыми
-        while (trailCache.size > TRAIL_CACHE_MAX) trailCache.delete(trailCache.keys().next().value);
         if (added && map.getSource('builder-trails')) {
             map.getSource('builder-trails').setData({ type: 'FeatureCollection', features: [...trailCache.values()] });
         }
     }
 
+    /**
+     * Кусок тропы в накопитель. Одна и та же тропа приезжает кусками из
+     * соседних тайлов и заново из каждого зума — ключ по концам и числу
+     * вершин. Потолок: самые старые куски уходят первыми.
+     */
+    function addTrailLine(line) {
+        if (!line || line.length < 2) return false;
+        const a = line[0], b = line[line.length - 1];
+        const key = `${a[0].toFixed(5)},${a[1].toFixed(5)}|${b[0].toFixed(5)},${b[1].toFixed(5)}|${line.length}`;
+        if (trailCache.has(key)) return false;
+        trailCache.set(key, { type: 'Feature', properties: {},
+                              geometry: { type: 'LineString', coordinates: line } });
+        while (trailCache.size > TRAIL_CACHE_MAX) trailCache.delete(trailCache.keys().next().value);
+        return true;
+    }
+
     function scheduleHarvest(e) {
         if (e && e.sourceId && e.sourceId !== 'composite') return;
         if (!harvestTimer) harvestTimer = setTimeout(harvestTrails, 400);
+    }
+
+    // ── Тропы на далёком зуме: качаем тайлы z13 сами ────────────────────────
+    //
+    // ⚠️ Накопитель выше собирает только то, что карта загрузила **для
+    // текущего зума**, а троп в тайлах Mapbox Streets нет ниже z13 (проверено
+    // по самим тайлам: на z12 их ноль). Открыл «Нарисовать» на z11 — и троп
+    // не видно, пока не приблизишься; приблизился один раз — дальше они уже
+    // накоплены и видны на любом зуме. Поэтому на далёком зуме тайлы z13 для
+    // видимой области мы забираем сами и разбираем через `MVT`. Тайл тропяной
+    // местности весит 8–16 КБ, экран телефона на z11 — это около 30 тайлов.
+    const TRAIL_TILE_Z = 13;
+    // Потолок на кадр. 96 тайлов (около мегабайта) — это весь экран
+    // компьютера на z11 и телефона на z10.5, то есть зумы, на которых
+    // действительно рисуют. Если в кадр влезает больше, качаем столько же,
+    // но вокруг центра: там, куда целятся, тропы всё равно появятся
+    const TRAIL_TILE_MAX = 96;
+    // Ниже этого зума не начинаем вовсе: центральная сотня тайлов покрыла бы
+    // клочок экрана, а качать пришлось бы то же самое
+    const TRAIL_TILE_MIN_ZOOM = 10;
+    const TRAIL_CLASSES_SET = new Set(TRAIL_CLASSES);
+    const TRAIL_PROPS = new Set(['class', 'type']);
+    const fetchedTiles = new Set();
+    let tileState = 'ok';          // ok | loading | wide
+    let tilePrefetchTimer = null;
+    let tileToken = 0;
+
+    function setTileState(next) {
+        if (tileState === next) return;
+        tileState = next;
+        render();
+    }
+
+    function tileXY(lon, lat, z) {
+        const n = Math.pow(2, z);
+        const r = lat * Math.PI / 180;
+        return [Math.floor((lon + 180) / 360 * n),
+                Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n)];
+    }
+
+    async function prefetchTrailTiles() {
+        tilePrefetchTimer = null;
+        if (!active || typeof MVT === 'undefined' || !mapboxgl.accessToken) return;
+        // На z13 и ближе тайлы возит сама карта — их разберёт `harvestTrails`
+        if (map.getZoom() >= TRAIL_TILE_Z) { setTileState('ok'); return; }
+
+        if (map.getZoom() < TRAIL_TILE_MIN_ZOOM) { setTileState('wide'); return; }
+
+        const b = map.getBounds();
+        const n = Math.pow(2, TRAIL_TILE_Z);
+        const clamp = v => Math.max(0, Math.min(n - 1, v));
+        const [x0, y0] = tileXY(b.getWest(), b.getNorth(), TRAIL_TILE_Z);
+        const [x1, y1] = tileXY(b.getEast(), b.getSouth(), TRAIL_TILE_Z);
+        const c = map.getCenter();
+        const [cx, cy] = tileXY(c.lng, c.lat, TRAIL_TILE_Z);
+
+        let inView = [];
+        for (let x = clamp(x0); x <= clamp(x1); x++) {
+            for (let y = clamp(y0); y <= clamp(y1); y++) {
+                inView.push({ x, y, key: `${x}/${y}`, d: Math.hypot(x - cx, y - cy) });
+            }
+        }
+        if (!inView.length) { setTileState('ok'); return; }
+        // Из центра наружу: там, куда смотрят, тропы появляются первыми
+        inView.sort((a, b2) => a.d - b2.d);
+        const truncated = inView.length > TRAIL_TILE_MAX;
+        const queue = inView.slice(0, TRAIL_TILE_MAX).filter(t => !fetchedTiles.has(t.key));
+        if (!queue.length) { setTileState(truncated ? 'partial' : 'ok'); return; }
+        setTileState('loading');
+
+        const my = ++tileToken;
+        let added = 0, done = 0;
+        const flush = () => {
+            if (!added || !map.getSource('builder-trails')) return;
+            added = 0;
+            map.getSource('builder-trails').setData({ type: 'FeatureCollection', features: [...trailCache.values()] });
+        };
+
+        const worker = async () => {
+            while (queue.length) {
+                if (my !== tileToken || !active) return;
+                const t = queue.shift();
+                fetchedTiles.add(t.key);
+                try {
+                    const url = `https://api.mapbox.com/v4/mapbox.mapbox-streets-v8/${TRAIL_TILE_Z}/${t.x}/${t.y}.mvt` +
+                                `?access_token=${mapboxgl.accessToken}`;
+                    const res = await fetch(url);
+                    // 404 — тайла нет (за краем данных), это не ошибка
+                    if (!res.ok) { if (res.status !== 404) fetchedTiles.delete(t.key); continue; }
+                    const buf = new Uint8Array(await res.arrayBuffer());
+                    const lines = MVT.lines(buf, TRAIL_TILE_Z, t.x, t.y, 'road', TRAIL_PROPS,
+                                            props => TRAIL_CLASSES_SET.has(props.class) || TRAIL_CLASSES_SET.has(props.type));
+                    for (const line of lines) added += addTrailLine(line.coordinates) ? 1 : 0;
+                } catch (e) {
+                    fetchedTiles.delete(t.key);     // сеть моргнула — попробуем в следующий раз
+                }
+                // Порциями, а не на каждый тайл: перезаливка источника на
+                // десятки тысяч линий стоит дороже самой загрузки
+                if (++done % 8 === 0) flush();
+            }
+        };
+        await Promise.all(Array.from({ length: 6 }, worker));
+        if (my !== tileToken) return;
+        flush();
+        setTileState(truncated ? 'partial' : 'ok');
+    }
+
+    function scheduleTilePrefetch() {
+        if (tilePrefetchTimer) clearTimeout(tilePrefetchTimer);
+        tilePrefetchTimer = setTimeout(prefetchTrailTiles, 350);
     }
 
     /**
@@ -565,7 +679,11 @@
     let lastGestureEnd = 0;
     let clickTimer = null;
 
-    function onGestureEnd(e) { if (e && e.originalEvent) lastGestureEnd = performance.now(); }
+    function onGestureEnd(e) {
+        if (e && e.originalEvent) lastGestureEnd = performance.now();
+        // Уехали или отзумили — подвозим тропы для нового кадра
+        scheduleTilePrefetch();
+    }
 
     function onMapClick(e) {
         if (!active) return;
@@ -737,9 +855,21 @@
             status.className = 'rb-pill hidden';
         }
 
+        // Тропы на далёком зуме: их либо подвозят, либо до них надо приблизиться
         const hint = $('rb-hint');
-        hint.classList.toggle('hidden', n > 0);
-        hint.textContent = `Наведи прицел и нажми «Старт» — или ${finePointer() ? 'кликни' : 'тапни'} по карте`;
+        if (tileState === 'wide') {
+            hint.classList.remove('hidden');
+            hint.textContent = 'Приблизьте — отсюда тропы OSM не показать';
+        } else if (tileState === 'partial') {
+            hint.classList.remove('hidden');
+            hint.textContent = 'Тропы — вокруг центра экрана, приблизьте для остальных';
+        } else if (tileState === 'loading') {
+            hint.classList.remove('hidden');
+            hint.textContent = 'Подгружаю тропы OSM…';
+        } else {
+            hint.classList.toggle('hidden', n > 0);
+            hint.textContent = `Наведи прицел и нажми «Старт» — или ${finePointer() ? 'кликни' : 'тапни'} по карте`;
+        }
 
         $('rb-btn-undo').disabled = !undoStack.length;
         $('rb-btn-redo').classList.toggle('hidden', !redoStack.length);
@@ -1034,6 +1164,7 @@
         }
         map.getCanvas().style.cursor = 'crosshair';
         scheduleHarvest();
+        prefetchTrailTiles();
         changed();
     }
 
@@ -1049,6 +1180,9 @@
             map.off('move', updateAim);
             map.off('sourcedata', scheduleHarvest);
             if (harvestTimer) { clearTimeout(harvestTimer); harvestTimer = null; }
+            if (tilePrefetchTimer) { clearTimeout(tilePrefetchTimer); tilePrefetchTimer = null; }
+            tileToken++;            // догрузка тайлов, начатая в рисовании, больше не нужна
+            tileState = 'ok';
             ['dragend', 'zoomend', 'rotateend', 'pitchend'].forEach(ev => map.off(ev, onGestureEnd));
             document.removeEventListener('keydown', onKey);
             listenersOn = false;
