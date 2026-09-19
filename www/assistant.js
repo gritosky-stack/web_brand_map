@@ -535,7 +535,10 @@
       }
       const l = logo.getBoundingClientRect(), n = nav.getBoundingClientRect();
       const h = bar.offsetHeight || 44;
-      const from = l.right + GAP, to = n.left - GAP;
+      // Открытый маршрут закрывает логотип боковой панелью — отсчитываем от неё
+      const panel = document.getElementById('route-panel-group');
+      const pr = panel && panel.classList.contains('sidebar-open') ? panel.getBoundingClientRect() : null;
+      const from = Math.max(l.right, pr && pr.right > 0 ? pr.right : 0) + GAP, to = n.left - GAP;
       if (to - from >= MIN) {
         const w = Math.min(MAX, to - from);
         st.width = w + 'px';
@@ -557,6 +560,13 @@
     }
     // Шрифты и Tailwind доезжают позже — шапка меняет размер ещё раз
     addEventListener('load', place);
+    // Панель маршрута выезжает и сворачивается анимацией — место считаем,
+    // когда она доехала
+    const panel = document.getElementById('route-panel-group');
+    if (panel) {
+      panel.addEventListener('transitionend', e => { if (e.target === panel) place(); });
+      new MutationObserver(place).observe(panel, { attributes: true, attributeFilter: ['class'] });
+    }
   }
 
   // ── Build DOM ──────────────────────────────────────────────

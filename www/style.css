@@ -288,7 +288,15 @@ body.tw-drawing #btn-draw-route { display: none !important; }
 }
 #poi-card.open { display: flex; animation: rb-pop .3s ease; }
 @media (min-width: 768px) { #poi-card { bottom: 180px; } }
-body.tw-drawing #poi-card, body.tw-immersive #poi-card, body.route-open #poi-card { display: none !important; }
+body.tw-drawing #poi-card, body.tw-immersive #poi-card { display: none !important; }
+/* При открытом маршруте — рядом с панелью, а не под ней: на десктопе
+   панель слева, на телефоне — шторка снизу, и карточка уходит наверх */
+@media (min-width: 768px) {
+    body.route-open #poi-card { left: 392px; right: 12px; bottom: 24px; }
+}
+@media (max-width: 767px) {
+    body.route-open #poi-card { top: calc(84px + env(safe-area-inset-top)); bottom: auto; z-index: 65; }
+}
 .poi-emoji {
     flex: none; width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.08);
     display: flex; align-items: center; justify-content: center; font-size: 24px;
@@ -301,8 +309,4 @@ body.tw-drawing #poi-card, body.tw-immersive #poi-card, body.route-open #poi-car
     flex: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     color: rgba(255,255,255,.6); background: rgba(255,255,255,.08);
-}
-.poi-pin {
-    width: 18px; height: 18px; border-radius: 50%;
-    border: 3px solid #fff; background: #FF5722; box-shadow: 0 0 0 4px rgba(255,87,34,.35), 0 2px 6px rgba(0,0,0,.5);
 }

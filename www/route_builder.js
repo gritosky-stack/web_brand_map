@@ -146,10 +146,63 @@
             .catch(() => { pssSegments = []; });
     }
 
+    // ── Тропы OSM, накопленные из тайлов ───────────────────────────────────
+    //
+    // ⚠️ В тайлах Mapbox Streets тропы (`path/track/footway/…`) есть только
+    // с z13, в z12 — единицы. На телефоне рисуют как раз около z12–13, и
+    // каждый зум через этот порог гасил и зажигал тропы, а пока тайлы нового
+    // зума ехали, их не было вовсе (фидбэк 2026-09-19). Поэтому линии троп
+    // не берутся из тайлов напрямую: всё, что хоть раз приехало, копится в
+    // своём GeoJSON и остаётся на карте на любом зуме. По нему же работает
+    // притяжение — в том числе на z12, где тайлы троп уже не знают.
+    const trailCache = new Map();        // ключ куска → Feature
+    const TRAIL_CACHE_MAX = 40000;
+    let harvestTimer = null;
+
+    function harvestTrails() {
+        harvestTimer = null;
+        if (!active || !map.getSource('composite')) return;
+        let features = [];
+        try {
+            features = map.querySourceFeatures('composite', {
+                sourceLayer: 'road',
+                filter: ['any',
+                    ['in', ['get', 'class'], ['literal', TRAIL_CLASSES]],
+                    ['in', ['get', 'type'], ['literal', TRAIL_CLASSES]]]
+            });
+        } catch (e) { return; }
+        let added = 0;
+        for (const f of features) {
+            const g = f.geometry;
+            const lines = g.type === 'LineString' ? [g.coordinates]
+                : g.type === 'MultiLineString' ? g.coordinates : [];
+            for (const line of lines) {
+                if (line.length < 2) continue;
+                // Одна и та же тропа приезжает кусками из соседних тайлов и
+                // заново из каждого зума — ключ по концам и числу вершин
+                const a = line[0], b = line[line.length - 1];
+                const key = `${a[0].toFixed(5)},${a[1].toFixed(5)}|${b[0].toFixed(5)},${b[1].toFixed(5)}|${line.length}`;
+                if (trailCache.has(key)) continue;
+                trailCache.set(key, { type: 'Feature', properties: {},
+                                      geometry: { type: 'LineString', coordinates: line } });
+                added++;
+            }
+        }
+        // Потолок: самые старые куски уходят первыми
+        while (trailCache.size > TRAIL_CACHE_MAX) trailCache.delete(trailCache.keys().next().value);
+        if (added && map.getSource('builder-trails')) {
+            map.getSource('builder-trails').setData({ type: 'FeatureCollection', features: [...trailCache.values()] });
+        }
+    }
+
+    function scheduleHarvest(e) {
+        if (e && e.sourceId && e.sourceId !== 'composite') return;
+        if (!harvestTimer) harvestTimer = setTimeout(harvestTrails, 400);
+    }
+
     /**
      * Ближайшая точка на тропе в радиусе 100 м или null. Тропы — ПСС плюс
-     * `path/track/footway/steps/pedestrian` из **уже загруженных** векторных
-     * тайлов, как `osmTrailSegments` в приложении.
+     * накопленные из векторных тайлов, как `osmTrailSegments` в приложении.
      */
     function snapToTrail(p) {
         let best = null, bestDist = SNAP_M;
@@ -163,24 +216,10 @@
             if (d < bestDist) { bestDist = d; best = c; }
         };
 
-        if (map.getSource('composite')) {
-            let features = [];
-            try {
-                features = map.querySourceFeatures('composite', {
-                    sourceLayer: 'road',
-                    filter: ['any',
-                        ['in', ['get', 'class'], ['literal', TRAIL_CLASSES]],
-                        ['in', ['get', 'type'], ['literal', TRAIL_CLASSES]]]
-                });
-            } catch (e) {}
-            for (const f of features) {
-                const g = f.geometry;
-                const lines = g.type === 'LineString' ? [g.coordinates]
-                    : g.type === 'MultiLineString' ? g.coordinates : [];
-                for (const line of lines) {
-                    for (let i = 1; i < line.length; i++) consider(line[i - 1], line[i]);
-                }
-            }
+        if (harvestTimer) { clearTimeout(harvestTimer); harvestTrails(); }
+        for (const f of trailCache.values()) {
+            const line = f.geometry.coordinates;
+            for (let i = 1; i < line.length; i++) consider(line[i - 1], line[i]);
         }
         for (const [a, b] of pssSegments || []) consider(a, b);
         return best;
@@ -423,15 +462,16 @@
 
     function ensureLayers() {
         const before = window.drapeBeforeId && drapeBeforeId();
-        if (!map.getLayer('builder-osm-trails') && map.getSource('composite')) {
-            // Тропы из тайлов стиля (в самом стиле мы их прячем): видно, куда
-            // прицеливаться, и именно к ним притягивается точка
+        if (!map.getLayer('builder-osm-trails')) {
+            // Тропы OSM (в самом стиле мы их прячем): видно, куда прицеливаться,
+            // и именно к ним притягивается точка. Из накопителя, а не из
+            // тайлов напрямую — см. `harvestTrails`
+            if (!map.getSource('builder-trails')) {
+                map.addSource('builder-trails', { type: 'geojson', data: {
+                    type: 'FeatureCollection', features: [...trailCache.values()] } });
+            }
             map.addLayer({
-                id: 'builder-osm-trails', type: 'line', source: 'composite', 'source-layer': 'road',
-                minzoom: 11,
-                filter: ['any',
-                    ['in', ['get', 'class'], ['literal', TRAIL_CLASSES]],
-                    ['in', ['get', 'type'], ['literal', TRAIL_CLASSES]]],
+                id: 'builder-osm-trails', type: 'line', source: 'builder-trails',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: {
                     'line-color': TRAILS_COLOR, 'line-opacity': 0.75,
@@ -472,7 +512,7 @@
     function removeLayers() {
         ['builder-dots', 'builder-line-straight', 'builder-line-trail', 'builder-osm-trails']
             .forEach(id => { if (map.getLayer(id)) map.removeLayer(id); });
-        ['builder-dots', 'builder-lines'].forEach(id => { if (map.getSource(id)) map.removeSource(id); });
+        ['builder-dots', 'builder-lines', 'builder-trails'].forEach(id => { if (map.getSource(id)) map.removeSource(id); });
     }
 
     function drawOnMap() {
@@ -987,11 +1027,13 @@
         if (!listenersOn) {
             map.on('click', onMapClick);
             map.on('move', updateAim);
+            map.on('sourcedata', scheduleHarvest);
             ['dragend', 'zoomend', 'rotateend', 'pitchend'].forEach(ev => map.on(ev, onGestureEnd));
             document.addEventListener('keydown', onKey);
             listenersOn = true;
         }
         map.getCanvas().style.cursor = 'crosshair';
+        scheduleHarvest();
         changed();
     }
 
@@ -1005,6 +1047,8 @@
         if (listenersOn) {
             map.off('click', onMapClick);
             map.off('move', updateAim);
+            map.off('sourcedata', scheduleHarvest);
+            if (harvestTimer) { clearTimeout(harvestTimer); harvestTimer = null; }
             ['dragend', 'zoomend', 'rotateend', 'pitchend'].forEach(ev => map.off(ev, onGestureEnd));
             document.removeEventListener('keydown', onKey);
             listenersOn = false;

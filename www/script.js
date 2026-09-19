@@ -1955,7 +1955,9 @@ function addRouteToMap(id, coordinates, color, gradeStops, coordKm) {
     const step = now => {
         _dashAnimFrame = null;
         if (!map.getLayer(`layer-${id}`)) return;
-        const p = Math.min((now - t0) / DRAW_MS, 1);
+        // Время кадра rAF бывает раньше t0 (это начало кадра, а t0 взят позже):
+        // отрицательная доля — ошибка валидации line-trim-offset
+        const p = Math.min(Math.max((now - t0) / DRAW_MS, 0), 1);
         const eased = 1 - Math.pow(1 - p, 3);
         // Прячем участок [нарисовано, 1]; когда нарисовано всё — не прячем ничего
         const trim = p >= 1 ? [0, 0] : [eased, 1];

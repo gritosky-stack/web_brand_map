@@ -31,6 +31,10 @@
 
     const on = { water: false, shelter: false };
 
+    // Свечение выделенной точки — цвет её набора, но ярче кластера
+    const GLOW = { water: '#4FB3FF', shelter: '#FFB347' };
+    const setOf = kind => (SETS.water.kinds.includes(kind) ? 'water' : 'shelter');
+
     const ids = set => ({
         src: `${set}-poi-src`,
         bg: `${set}-poi-cluster-bg`,
@@ -155,7 +159,54 @@
     // ── Карточка (MapPointBar) ──────────────────────────────────────────────
 
     let current = null;
-    let pin = null;
+
+    /**
+     * Выделенная точка — её же значок, крупнее и со свечением, поверх
+     * остальных. Отдельный маркер-кружок читался как «ещё одна точка», а
+     * DOM-метка на рельефе к тому же съезжала со значка. Свой источник на
+     * одну точку: у кластеризованного источника строковые id из OSM не
+     * доживают до карты, и выделить точку в нём самом нечем.
+     */
+    function ensureSelectedLayers() {
+        const map = window.map;
+        if (map.getSource('poi-selected')) return;
+        map.addSource('poi-selected', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addLayer({
+            id: 'poi-selected-glow', type: 'circle', source: 'poi-selected',
+            paint: {
+                'circle-radius': 30, 'circle-blur': 0.55, 'circle-opacity': 1,
+                'circle-color': ['match', ['get', 'set'], 'water', GLOW.water, GLOW.shelter],
+                'circle-pitch-alignment': 'viewport'
+            }
+        });
+        map.addLayer({
+            id: 'poi-selected-ring', type: 'circle', source: 'poi-selected',
+            paint: {
+                'circle-radius': 17, 'circle-color': 'rgba(0,0,0,0)',
+                'circle-stroke-width': 2.5, 'circle-stroke-color': '#ffffff',
+                'circle-pitch-alignment': 'viewport'
+            }
+        });
+        map.addLayer({
+            id: 'poi-selected-icon', type: 'symbol', source: 'poi-selected',
+            layout: {
+                'icon-image': ['concat', 'poi-', ['get', 'kind']], 'icon-size': 1.55,
+                'icon-allow-overlap': true, 'icon-ignore-placement': true
+            }
+        });
+    }
+
+    function setSelected(p, coords) {
+        const map = window.map;
+        ensureSelectedLayers();
+        map.getSource('poi-selected').setData({
+            type: 'FeatureCollection',
+            features: p ? [{ type: 'Feature', properties: { kind: p.kind, set: setOf(p.kind) },
+                             geometry: { type: 'Point', coordinates: coords } }] : []
+        });
+        // Выше всего, что добавили после нас (линия маршрута, метки)
+        ['poi-selected-glow', 'poi-selected-ring', 'poi-selected-icon'].forEach(l => map.moveLayer(l));
+    }
 
     const esc = s => String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -213,20 +264,14 @@
         el.querySelector('.poi-close').onclick = hideCard;
         el.classList.add('open');
 
-        // Какая точка открыта — видно и на карте
-        if (!pin) {
-            const dot = document.createElement('div');
-            dot.className = 'poi-pin';
-            pin = new mapboxgl.Marker({ element: dot });
-        }
-        pin.setLngLat(coords).addTo(window.map);
+        setSelected(p, coords);
     }
 
     function hideCard() {
         current = null;
         const el = document.getElementById('poi-card');
         if (el) el.classList.remove('open');
-        if (pin) pin.remove();
+        if (window.map && map.getSource('poi-selected')) setSelected(null);
     }
 
     // ── Тумблеры в «Слоях» ──────────────────────────────────────────────────
