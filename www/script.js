@@ -59,6 +59,24 @@ const HEATMAP_SOURCE = {
 
 let _heatmapOn = false;
 
+/**
+ * Куда класть линии и растры поверх рельефа: под первый слой подписей стиля.
+ *
+ * ⚠️ С рельефом Mapbox «натягивает» линии, заливки и растры на поверхность
+ * пачкой — одной текстурой на тайл, которую пересобирает, только когда тайлы
+ * меняются. Но пачка — это слои, лежащие **подряд внизу**, до первых
+ * подписей (они на рельеф не натягиваются). Слой, добавленный поверх подписей,
+ * из пачки выпадает, и его приходится натягивать отдельно на **каждом кадре**.
+ * Хитмап и «маршруты линиями» лежали именно так: включил их — и вращение
+ * вокруг маршрута, где видно полсотни тайлов, пошло рывками, а со временем
+ * всё хуже (фидбэк 2026-09-19).
+ */
+window.drapeBeforeId = function() {
+    if (!window.map || !map.getStyle()) return undefined;
+    const layer = map.getStyle().layers.find(l => l.type === 'symbol');
+    return layer ? layer.id : undefined;
+};
+
 function toggleHeatmap(on) {
     _heatmapOn = on;
     // Слой кладём под линии маршрутов, а они появляются в обработчике map.on('load').
@@ -624,18 +642,19 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
         // ── Overview lines (toggleable background, added below markers) ──
         // Initialise with whatever routes have already finished loading (race-safe)
         map.addSource('overview-lines', { type: 'geojson', data: { type: 'FeatureCollection', features: _overviewFeatures } });
+        // Под подписями — см. drapeBeforeId
         map.addLayer({
             id: 'overview-lines-completed', type: 'line', source: 'overview-lines',
             filter: ['==', ['get', 'future'], false],
             layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
             paint: { 'line-color': '#ff4d4d', 'line-width': 3, 'line-opacity': 0.85 }
-        });
+        }, drapeBeforeId());
         map.addLayer({
             id: 'overview-lines-planned', type: 'line', source: 'overview-lines',
             filter: ['==', ['get', 'future'], true],
             layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
             paint: { 'line-color': '#FF8C00', 'line-width': 3, 'line-opacity': 0.85, 'line-dasharray': [2, 2.5] }
-        });
+        }, drapeBeforeId());
 
         map.addSource('route-markers', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 
@@ -1230,6 +1249,8 @@ function renderPhotoMapMarkers(routeInfo) {
             paint: { 'circle-radius': 24, 'circle-color': 'transparent' },
             filter: ['==', 'routeId', routeInfo.id]
         });
+        // Бейджи старта/финиша/вершины должны остаться поверх меток фото
+        RouteMarks.raise();
 
         map.on('mouseenter', 'photo-markers-hitbox', (e) => {
             map.getCanvas().style.cursor = 'pointer';
@@ -1323,30 +1344,20 @@ function loadExifForRoute(routeInfo) {
 }
 
 // ── Lightbox ───────────────────────────────────────────────────────────────────
-function _lightboxShowPhoto(src, coords, isVideo) {
-    currentPhotoCoords = coords;
-    const img      = document.getElementById('gallery-image');
-    const vid      = document.getElementById('gallery-video');
-    const coordTxt = document.getElementById('gallery-coord-text');
-    const btnFly   = document.getElementById('btn-gallery-fly');
+// Сам просмотр (карусель, зум, жесты) — в photo_viewer.js; здесь — связка с
+// панелью маршрута, лентой миниатюр и кнопкой «Переместиться на трек».
+let _lightboxList = [];
 
-    coordTxt.textContent = coords ? `GPS: ${coords[1].toFixed(5)}N, ${coords[0].toFixed(5)}E` : 'No GPS Data';
+function _lightboxOnChange(item, index) {
+    currentPhotoCoords = item.coords || null;
+    const coords = currentPhotoCoords;
+    document.getElementById('gallery-coord-text').textContent =
+        coords ? `GPS: ${coords[1].toFixed(5)}N, ${coords[0].toFixed(5)}E` : 'No GPS Data';
+    document.getElementById('btn-gallery-fly').classList.toggle('hidden', !coords);
 
-    if (isVideo) {
-        img.classList.add('hidden'); img.src = '';
-        vid.classList.remove('hidden'); vid.src = src;
-    } else {
-        vid.classList.add('hidden'); vid.pause(); vid.src = '';
-        img.classList.remove('hidden');
-        img.onerror = () => { img.onerror = null; img.src = src; };     // нет копии — берём оригинал
-        img.src = photoMed(src);
-    }
-    btnFly.classList.toggle('hidden', !coords);
-
-    // Sync panel index + highlight active strip thumb
-    const idx = _panelPhotos.findIndex(p => p.src === src);
-    if (idx !== -1) { _panelPhotoIdx = idx; showPanelPhoto(idx); }
-    _lightboxHighlightThumb(idx);
+    // Панель маршрута листается вместе с просмотром
+    if (_lightboxList === _panelPhotos && index !== _panelPhotoIdx) showPanelPhoto(index);
+    _lightboxHighlightThumb(_lightboxList === _panelPhotos ? index : -1);
 }
 
 function _lightboxHighlightThumb(activeIdx) {
@@ -1354,7 +1365,14 @@ function _lightboxHighlightThumb(activeIdx) {
         const on = i === activeIdx;
         el.style.opacity      = on ? '1' : '0.4';
         el.style.outlineColor = on ? 'rgba(255,77,77,.9)' : 'transparent';
-        if (on) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        // Прокручиваем только саму ленту: `scrollIntoView` двигал заодно
+        // всю страницу по вертикали, и шапка уезжала под статус-бар
+        if (on) {
+            const strip = document.getElementById('gallery-strip');
+            const shift = el.getBoundingClientRect().left - strip.getBoundingClientRect().left;
+            strip.scrollTo({ left: strip.scrollLeft + shift - (strip.clientWidth - el.offsetWidth) / 2,
+                             behavior: 'smooth' });
+        }
     });
 }
 
@@ -1363,17 +1381,30 @@ window.openLightbox = function(src, coords, isVideo) {
     const strip      = document.getElementById('gallery-strip');
     const stripWrap  = document.getElementById('gallery-strip-wrap');
 
-    // Build strip from current panel photos
+    if (!PhotoViewer.stage) {
+        PhotoViewer.init(document.getElementById('gallery-stage'), {
+            thumb: photoThumb, med: photoMed,
+            onChange: _lightboxOnChange,
+            onClose: () => closeLightbox(),
+            onZoomChange: zoomed => modal.classList.toggle('pv-zoomed', zoomed)
+        });
+    }
+
+    // Листаем фото маршрута; одиночное фото не из панели — само по себе
+    let index = _panelPhotos.findIndex(p => p.src === src);
+    _lightboxList = index !== -1 ? _panelPhotos : [{ src, coords, isVideo }];
+    if (index === -1) index = 0;
+
     strip.innerHTML = '';
-    if (_panelPhotos.length > 1) {
-        _panelPhotos.forEach((p, i) => {
+    if (_lightboxList.length > 1) {
+        _lightboxList.forEach((p, i) => {
             const thumb = document.createElement('div');
             thumb.className = 'lb-thumb shrink-0 rounded-lg overflow-hidden cursor-pointer';
             thumb.style.cssText = 'width:56px;height:56px;outline:2px solid transparent;outline-offset:2px;border-radius:8px;transition:opacity .15s,outline-color .15s;';
             thumb.innerHTML = p.isVideo
                 ? `<video src="${p.src}#t=0.001" class="w-full h-full object-cover" muted playsinline preload="metadata"></video>`
                 : `<img src="${photoThumb(p.src)}" ${_imgFallback(p.src)} class="w-full h-full object-cover" loading="lazy" decoding="async" alt="">`;
-            thumb.addEventListener('click', () => _lightboxShowPhoto(p.src, p.coords || null, p.isVideo || false));
+            thumb.addEventListener('click', () => PhotoViewer.show(i));
             strip.appendChild(thumb);
         });
         stripWrap.style.display = '';
@@ -1381,24 +1412,17 @@ window.openLightbox = function(src, coords, isVideo) {
         stripWrap.style.display = 'none';
     }
 
-    _lightboxShowPhoto(src, coords, isVideo);
-
-    modal.classList.remove('opacity-0', 'pointer-events-none');
+    modal.classList.remove('opacity-0', 'pointer-events-none', 'pv-zoomed');
     modal.classList.add('opacity-100', 'pointer-events-auto');
-    setTimeout(() => {
-        const el = document.getElementById(isVideo ? 'gallery-video' : 'gallery-image');
-        el.classList.remove('scale-95'); el.classList.add('scale-100');
-    }, 50);
+    // Сцена получает размеры только когда модалка видна
+    requestAnimationFrame(() => PhotoViewer.open(_lightboxList, index));
 };
 
 window.closeLightbox = function() {
     const modal = document.getElementById('gallery-lightbox');
-    const img   = document.getElementById('gallery-image');
-    const vid   = document.getElementById('gallery-video');
-    modal.classList.remove('opacity-100', 'pointer-events-auto');
+    modal.classList.remove('opacity-100', 'pointer-events-auto', 'pv-zoomed');
     modal.classList.add('opacity-0', 'pointer-events-none');
-    vid.pause();
-    [img, vid].forEach(el => { el.classList.remove('scale-100'); el.classList.add('scale-95'); });
+    PhotoViewer.close();
 };
 
 document.getElementById('btn-gallery-fly').addEventListener('click', () => {
@@ -1788,8 +1812,9 @@ function addRouteToMap(id, coordinates, color, gradeStops, coordKm) {
         ? gradeStops.map(s => ({ position: toLine(s.position), rgb: s.rgb }))
         : null;
     const gradient = stops ? GradeColor.mapGradient(stops, 1) : null;
-    // Метки старта/финиша/вершины должны лежать поверх линии
-    const beforeId = map.getLayer('route-marks-layer') ? 'route-marks-layer' : undefined;
+    // Под подписями стиля, в одной пачке с рельефом (см. drapeBeforeId);
+    // метки старта/финиша/вершины — символьный слой, они и так выше
+    const beforeId = drapeBeforeId();
 
     // На карте живёт линия ровно одного маршрута — показываемого
     Object.keys(routes).forEach(other => { if (other !== id) removeRouteLine(other); });

@@ -5,6 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TOTSKII Wild</title>
+    <script>
+      // Прокрутка страницы не нужна и не восстанавливается (см. style.css):
+      // иначе на iPhone шапка уезжала под статус-бар через миг после загрузки
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      window.addEventListener('scroll', () => {
+        if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
+      }, { passive: true });
+    </script>
     <script src="libs/tailwind.js"></script>
     <script src="libs/mapbox-gl.js"></script>
     <link href="libs/mapbox-gl.css" rel="stylesheet" />
@@ -394,6 +402,50 @@
         }
         body.tw-immersive .app-overlay > header * { pointer-events: none !important; }
 
+        /* ── Просмотр фото (photo_viewer.js) ──────────────────────── */
+        /* touch-action: none — щипок и свайпы разбирает сам просмотрщик,
+           браузер не должен масштабировать страницу вместо фото */
+        #gallery-stage { overflow: hidden; touch-action: none; --pv-dismiss: 1; }
+        .pv-track { position: absolute; inset: 0; }
+        .pv-slide {
+            position: absolute; left: 50%; top: 50%;
+            border-radius: 14px; overflow: visible;
+            transition: transform .42s cubic-bezier(.2,.8,.2,1), filter .42s ease, opacity .42s ease,
+                        width .3s ease, height .3s ease, margin .3s ease;
+            will-change: transform;
+        }
+        .pv-slide[hidden] { display: none; }
+        .pv-slide.pv-noanim, .pv-gesture .pv-slide { transition: none; }
+        .pv-media {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+            border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.6);
+            transition: transform .28s cubic-bezier(.2,.8,.2,1);
+            user-select: none; -webkit-user-drag: none;
+        }
+        .pv-media.pv-instant { transition: none; }
+        .pv-center { z-index: 2; }
+        /* Соседи: размытые и притушенные — видно, что фото есть и какое, но
+           внимание не отнимают. По нажатию выезжают в центр */
+        .pv-side {
+            z-index: 1; cursor: pointer;
+            filter: blur(3px) brightness(.5) saturate(.85);
+            opacity: calc(.9 * var(--pv-dismiss));
+        }
+        .pv-side:hover { filter: blur(2px) brightness(.65); }
+        .pv-away { z-index: 0; opacity: 0; }
+        /* Фото приближено — всё остальное уходит в тень */
+        #gallery-lightbox.pv-zoomed .pv-side { opacity: 0; pointer-events: none; }
+        #gallery-lightbox.pv-zoomed #gallery-strip-wrap,
+        #gallery-lightbox.pv-zoomed #gallery-metadata,
+        #gallery-lightbox.pv-zoomed #btn-gallery-fly { opacity: .12; }
+        #gallery-strip-wrap, #gallery-metadata, #btn-gallery-fly { transition: opacity .25s ease; }
+        #gallery-lightbox.pv-zoomed { background: rgba(0,0,0,.985); }
+        /* Лента миниатюр — по центру, пока влезает; длинная прокручивается.
+           auto-отступы у крайних, а не justify-content: center — тот при
+           прокрутке обрезает начало ленты */
+        #gallery-strip > :first-child { margin-left: auto; }
+        #gallery-strip > :last-child { margin-right: auto; }
+
         /* ── Шкала ведения по профилю ─────────────────────────────── */
         /* Пока ведут бегунок, она стоит поверх карты: высота, пройденный
            километр и участок под пальцем — там же, куда смотрят. */
@@ -489,6 +541,16 @@
            можно только не менее подробным */
         body.tw-flyover #route-panel-group.sidebar-open #panel-toggle-btn { display: none; }
         #fp-chart { width: 100%; }
+        /* Метка облёта в полёте (см. placeFlyoverDot) — как бегунок графика */
+        #flyover-dot {
+            position: fixed; left: 0; top: 0; z-index: 54;
+            width: 14px; height: 14px; margin: -7px 0 0 -7px;
+            border-radius: 50%; background: #fff;
+            border: 2px solid rgba(9,9,11,.85);
+            box-shadow: 0 0 0 5px rgba(255,255,255,.22), 0 0 14px rgba(0,0,0,.5);
+            pointer-events: none; will-change: transform;
+        }
+        #flyover-dot[hidden] { display: none; }
 
         /* ── Перелистывание цифр ──────────────────────────────────── */
         /* Время пересчитывается на каждый сдвиг ползунка, и без анимации
@@ -1009,12 +1071,8 @@
                 </svg>
             </button>
         </div>
-        <!-- Main image area -->
-        <div class="relative flex-1 min-h-0 flex items-center justify-center p-4 md:p-12"
-            onclick="if(event.target === this) closeLightbox()">
-            <img id="gallery-image" src="" class="max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-transform duration-300 scale-95" alt="">
-            <video id="gallery-video" controls loop autoplay playsinline
-                class="hidden max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-transform duration-300 scale-95"></video>
+        <!-- Сцена просмотра: фото в фокусе и соседи по бокам (photo_viewer.js) -->
+        <div id="gallery-stage" class="relative flex-1 min-h-0">
             <div id="gallery-metadata"
                 class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 px-3.5 md:px-5 py-2 rounded-full border border-white/10 text-[11px] md:text-xs tracking-wide md:tracking-widest text-white flex items-center shadow-lg whitespace-nowrap max-w-[calc(100%-16px)] tabular-nums">
                 <span id="gallery-coord-text">GPS: Loading...</span>
@@ -1120,6 +1178,7 @@
     <script src="time_planner.js"></script>
     <script src="cinematic.js"></script>
     <script src="route_marks.js"></script>
+    <script src="photo_viewer.js"></script>
     <script src="script.js"></script>
     <script src="route_profile_ui.js"></script>
     <script src="pss_layer.js"></script>

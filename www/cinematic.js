@@ -276,7 +276,6 @@
             this.orbitPivot = centroid(route);
             this.orbitBearing = this.map.getBearing();
             this.orbitZoom = this._fitZoom(route, pad, box);
-            this._orbitAccumulator = 0;
             const token = ++this._token;
 
             this.map.easeTo({
@@ -475,6 +474,17 @@
             const token = this._token;
             const tick = now => {
                 if (token !== this._token) return;
+                // ⚠️ Кадр камеры — на каждом кадре экрана, но не чаще 60 раз в
+                // секунду (на 120 Гц это вдвое меньше работы карте, а глазу
+                // незаметно). Раньше стоял потолок в 30 кадров через
+                // накопитель времени: на 60 Гц 33 мс набирались то за два
+                // кадра экрана, то за три, шаги камеры выходили неровными, и
+                // вращение с облётом шли мелкими рывками (фидбэк 2026-09-19).
+                // Постоянный зум у вращения и так снял основную нагрузку.
+                if (now - this._lastFrameAt < 1000 / 60 - 3) {
+                    this._frame = requestAnimationFrame(tick);
+                    return;
+                }
                 // Потолок на случай ухода вкладки в фон
                 const dt = Math.min(0.1, Math.max(0, (now - this._lastFrameAt) / 1000));
                 this._lastFrameAt = now;
@@ -490,13 +500,6 @@
 
         _stepFlyover(dt) {
             this.elapsed += dt * Math.max(0.25, this.speed);
-            // Кадр обновляем тридцать раз в секунду — как и на вращении.
-            // Движение от этого не грубеет (камера идёт медленно), а работы
-            // карте вдвое меньше: на спутнике с рельефом это разница между
-            // «летит» и «спотыкается».
-            this._flyAccumulator = (this._flyAccumulator || 0) + dt;
-            if (this._flyAccumulator < 1 / 30 && this.elapsed < this.duration) return;
-            this._flyAccumulator = 0;
             const progress = Math.min(1, this.elapsed / this.duration);
             const travelled = progress * this.totalMeters;
             const here = this._coordinateAt(travelled);
@@ -526,12 +529,6 @@
 
         _stepOrbit(dt) {
             this.orbitBearing = normalize(this.orbitBearing + 360 / ORBIT_PERIOD * dt);
-            // ⚠️ Кадр обновляем не чаще тридцати раз в секунду. Оборот идёт
-            // почти минуту, и на глаз разницы с шестьюдесятью нет, а карта при
-            // наклонённой камере на спутнике перерисовывается вдвое реже.
-            this._orbitAccumulator += dt;
-            if (this._orbitAccumulator < 1 / 30) return;
-            this._orbitAccumulator = 0;
             this.map.jumpTo({
                 center: this.orbitPivot, zoom: this.orbitZoom,
                 bearing: this.orbitBearing, pitch: ORBIT_PITCH, padding: this.padding

@@ -256,7 +256,49 @@
             return html;
         },
 
+        /**
+         * Метка облёта в полёте — обычный элемент в центре свободной части
+         * экрана, а не точка в источнике карты.
+         *
+         * ⚠️ Камера каждый кадр встаёт центром ровно на эту точку тропы, так
+         * что на экране метка стоит на месте, а движется земля под ней.
+         * Через `setData` она приезжала с опозданием: источник карты
+         * обновляется в воркере, асинхронно, на кадр-два позже камеры и
+         * каждый раз с разной задержкой — метка дрожала вокруг центра, и
+         * облёт казался рывками (фидбэк 2026-09-19). Элемент ставится в тот
+         * же кадр, что и камера. На паузе карту двигают руками — там метка
+         * снова точка на карте (`onPauseChanged`).
+         */
+        placeFlyoverDot() {
+            const camera = this.camera;
+            if (!camera || camera.paused) return;
+            let dot = document.getElementById('flyover-dot');
+            if (!dot) {
+                dot = document.createElement('div');
+                dot.id = 'flyover-dot';
+                document.body.appendChild(dot);
+            }
+            const box = this.map.getCanvas().getBoundingClientRect();
+            const pad = camera.padding || { top: 0, right: 0, bottom: 0, left: 0 };
+            const x = box.left + pad.left + (box.width - pad.left - pad.right) / 2;
+            const y = box.top + pad.top + (box.height - pad.top - pad.bottom) / 2;
+            dot.style.transform = `translate(${x}px, ${y}px)`;
+            if (dot.hidden) dot.hidden = false;
+            if (!this._flyDotShown) {
+                this._flyDotShown = true;
+                const source = this.map.getSource(SCRUB_SRC);
+                if (source) source.setData({ type: 'FeatureCollection', features: [] });
+            }
+        },
+
+        hideFlyoverDot() {
+            const dot = document.getElementById('flyover-dot');
+            if (dot) dot.hidden = true;
+            this._flyDotShown = false;
+        },
+
         clearScrub() {
+            this.hideFlyoverDot();
             const bar = document.getElementById('scrub-readout');
             if (bar) bar.classList.add('hidden');
             if (!this.camera || !this.camera.isRunning) document.body.classList.remove('tw-immersive');
@@ -297,6 +339,8 @@
         keepScrubVisible(lngLat) {
             const map = this.map;
             if (!map || this._framing || !this.routeData) return;
+            // Камеру ведёт вращение — не перебиваем его своими перелётами
+            if (this.camera && this.camera.isRunning && !this.camera.paused) return;
             const pad = this.padding();
             const box = map.getCanvas().getBoundingClientRect();
             const p = map.project(lngLat);
@@ -320,9 +364,23 @@
                 if (c[1] > maxLat) maxLat = c[1];
             }
             this._framing = true;
-            map.fitBounds([[minLon, minLat], [maxLon, maxLat]], Object.assign({
-                padding: this.padding(), duration: 800, maxZoom: 16
-            }, opts || {}));
+            const bounds = [[minLon, minLat], [maxLon, maxLat]];
+            const options = Object.assign({ padding: this.padding(), duration: 800, maxZoom: 16 }, opts || {});
+            // ⚠️ На телефоне над развёрнутой карточкой свободна узкая полоса, и
+            // при сильном наклоне (после облёта он 64°) маршрут в неё не
+            // вписывается: `fitBounds` тогда молча не делает ничего, и камера
+            // оставалась носом в финишный склон (фидбэк 2026-09-19). Пробуем
+            // с отступами поменьше, а в крайнем случае — без наклона.
+            if (!map.cameraForBounds(bounds, options)) {
+                const pad = options.padding;
+                options.padding = { top: Math.min(pad.top, 30), left: Math.min(pad.left, 16),
+                                    right: Math.min(pad.right, 16), bottom: pad.bottom };
+                if (!map.cameraForBounds(bounds, options)) {
+                    options.pitch = 0;
+                    if (!map.cameraForBounds(bounds, options)) options.padding.bottom = Math.round(pad.bottom * 0.6);
+                }
+            }
+            map.fitBounds(bounds, options);
             // Пока летим — считаем, что кадр уже подобран: иначе следующий же
             // кадр ведения решит, что бегунок снова вне экрана, и кадры
             // начнут затирать друг друга
@@ -338,7 +396,10 @@
             this.selectionCoords = range.coordinates;
             this.drawSelection(range.fromFraction, range.toFraction);
             // Облёт к участку — так же, как в приложении: выделили, чтобы
-            // рассмотреть именно его
+            // рассмотреть именно его. ⚠️ Кроме случая, когда камера уже
+            // занята вращением: перелёт начинался и тут же гас под следующим
+            // кадром вращения (фидбэк 2026-09-19) — только подсвечиваем
+            if (this.camera && this.camera.isRunning && !this.camera.paused) return;
             this.fitCoordinates(range.coordinates, { duration: 900, maxZoom: 16 });
         },
 
@@ -372,12 +433,12 @@
                     'line-gradient': gradient, 'line-width': 15,
                     'line-opacity': 0.42, 'line-blur': 6
                 }
-            });
+            }, root.drapeBeforeId && root.drapeBeforeId());
             map.addLayer({
                 id: SEL_LINE, type: 'line', source,
                 layout: { 'line-cap': 'butt', 'line-join': 'round' },
                 paint: { 'line-gradient': gradient, 'line-width': 2, 'line-opacity': 0.9 }
-            });
+            }, root.drapeBeforeId && root.drapeBeforeId());
             this.raiseScrubLayers();
         },
 
@@ -480,6 +541,19 @@
         },
 
         onPauseChanged(paused) {
+            // На паузе карту двигают руками — метка становится точкой на
+            // самой карте, иначе она осталась бы висеть в центре экрана
+            if (paused && this._flyoverUnderway && this._flyCoord) {
+                this.hideFlyoverDot();
+                if (this.ensureScrubLayers()) {
+                    this.map.getSource(SCRUB_SRC).setData({
+                        type: 'FeatureCollection',
+                        features: [{ type: 'Feature', properties: {},
+                                     geometry: { type: 'Point', coordinates: this._flyCoord } }]
+                    });
+                    this.raiseScrubLayers();
+                }
+            }
             const button = document.getElementById('btn-flyover-pause');
             if (button) {
                 // Иконкой, а не словом: «Продолжить» раздувало плашку облёта
@@ -508,6 +582,7 @@
             // разбирать как обычную: иначе переключение вращения на облёт
             // успевало вернуть карточку и убрать метки ровно перед стартом
             this._switching = true;
+            this._cineMode = mode;
             if (mode === 'flyover') {
                 camera.onProgress = (coord, progress, travelledMeters) =>
                     this.onFlyoverProgress(coord, travelledMeters);
@@ -518,12 +593,8 @@
                     // пошла по тропе: во время подлёта её место в центре
                     // экрана — не точка маршрута, а случайный кусок леса
                     onStarted: () => { this._flyoverUnderway = true; },
-                    onFinish: () => {
-                        // Долетели — показываем маршрут целиком: иначе камера
-                        // остаётся носом в финишный склон, и непонятно, где ты
-                        // вообще оказался
-                        this.fitCoordinates(route, { duration: 1400, maxZoom: 15 });
-                    }
+                    // Кадр «весь маршрут» после облёта ставит onCinematicStopped
+                    onFinish: null
                 });
             } else {
                 camera.onProgress = null;
@@ -589,6 +660,18 @@
             const byUser = this.camera && this.camera.stoppedByUser;
             if (group && this.routeData && !byUser) group.classList.remove('panel-collapsed');
             if (this.camera) this.camera.stoppedByUser = false;
+
+            // Облёт кончился — долетели или нажали «Стоп» — показываем маршрут
+            // целиком: иначе камера остаётся носом в склон, и непонятно, где
+            // ты вообще оказался. ⚠️ Раньше это делалось только на долёте до
+            // конца, и на телефоне после «Стоп» камера так и висела низко над
+            // тропой (фидбэк 2026-09-19). Наклон — как при открытии маршрута:
+            // с 64° облёта маршрут над развёрнутой карточкой не вписывается.
+            const wasFlyover = this._cineMode === 'flyover';
+            this._cineMode = null;
+            if (wasFlyover && !byUser && this.routeData) {
+                this.fitCoordinates(this.routeData.coordinates, { duration: 1400, maxZoom: 15, pitch: 45 });
+            }
         },
 
         showCinematicStatus(mode) {
@@ -665,12 +748,8 @@
         /** Кадр облёта: метка на тропе, бегунок на графике и цифры над ним */
         onFlyoverProgress(coord, travelledMeters) {
             if (!this._flyoverUnderway) return;
-            if (this.ensureScrubLayers()) {
-                this.map.getSource(SCRUB_SRC).setData({
-                    type: 'FeatureCollection',
-                    features: [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: coord } }]
-                });
-            }
+            this._flyCoord = coord;
+            this.placeFlyoverDot();
             if (!this.flyoverChart) return;
             const info = this.flyoverChart.setCursor(this.routeKmAt(travelledMeters));
             const readout = document.getElementById('fp-readout');

@@ -55,12 +55,12 @@
       id: 'pss-selected-casing', type: 'line', source: 'pss-selected',
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: { 'line-color': '#06283b', 'line-width': 7, 'line-opacity': 0.55 }
-    });
+    }, window.drapeBeforeId && window.drapeBeforeId());
     map.addLayer({
       id: 'pss-selected-line', type: 'line', source: 'pss-selected',
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: { 'line-color': '#34AADF', 'line-width': 4, 'line-opacity': 0.95 }
-    });
+    }, window.drapeBeforeId && window.drapeBeforeId());
   }
 
   function esc(s) {

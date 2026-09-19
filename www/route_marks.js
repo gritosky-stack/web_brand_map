@@ -239,6 +239,24 @@
             if (!this._ensure()) return;
             this.map.getSource(SOURCE).setData({ type: 'FeatureCollection', features: this.features });
             this.map.setLayoutProperty(LAYER, 'visibility', this.hidden ? 'none' : 'visible');
+            this.raise();
+        },
+
+        /**
+         * Бейджи — поверх всего остального на карте: линии, подсветки участка
+         * и меток фото. Выше них только бегунок графика/облёта.
+         *
+         * ⚠️ Слои фото добавляются позже — когда для маршрута приехали
+         * координаты снимков, — и без этого ложились поверх «Start / Finish»
+         * (фидбэк 2026-09-19). Поэтому поднимаем и здесь, и после них.
+         */
+        raise() {
+            const map = this.map;
+            if (!map || !map.getLayer(LAYER)) return;
+            map.moveLayer(LAYER);
+            ['profile-scrub-halo', 'profile-scrub-dot'].forEach(id => {
+                if (map.getLayer(id)) map.moveLayer(id);
+            });
         },
 
         _onClick(e) {
