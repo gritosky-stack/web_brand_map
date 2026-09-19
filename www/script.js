@@ -793,6 +793,7 @@ function triggerRouteSelection(routeId) {
     if (!routeInfo || !routeData) return;
     // Пока рисуют маршрут, клик по карте ставит точку, а не открывает чужой
     if (window.RouteBuilder && RouteBuilder.active) return;
+    if (window.MapPoints) MapPoints.hideCard();
 
     // Update URL so this route can be shared / bookmarked
     history.replaceState(null, '', '#' + routeId);

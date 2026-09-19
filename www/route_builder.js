@@ -971,6 +971,7 @@
         const layers = document.getElementById('layers-panel');
         if (layers) layers.classList.remove('open');
         if (window.Account) Account.closeModal();
+        if (window.MapPoints) MapPoints.hideCard();
 
         // Нулевые отступы: они уводят центр камеры от середины экрана, и
         // точка «Шага» вставала бы не под прицел. Наклон, в отличие от

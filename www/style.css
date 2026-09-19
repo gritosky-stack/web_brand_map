@@ -269,3 +269,40 @@ body.tw-drawing #btn-draw-route { display: none !important; }
 .rb-toggle-row b { display: block; font-size: 13px; font-weight: 500; color: #fff; }
 .rb-toggle-row small { display: block; font-size: 10px; color: rgba(255,255,255,.6); }
 .rb-switch:checked { background: rgba(255,87,34,.6); border-color: rgba(255,87,34,.7); }
+
+/* ── Вода и укрытия (map_points.js) ────────────────────────────────────────── */
+.layer-section {
+    margin: 6px 10px 0; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08);
+    font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.35);
+}
+.layer-note { margin: 2px 10px 6px; font-size: 9.5px; line-height: 1.35; color: rgba(255,255,255,.4); }
+
+/* Карточка точки — MapPointBar: маленькая и без «подробнее», про такую
+   точку OSM знает три-четыре факта */
+#poi-card {
+    position: fixed; z-index: 45; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+    max-width: 420px; margin: 0 auto;
+    display: none; align-items: center; gap: 12px; padding: 12px 14px;
+    background: rgba(10,10,10,.8); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.5);
+}
+#poi-card.open { display: flex; animation: rb-pop .3s ease; }
+@media (min-width: 768px) { #poi-card { bottom: 180px; } }
+body.tw-drawing #poi-card, body.tw-immersive #poi-card, body.route-open #poi-card { display: none !important; }
+.poi-emoji {
+    flex: none; width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.08);
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+}
+.poi-text { flex: 1; min-width: 0; }
+.poi-title { color: #fff; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.poi-sub { color: rgba(255,255,255,.6); font-size: 11px; margin-top: 3px; }
+.poi-warn { color: #E74C3C; font-size: 10px; font-weight: 500; margin-top: 3px; }
+.poi-close {
+    flex: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,.6); background: rgba(255,255,255,.08);
+}
+.poi-pin {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 3px solid #fff; background: #FF5722; box-shadow: 0 0 0 4px rgba(255,87,34,.35), 0 2px 6px rgba(0,0,0,.5);
+}

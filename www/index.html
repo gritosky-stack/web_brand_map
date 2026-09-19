@@ -809,6 +809,19 @@
             <span class="layer-name">🔥 Хитмап троп<em id="layer-heat-hint"></em></span>
             <input type="checkbox" id="layer-heat" class="layer-switch">
         </label>
+        <!-- Вода и укрытия (map_points.js) — как «Объекты на карте» в приложении -->
+        <div class="layer-section">Объекты на карте</div>
+        <label class="layer-row">
+            <span class="layer-name">💧 Вода<em>родники, колонки, колодцы</em></span>
+            <input type="checkbox" id="layer-water" class="layer-switch">
+        </label>
+        <label class="layer-row">
+            <span class="layer-name">🏠 Укрытия и кемпинги<em>дома, навесы, кемпинги</em></span>
+            <input type="checkbox" id="layer-shelter" class="layer-switch">
+        </label>
+        <!-- Обещать воду там, где её может не быть, нельзя: оговорка стоит
+             здесь, чтобы её увидели до того, как построят на этом план -->
+        <p class="layer-note">Данные OpenStreetMap, на местности не проверены. Родник может пересохнуть</p>
     </div>
 
     <!-- Lines legend pill -->
@@ -1315,6 +1328,7 @@
     <script src="assistant.js"></script>
     <script src="account.js"></script>
     <script src="route_builder.js"></script>
+    <script src="map_points.js"></script>
     <script>
       // На localhost кэш service worker только мешает: правка в файле не
       // видна, пока не сбросишь его руками. Там прошлый снимаем, новый не ставим.
