@@ -378,12 +378,21 @@
             font-weight: 600; font-size: 11px;
         }
 
-        /* Пока ведут бегунок по графику или камера показывает маршрут сама,
-           строка ассистента уходит: она стоит ровно там же, где шкала, и
-           смотреть в этот момент нужно на карту, а не на интерфейс */
-        body.tw-immersive #asst-search-bar {
-            opacity: 0; pointer-events: none; transition: opacity .2s ease;
+        /* Пока ведут бегунок по графику, выделяют участок или камера
+           показывает маршрут сама (облёт, вращение), всё, что не про маршрут,
+           уходит: логотип, меню, заголовок, легенда и строка ассистента.
+           Смотреть в этот момент нужно на карту, а на телефоне шапка к тому
+           же занимает ровно то место, где встают шкала и плашка камеры. */
+        .app-overlay > header, #hero-text, #lines-legend, #asst-search-bar {
+            transition: opacity .25s ease;
         }
+        body.tw-immersive .app-overlay > header,
+        body.tw-immersive #hero-text,
+        body.tw-immersive #lines-legend,
+        body.tw-immersive #asst-search-bar {
+            opacity: 0 !important; pointer-events: none !important;
+        }
+        body.tw-immersive .app-overlay > header * { pointer-events: none !important; }
 
         /* ── Шкала ведения по профилю ─────────────────────────────── */
         /* Пока ведут бегунок, она стоит поверх карты: высота, пройденный
@@ -410,47 +419,76 @@
         .sr-sep { width: 1px; height: 16px; background: rgba(255,255,255,.14); align-self: center; }
 
         /* ── Карточка профиля во время облёта ─────────────────────── */
+        /* Плавающая «стеклянная» плашка, а не полоса во всю ширину: сквозь
+           неё видно карту, по бокам и снизу остаётся воздух, и она не
+           отрезает низ экрана целиком (фидбэк 2026-09-19). */
         #flyover-profile {
             position: fixed; z-index: 55;
-            left: 0; right: 0; bottom: 0;
-            padding: 12px 18px 16px;
-            background: linear-gradient(to top, rgba(9,9,11,.97) 60%, rgba(9,9,11,.82));
-            border-top: 1px solid rgba(63,63,70,.55);
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 -8px 40px rgba(0,0,0,.7);
+            left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+            width: min(760px, calc(100vw - 28px));
+            padding: 10px 14px 8px;
+            border-radius: 18px;
+            background: rgba(12,12,14,.52);
+            border: 1px solid rgba(255,255,255,.09);
+            backdrop-filter: blur(14px) saturate(140%);
+            -webkit-backdrop-filter: blur(14px) saturate(140%);
+            box-shadow: 0 10px 40px rgba(0,0,0,.45);
+            transform: translateX(-50%);
             animation: fp-rise .32s cubic-bezier(.2,.7,.2,1) both;
         }
         #flyover-profile.hidden { display: none !important; }
-        @keyframes fp-rise { from { transform: translateY(100%) } to { transform: none } }
-        /* Данные о точке — над управлением, обе строки прижаты вправо:
-           слева от них остаётся сам график, и ничто никуда не прыгает, когда
-           появляются цифры */
-        #flyover-profile .fp-head {
-            display: flex; align-items: flex-end; justify-content: flex-end;
-            flex-direction: column; gap: 6px; margin-bottom: 8px;
+        @keyframes fp-rise {
+            from { transform: translate(-50%, 24px); opacity: 0 }
+            to   { transform: translate(-50%, 0);    opacity: 1 }
         }
-        #flyover-profile .fp-controls { display: flex; align-items: center; gap: 4px; }
-        #flyover-profile #fp-readout { justify-content: flex-end; }
-        /* На паузе карта в руках человека — карточка отходит на второй план */
-        #flyover-profile.paused { border-top-color: rgba(255,255,255,.25); }
+        /* Одна строка: слева — где мы сейчас, справа — управление. Место под
+           цифры занято прочерками с первого кадра, поэтому кнопки не прыгают */
+        #flyover-profile .fp-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; margin-bottom: 4px;
+        }
+        #flyover-profile .fp-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        #flyover-profile #fp-readout { gap: 8px; min-width: 0; }
+        #flyover-profile #fp-readout b { font-size: 15px; }
+        #flyover-profile #fp-readout .sr-unit { font-size: 10px; }
+        #flyover-profile #fp-readout .sr-sep { height: 13px; }
+        /* Скорость — одна «таблетка» с сегментами вместо пяти кнопок */
+        .fp-speeds {
+            display: flex; align-items: center; padding: 2px; border-radius: 999px;
+            background: rgba(255,255,255,.07);
+        }
+        #flyover-profile .cine-speed {
+            padding: 2px 7px; background: transparent; font-size: 10px;
+            color: rgba(255,255,255,.55); border: 0;
+        }
+        #flyover-profile .cine-speed:hover { color: #fff; }
+        #flyover-profile .cine-speed.active { background: rgba(255,255,255,.9); color: #09090b; font-weight: 700; }
+        .fp-icon-btn {
+            width: 26px; height: 26px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            cursor: pointer; color: #fff; flex-shrink: 0;
+            background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14);
+            transition: background .15s, border-color .15s;
+        }
+        .fp-icon-btn:hover { background: rgba(255,255,255,.2); }
+        .fp-icon-btn svg { width: 11px; height: 11px; }
+        .fp-icon-btn.cine-stop { margin: 0; padding: 0; background: rgba(255,77,77,.22); border-color: rgba(255,77,77,.45); }
+        .fp-icon-btn.cine-stop:hover { background: rgba(255,77,77,.4); }
+        .fp-icon-btn.resumed { background: rgba(76,175,80,.3); border-color: rgba(76,175,80,.6); }
+        /* На паузе карта в руках человека — рамка чуть светлее, как «ждём» */
+        #flyover-profile.paused { border-color: rgba(255,255,255,.22); }
+        /* Кнопка паузы в плашке вращения (там она текстовая) */
         .cine-pause {
             padding: 3px 10px; border-radius: 999px; cursor: pointer;
             background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.22);
             color: #fff; font-size: 10px; font-weight: 700; white-space: nowrap;
         }
-        .cine-pause:hover { background: rgba(255,255,255,.16); }
-        .cine-pause.resumed { background: rgba(76,175,80,.22); border-color: rgba(76,175,80,.6); }
         /* Стрелочка свёрнутой панели стоит там же, где ось километров.
            Селектор длинный не от хорошей жизни: показывает её правило
            `#route-panel-group.sidebar-open #panel-toggle-btn`, и перебить его
            можно только не менее подробным */
         body.tw-flyover #route-panel-group.sidebar-open #panel-toggle-btn { display: none; }
         #fp-chart { width: 100%; }
-        @media (min-width: 1100px) {
-            /* На широком экране растягивать график во всю ширину незачем:
-               километр становится шире экрана, и форма профиля теряется */
-            #flyover-profile .fp-head, #fp-chart { max-width: 1040px; margin-left: auto; margin-right: auto; }
-        }
 
         /* ── Перелистывание цифр ──────────────────────────────────── */
         /* Время пересчитывается на каждый сдвиг ползунка, и без анимации
@@ -521,19 +559,30 @@
         }
 
         @media (max-width: 767px) {
-            /* Сверху на телефоне уже стоят логотип и «Меню» — плашки уходят
-               под них и держатся в одну строку: с переносом шкала
-               разрасталась на три строки и накрывала собой шапку */
+            /* Шапка в эти моменты спрятана (tw-immersive), и плашки встают
+               на её место. В одну строку: с переносом шкала разрасталась на
+               три строки и накрывала полкарты */
             #scrub-readout, #cinematic-status {
-                top: 66px; max-width: calc(100vw - 20px);
+                top: calc(env(safe-area-inset-top, 0px) + 14px); max-width: calc(100vw - 20px);
                 padding: 7px 12px; font-size: 10px;
             }
             #scrub-readout { gap: 7px; white-space: nowrap; overflow: hidden; }
             .sr-line b { font-size: 14px; }
             .sr-line .sr-unit { font-size: 10px; }
             #cinematic-status { white-space: nowrap; }
-            #flyover-profile { padding: 10px 12px 14px; }
-            #flyover-profile .fp-controls { gap: 3px; }
+            /* На телефоне цифры и управление — в две строки: в одну они
+               не влезают, а ужимать шрифт дальше — уже не прочитать */
+            #flyover-profile { width: calc(100vw - 16px); bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+                               padding: 8px 10px 6px; border-radius: 16px; }
+            #flyover-profile .fp-head { flex-direction: column; align-items: stretch; gap: 6px; }
+            #flyover-profile .fp-controls { justify-content: flex-end; }
+            #flyover-profile .fp-speeds { margin-right: auto; }
+            /* Кнопки ассистента и слоёв стоят в правом нижнем углу — ровно
+               под карточкой, и сквозь стекло просвечивали красным пятном */
+            body.tw-flyover #asst-fab, body.tw-flyover #btn-layers-toggle {
+                opacity: 0 !important; pointer-events: none !important;
+            }
+            #flyover-profile #fp-readout b { font-size: 14px; }
             .cine-speed { padding: 2px 6px; }
         }
 
@@ -690,8 +739,8 @@
         </div>
 
         <!-- Hero Text -->
-        <main id="hero-text" class="flex-grow flex flex-col justify-start items-start w-full pt-16 relative">
-            <h1 class="text-6xl md:text-8xl font-bold tracking-tighter mb-6 text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.9)] pointer-events-auto select-none text-left relative z-10">
+        <main id="hero-text" class="flex-grow flex flex-col justify-start items-start w-full pt-3 md:pt-16 relative">
+            <h1 class="text-[34px] leading-[0.95] md:leading-none md:text-8xl font-bold tracking-tighter mb-6 text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.9)] pointer-events-auto select-none text-left relative z-10">
                 Adventure<br>Guide.
             </h1>
         </main>
@@ -967,7 +1016,7 @@
             <video id="gallery-video" controls loop autoplay playsinline
                 class="hidden max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-transform duration-300 scale-95"></video>
             <div id="gallery-metadata"
-                class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 px-5 py-2 rounded-full border border-white/10 text-xs tracking-widest text-white flex items-center shadow-lg">
+                class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 px-3.5 md:px-5 py-2 rounded-full border border-white/10 text-[11px] md:text-xs tracking-wide md:tracking-widest text-white flex items-center shadow-lg whitespace-nowrap max-w-[calc(100%-16px)] tabular-nums">
                 <span id="gallery-coord-text">GPS: Loading...</span>
             </div>
         </div>
@@ -1004,14 +1053,17 @@
         <div class="fp-head">
             <div id="fp-readout" class="sr-line"></div>
             <div class="fp-controls">
-                <span class="cine-speed-label">Скорость</span>
-                <button class="cine-speed" data-speed="0.5">×0.5</button>
-                <button class="cine-speed active" data-speed="1">×1</button>
-                <button class="cine-speed" data-speed="1.5">×1.5</button>
-                <button class="cine-speed" data-speed="2">×2</button>
-                <button class="cine-speed" data-speed="3">×3</button>
-                <button id="btn-flyover-pause" class="cine-pause">Пауза</button>
-                <button class="cine-stop" data-cinematic-stop>Стоп</button>
+                <div class="fp-speeds" role="group" aria-label="Скорость облёта">
+                    <button class="cine-speed" data-speed="0.5">×0.5</button>
+                    <button class="cine-speed active" data-speed="1">×1</button>
+                    <button class="cine-speed" data-speed="1.5">×1.5</button>
+                    <button class="cine-speed" data-speed="2">×2</button>
+                    <button class="cine-speed" data-speed="3">×3</button>
+                </div>
+                <button id="btn-flyover-pause" class="fp-icon-btn" title="Пауза" aria-label="Пауза"></button>
+                <button class="fp-icon-btn cine-stop" data-cinematic-stop title="Остановить облёт" aria-label="Остановить облёт">
+                    <svg viewBox="0 0 12 12"><rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor"/></svg>
+                </button>
             </div>
         </div>
         <div id="fp-chart"></div>
@@ -1067,12 +1119,19 @@
     <script src="profile_chart.js"></script>
     <script src="time_planner.js"></script>
     <script src="cinematic.js"></script>
+    <script src="route_marks.js"></script>
     <script src="script.js"></script>
     <script src="route_profile_ui.js"></script>
     <script src="pss_layer.js"></script>
     <script src="assistant.js"></script>
     <script>
-      if ('serviceWorker' in navigator) {
+      // На localhost кэш service worker только мешает: правка в файле не
+      // видна, пока не сбросишь его руками. Там прошлый снимаем, новый не ставим.
+      const _devHost = ['localhost', '127.0.0.1'].includes(location.hostname);
+      if ('serviceWorker' in navigator && _devHost) {
+        navigator.serviceWorker.getRegistrations().then(list => list.forEach(r => r.unregister()));
+        if (window.caches) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      } else if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(() => {});
         });

@@ -71,6 +71,8 @@
             // километры по полной геометрии (по ним размечен график).
             this._lineMeters = root.GradeColor.cumulativeMeters(routeData.coordinates);
             this._lineKm = routeData.coordKm;
+            this._toLine = root.GradeColor.progressMapper(routeData.coordinates, routeData.coordKm);
+            this._lineCoords = routeData.coordinates;
 
             this.showTimePlanner(routeInfo, routeData);
             this.showCameraButtons();
@@ -165,16 +167,43 @@
             [SCRUB_HALO, SCRUB_DOT].forEach(id => { if (map.getLayer(id)) map.moveLayer(id); });
         },
 
+        /**
+         * Точка **на нарисованной линии**, соответствующая километру маршрута.
+         *
+         * ⚠️ Бегунок ставим сюда, а не в GPS-точку профиля. Линия упрощена, и
+         * на узких местах (ответвление туда-обратно, серпантин) настоящая
+         * точка лежала в десятках метров от линии — между двумя её нитками,
+         * и было не понять, на каком цвете она стоит (фидбэк 2026-09-19).
+         * Здесь же берётся и цвет линии (`progressMapper`), так что бегунок
+         * стоит ровно на том цвете, что и точка на графике.
+         */
+        lineCoordAtKm(km) {
+            const coords = this._lineCoords, cum = this._lineMeters;
+            const total = this.chart ? this.chart.totalKm : 0;
+            if (!coords || !cum || coords.length < 2 || !(total > 0) || !this._toLine) return null;
+            const meters = this._toLine(km / total) * cum[cum.length - 1];
+            let lo = 0, hi = cum.length - 1;
+            while (lo + 1 < hi) {
+                const mid = (lo + hi) >> 1;
+                if (cum[mid] <= meters) lo = mid; else hi = mid;
+            }
+            const span = cum[hi] - cum[lo];
+            const t = span > 0 ? Math.min(1, Math.max(0, (meters - cum[lo]) / span)) : 0;
+            return [coords[lo][0] + (coords[hi][0] - coords[lo][0]) * t,
+                    coords[lo][1] + (coords[hi][1] - coords[lo][1]) * t];
+        },
+
         onScrub(info) {
             const bar = document.getElementById('scrub-readout');
             if (!info) {
                 this.clearScrub();
                 return;
             }
+            const at = this.lineCoordAtKm(info.km) || info.lngLat;
             if (this.ensureScrubLayers()) {
                 this.map.getSource(SCRUB_SRC).setData({
                     type: 'FeatureCollection',
-                    features: [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: info.lngLat } }]
+                    features: [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: at } }]
                 });
                 this.raiseScrubLayers();
             }
@@ -183,7 +212,7 @@
                 bar.classList.remove('hidden');
                 document.body.classList.add('tw-immersive');
             }
-            this.keepScrubVisible(info.lngLat);
+            this.keepScrubVisible(at);
         },
 
         /**
@@ -329,7 +358,11 @@
             const map = this.map;
             const source = this.lineSourceId;
             if (!map || !source || !map.getSource(source)) return;
-            const gradient = RouteProfile.selectionGradient(from, to);
+            // Границы выделения — доли полной геометрии, а `line-progress`
+            // считается по упрощённой линии: переводим, иначе подсветка
+            // сползала с выделенного на графике куска
+            const toLine = this._toLine || (f => f);
+            const gradient = RouteProfile.selectionGradient(toLine(from), toLine(to));
             if (!gradient) return;
 
             map.addLayer({
@@ -449,7 +482,14 @@
         onPauseChanged(paused) {
             const button = document.getElementById('btn-flyover-pause');
             if (button) {
-                button.textContent = paused ? 'Продолжить' : 'Пауза';
+                // Иконкой, а не словом: «Продолжить» раздувало плашку облёта
+                button.innerHTML = paused
+                    ? '<svg viewBox="0 0 12 12"><path d="M3.5 2.2v7.6L10 6z" fill="currentColor"/></svg>'
+                    : '<svg viewBox="0 0 12 12"><rect x="2.5" y="2" width="2.4" height="8" rx=".8" fill="currentColor"/>' +
+                      '<rect x="7.1" y="2" width="2.4" height="8" rx=".8" fill="currentColor"/></svg>';
+                const label = paused ? 'Продолжить' : 'Пауза';
+                button.title = label;
+                button.setAttribute('aria-label', label);
                 button.classList.toggle('resumed', paused);
             }
             const card = document.getElementById('flyover-profile');
@@ -600,7 +640,7 @@
                 totalKm: this.routeData.distance,
                 accent: this.routeInfo && this.routeInfo.future ? '#FF8C00' : '#ff4d4d',
                 interactive: false,
-                height: window.innerWidth < 768 ? 96 : 132
+                height: window.innerWidth < 768 ? 64 : 84
             });
             const readout = document.getElementById('fp-readout');
             if (readout) readout.innerHTML = this.readoutHTML(null);

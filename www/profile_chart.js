@@ -709,11 +709,11 @@
         scrubTo(point) {
             const index = this.indexAt(point);
             if (index === null) return;
-            // Ушли за пределы выделенного участка — значит смотрим уже не на
-            // него: снимаем выделение и отпускаем кадр карты
-            if (this.selection && (index < this.selection[0] || index > this.selection[1])) {
-                this.releaseSelection();
-            }
+            // ⚠️ Выход бегунка за границы выделения его **не** снимает.
+            // Раньше снимал — и удержать выделение мышью было почти
+            // невозможно: чуть повёл в сторону, и подсветка пропала, а карта
+            // отъехала (фидбэк 2026-09-19). Снимают выделение явно: клик или
+            // тап по графику, новое выделение, колесо или щипок.
             this.scrubIndex = index;
             this.updateReadout();
             this.draw();
@@ -757,8 +757,13 @@
             // Отпустить кнопку можно и за пределами графика, поэтому слушаем
             // окно — и снимаем слушателя в `destroy`, иначе на каждый
             // открытый маршрут копился бы ещё один, держащий мёртвый график
-            this._onMouseUp = () => {
+            this._onMouseUp = e => {
                 if (this.dragKind === 'select' && this.selection) this.publishSelection();
+                // Простой клик по графику (без протяжки) — снять выделение
+                else if (mouseDown && this.selection) {
+                    const up = this.localPoint(e);
+                    if (Math.hypot(up.x - mouseDown.x, up.y - mouseDown.y) < 5) this.releaseSelection();
+                }
                 mouseDown = null;
                 this.dragKind = null;
             };
@@ -771,6 +776,7 @@
             // полному виду вместе со снятым выделением
             canvas.addEventListener('wheel', e => {
                 e.preventDefault();
+                this.releaseSelection();
                 const point = this.localPoint(e);
                 const fraction = Math.min(1, Math.max(0, (point.x - this.plot.x) / this.plot.w));
                 this.zoomBy(Math.exp(-e.deltaY * 0.0025), fraction);
@@ -790,6 +796,7 @@
                     // стало щипком
                     if (this.scrubIndex !== null) this.endScrub();
                     this.dragKind = null;
+                    this.releaseSelection();
                     pinch = this.pinchState(e);
                     e.preventDefault();
                     return;
@@ -838,7 +845,9 @@
                     this.endScrub();
                     this.lastTap = touchStart ? { time: Date.now(), point: touchStart.point } : null;
                 } else if (touchStart) {
-                    // Касание так и осталось тапом — от него ждём второго
+                    // Касание так и осталось тапом — снимает выделение и
+                    // может оказаться первым из двойного
+                    this.releaseSelection();
                     this.lastTap = { time: Date.now(), point: touchStart.point };
                 }
                 touchStart = null;

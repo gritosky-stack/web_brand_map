@@ -5,7 +5,7 @@
   "scripts": {
     "sync": "npx cap sync",
     "open": "npx cap open ios",
-    "serve": "python3 -m http.server 8765 --directory www"
+    "serve": "python3 tools/serve.py 8765"
   },
   "dependencies": {
     "@capacitor/core": "^6.0.0",

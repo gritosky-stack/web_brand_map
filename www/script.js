@@ -412,9 +412,6 @@ const routeFeatures = [];
 const _overviewFeatures = [];  // for background route lines
 let _showLines = false;        // lines toggle state
 let _carouselHW = 0;           // shared carousel half-width cache
-let _peakMapMarker = null;     // active peak-summit marker on the map
-let _startMarker = null;       // start flag marker
-let _finishMarker = null;      // finish flag marker
 let _drawInterval   = null;    // interval for progressive line drawing
 let _dashAnimFrame  = null;    // animation frame for continuous flow after draw
 let _selectedRouteId = null;   // route whose pulsing dot is currently hidden
@@ -681,13 +678,7 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
             map.getCanvas().style.cursor = ''; hoveredId = null; hoverPopup.remove();
         });
 
-        // Метки стоят на рельефе, а он приезжает тайлами уже после них —
-        // после каждого перелёта и по мере загрузки рельефа переспрашиваем
-        // их высоту (см. refreshRouteMarkerElevation)
-        map.on('moveend', refreshRouteMarkerElevation);
-        map.on('sourcedata', event => {
-            if (event.sourceId === 'mapbox-dem' && event.isSourceLoaded) refreshRouteMarkerElevation();
-        });
+        RouteMarks.map = map;
 
         // Если хитмап успели включить до готовности карты — добавляем сейчас
         if (_heatmapOn) toggleHeatmap(true);
@@ -776,7 +767,6 @@ function triggerRouteSelection(routeId) {
     if (window.hoverPopup) window.hoverPopup.remove();
 
     // Remove previous peak marker and start/finish markers whenever we switch routes
-    if (_peakMapMarker) { _peakMapMarker.remove(); _peakMapMarker = null; }
     _removeStartFinishMarkers();
 
     if (currentViewedRoute && currentViewedRoute.id !== routeInfo.id) {
@@ -827,39 +817,10 @@ function triggerRouteSelection(routeId) {
     map.once('moveend', () => {
         if (currentViewedRoute.id !== routeInfo.id) return;
 
-        addRouteToMap(routeInfo.id, routeData.coordinates, routeInfo.color, routeData.gradeStops);
+        addRouteToMap(routeInfo.id, routeData.coordinates, routeInfo.color, routeData.gradeStops, routeData.coordKm);
 
-        // ── Peak summit marker on the map ─────────────────────
-        if (routeData.peakCoords) {
-            const peakEl = document.createElement('div');
-            peakEl.style.cssText = 'display:flex;flex-direction:column;align-items:center;pointer-events:none;';
-            peakEl.innerHTML =
-                '<div id="peak-badge" style="background:rgba(9,9,11,0.88);border:1px solid rgba(255,140,0,0.65);border-radius:7px;padding:5px 7px;display:flex;flex-direction:column;align-items:center;gap:2px;box-shadow:0 2px 18px rgba(0,0,0,0.9);pointer-events:auto;cursor:pointer;">' +
-                '<svg width="16" height="13" viewBox="0 0 16 13" fill="none">' +
-                '<path d="M8 1.5L14.5 12H1.5Z" stroke="#FF8C00" stroke-width="1.5" stroke-linejoin="round" fill="rgba(255,140,0,0.15)"/>' +
-                '<path d="M5.5 7.5L8 5L10.5 7.5" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' +
-                '</svg>' +
-                '<span style="color:#FF8C00;font-size:7px;font-weight:700;letter-spacing:.12em;font-family:system-ui,sans-serif;line-height:1;text-transform:uppercase;">MAX</span>' +
-                '</div>' +
-                '<div style="width:1.5px;height:26px;background:linear-gradient(to bottom,rgba(255,140,0,0.7),rgba(255,140,0,0.04));"></div>' +
-                '<div style="width:10px;height:10px;border-radius:50%;background:#FF8C00;border:2px solid rgba(255,255,255,0.95);box-shadow:0 0 14px rgba(255,140,0,0.9),0 0 5px rgba(255,140,0,0.6);margin-top:-1px;"></div>';
-            _peakMapMarker = new mapboxgl.Marker({ element: peakEl, anchor: 'bottom' })
-                .setLngLat(routeData.peakCoords)
-                .addTo(map);
-            // Fly to peak on badge click / tap
-            const _badge = peakEl.querySelector('#peak-badge');
-            const _flyToPeak = () => {
-                map.flyTo({ center: routeData.peakCoords, zoom: 16, pitch: 75,
-                    bearing: map.getBearing() + 45, speed: 1.5 });
-            };
-            _badge.addEventListener('click', _flyToPeak);
-            let _bTapSX = 0, _bTapSY = 0, _bTapST = 0;
-            _badge.addEventListener('touchstart', (e) => { _bTapSX = e.touches[0].clientX; _bTapSY = e.touches[0].clientY; _bTapST = Date.now(); }, { passive: true });
-            _badge.addEventListener('touchend', (e) => {
-                const t = e.changedTouches[0];
-                if (Math.abs(t.clientX - _bTapSX) < 12 && Math.abs(t.clientY - _bTapSY) < 12 && Date.now() - _bTapST < 450) _flyToPeak();
-            }, { passive: true });
-        }
+        // ── Высшая точка на карте (см. route_marks.js) ────────
+        RouteMarks.setPeak(routeData.peakCoords || null);
 
         // ── Fill panel ────────────────────────────────────────
         // Status badge
@@ -1457,7 +1418,6 @@ document.getElementById('btn-back').addEventListener('click', () => {
     const _heroDescBack = document.getElementById('hero-desc');
     if (_heroDescBack) _heroDescBack.classList.remove('hero-hidden');
 
-    if (_peakMapMarker) { _peakMapMarker.remove(); _peakMapMarker = null; }
     _removeStartFinishMarkers();
     _selectedRouteId = null;
     _reviewsRouteId  = null;
@@ -1801,68 +1761,9 @@ async function loadRouteData(routeInfo) {
 }
 
 function _removeStartFinishMarkers() {
-    if (_startMarker)   { _startMarker.remove();  _startMarker  = null; }
-    if (_finishMarker)  { _finishMarker.remove(); _finishMarker = null; }
+    RouteMarks.clear();
     if (_drawInterval)  { clearInterval(_drawInterval);           _drawInterval  = null; }
     if (_dashAnimFrame) { cancelAnimationFrame(_dashAnimFrame);   _dashAnimFrame = null; }
-}
-
-function _addStartFinishMarkers(coordinates) {
-    _removeStartFinishMarkers();
-    const startCoord  = coordinates[0];
-    const finishCoord = coordinates[coordinates.length - 1];
-
-    function makeMarker(label, color, flagSvg) {
-        const el = document.createElement('div');
-        el.style.cssText = 'display:flex;flex-direction:column;align-items:center;pointer-events:none;';
-        el.innerHTML =
-            `<div style="background:rgba(9,9,11,0.9);border:1px solid ${color}99;border-radius:6px;padding:4px 8px;display:flex;align-items:center;gap:5px;box-shadow:0 2px 16px rgba(0,0,0,0.9),0 0 14px ${color}33;">` +
-            flagSvg +
-            `<span style="color:${color};font-size:9px;font-weight:700;letter-spacing:.1em;font-family:system-ui,sans-serif;text-transform:uppercase;">${label}</span>` +
-            `</div>` +
-            `<div style="width:1.5px;height:22px;background:linear-gradient(to bottom,${color}bb,${color}05);"></div>` +
-            `<div style="width:9px;height:9px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,.95);box-shadow:0 0 12px ${color}cc;margin-top:-1px;"></div>`;
-        return el;
-    }
-
-    const startSvg =
-        '<svg width="13" height="14" viewBox="0 0 13 14" fill="none">' +
-        '<rect x="0.5" y="0.5" width="1.5" height="13" rx="0.5" fill="#22c55e"/>' +
-        '<path d="M2 1H11L8.5 4.5L11 8H2V1Z" fill="#22c55e" opacity="0.9"/>' +
-        '</svg>';
-
-    const finishSvg =
-        '<svg width="14" height="14" viewBox="0 0 14 14" fill="none">' +
-        '<rect x="0.5" y="0.5" width="1.5" height="13" rx="0.5" fill="#ef4444"/>' +
-        '<rect x="2" y="1" width="3" height="3" fill="#ef4444"/>' +
-        '<rect x="5" y="1" width="3" height="3" fill="rgba(255,255,255,.85)"/>' +
-        '<rect x="8" y="1" width="3" height="3" fill="#ef4444"/>' +
-        '<rect x="2" y="4" width="3" height="3" fill="rgba(255,255,255,.85)"/>' +
-        '<rect x="5" y="4" width="3" height="3" fill="#ef4444"/>' +
-        '<rect x="8" y="4" width="3" height="3" fill="rgba(255,255,255,.85)"/>' +
-        '</svg>';
-
-    // If start and finish are within ~400m — circular route, show combined marker
-    const dLat = (finishCoord[1] - startCoord[1]) * 111000;
-    const dLon = (finishCoord[0] - startCoord[0]) * 111000 * Math.cos(startCoord[1] * Math.PI / 180);
-    const distM = Math.sqrt(dLat * dLat + dLon * dLon);
-
-    if (distM < 400) {
-        // Combined Start / Finish marker
-        const el = document.createElement('div');
-        el.style.cssText = 'display:flex;flex-direction:column;align-items:center;pointer-events:none;';
-        el.innerHTML =
-            '<div style="background:rgba(9,9,11,0.9);border:1px solid rgba(255,255,255,0.25);border-radius:6px;padding:4px 8px;display:flex;align-items:center;gap:5px;box-shadow:0 2px 16px rgba(0,0,0,0.9);">' +
-            startSvg + finishSvg +
-            '<span style="color:#fff;font-size:9px;font-weight:700;letter-spacing:.08em;font-family:system-ui,sans-serif;text-transform:uppercase;">Start / Finish</span>' +
-            '</div>' +
-            '<div style="width:1.5px;height:22px;background:linear-gradient(to bottom,rgba(255,255,255,0.4),rgba(255,255,255,0.02));"></div>' +
-            '<div style="width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid rgba(255,255,255,.95);box-shadow:0 0 12px rgba(255,255,255,0.6);margin-top:-1px;"></div>';
-        _startMarker = new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat(startCoord).addTo(map);
-    } else {
-        _startMarker  = new mapboxgl.Marker({ element: makeMarker('СТАРТ',  '#22c55e', startSvg),  anchor: 'bottom' }).setLngLat(startCoord).addTo(map);
-        _finishMarker = new mapboxgl.Marker({ element: makeMarker('ФИНИШ', '#ef4444', finishSvg), anchor: 'bottom' }).setLngLat(finishCoord).addTo(map);
-    }
 }
 
 /**
@@ -1874,114 +1775,76 @@ function _addStartFinishMarkers(coordinates) {
  * Нет узлов (высот в треке не было) — линия остаётся сплошной, цвета типа
  * маршрута.
  */
-function addRouteToMap(id, coordinates, color, gradeStops) {
+function addRouteToMap(id, coordinates, color, gradeStops, coordKm) {
     if (_drawInterval)  { clearInterval(_drawInterval);  _drawInterval  = null; }
     if (_dashAnimFrame) { cancelAnimationFrame(_dashAnimFrame); _dashAnimFrame = null; }
 
-    const startPt = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [coordinates[0], coordinates[0]] } };
     const casingId = `layer-${id}-casing`;
+    const line = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } };
+    // Узлы заданы долями полной геометрии, а линия упрощена — переводим в
+    // её `line-progress` (см. GradeColor.progressMapper)
+    const toLine = GradeColor.progressMapper(coordinates, coordKm);
+    const stops = (gradeStops && gradeStops.length > 1)
+        ? gradeStops.map(s => ({ position: toLine(s.position), rgb: s.rgb }))
+        : null;
+    const gradient = stops ? GradeColor.mapGradient(stops, 1) : null;
+    // Метки старта/финиша/вершины должны лежать поверх линии
+    const beforeId = map.getLayer('route-marks-layer') ? 'route-marks-layer' : undefined;
 
     // На карте живёт линия ровно одного маршрута — показываемого
     Object.keys(routes).forEach(other => { if (other !== id) removeRouteLine(other); });
 
+    // ⚠️ Линия кладётся на карту **целиком и сразу с раскраской**, а
+    // «прорисовка» от старта к финишу — это `line-trim-offset`, который
+    // прячет ещё не нарисованный хвост.
+    //
+    // Раньше линия нарастала через `setData` с кусками координат, а градиент
+    // вешался только в конце: `line-progress` считается от нарисованной части,
+    // и растягивать раскраску на огрызок пришлось бы на каждом кадре. В итоге
+    // маршрут пять секунд рисовался сплошным цветом типа (красным) и только
+    // потом перекрашивался по уклонам (фидбэк 2026-09-19). Обрезка — это
+    // одно число в шейдере: ни пересборки геометрии, ни перезаливки буфера.
+    const hidden = [0, 1];
     if (!map.getSource(id)) {
-        // lineMetrics нужны и раскраске по уклону, и подсветке выделенного на
-        // графике участка: оба считаются по `line-progress`
-        map.addSource(id, { type: 'geojson', data: startPt, lineMetrics: true });
+        // lineMetrics нужны и раскраске по уклону, и обрезке, и подсветке
+        // выделенного на графике участка: все они считаются по `line-progress`
+        map.addSource(id, { type: 'geojson', data: line, lineMetrics: true });
         map.addLayer({
             id: casingId, type: 'line', source: id,
             layout: { 'line-join': 'round', 'line-cap': 'round' },
-            paint: { 'line-color': '#0A0A0A', 'line-width': 7.6, 'line-opacity': 0,
-                     'line-opacity-transition': { duration: 1200, delay: 0 } }
-        });
+            paint: { 'line-color': '#0A0A0A', 'line-width': 7.6, 'line-opacity': 0.8,
+                     'line-trim-offset': hidden }
+        }, beforeId);
+        const paint = { 'line-color': color, 'line-width': 4.2, 'line-trim-offset': hidden };
+        if (gradient) paint['line-gradient'] = gradient;
         map.addLayer({
             id: `layer-${id}`, type: 'line', source: id,
             layout: { 'line-join': 'round', 'line-cap': 'round' },
-            paint: { 'line-color': color, 'line-width': 4.2, 'line-opacity': 0,
-                     'line-opacity-transition': { duration: 1200, delay: 0 } }
-        });
+            paint
+        }, beforeId);
     } else {
-        map.getSource(id).setData(startPt);
-        map.setPaintProperty(`layer-${id}`, 'line-opacity', 0);
-        if (map.getLayer(casingId)) map.setPaintProperty(casingId, 'line-opacity', 0);
-        // Перевыбрали тот же маршрут — снимаем прошлую раскраску: линия сейчас
-        // снова проявляется с нуля, и старый градиент лёг бы на огрызок
-        map.setPaintProperty(`layer-${id}`, 'line-gradient', null);
+        map.getSource(id).setData(line);
+        map.setPaintProperty(`layer-${id}`, 'line-gradient', gradient);
+        map.setPaintProperty(`layer-${id}`, 'line-trim-offset', hidden);
+        if (map.getLayer(casingId)) map.setPaintProperty(casingId, 'line-trim-offset', hidden);
     }
 
-    // Fade in via built-in Mapbox transition (one call only)
-    setTimeout(() => {
-        if (map.getLayer(`layer-${id}`)) map.setPaintProperty(`layer-${id}`, 'line-opacity', 1);
-        if (map.getLayer(casingId))      map.setPaintProperty(casingId, 'line-opacity', 0.8);
-    }, 30);
+    RouteMarks.setEnds(coordinates);
 
-    _addStartFinishMarkers(coordinates);
-
-    // Нарастающая длина: доля нарисованного считается по расстоянию, а не по
-    // числу точек — иначе на прореженных участках градиент едет
-    const cumulative = [0];
-    for (let i = 1; i < coordinates.length; i++) {
-        cumulative.push(cumulative[i - 1] + haversineDistance(coordinates[i - 1], coordinates[i]));
-    }
-    const totalKm = cumulative[cumulative.length - 1] || 1;
-    const stops = (gradeStops && gradeStops.length > 1) ? gradeStops : null;
-
-    // Progressive draw at 10fps — setData is expensive, don't run at 60fps
-    const total   = coordinates.length;
-    const DRAW_MS = 5000;
-    const t0      = Date.now();
-
-    _drawInterval = setInterval(() => {
-        const p     = Math.min((Date.now() - t0) / DRAW_MS, 1);
+    const DRAW_MS = 4000;
+    const t0 = performance.now();
+    const step = now => {
+        _dashAnimFrame = null;
+        if (!map.getLayer(`layer-${id}`)) return;
+        const p = Math.min((now - t0) / DRAW_MS, 1);
         const eased = 1 - Math.pow(1 - p, 3);
-        const count = Math.max(2, Math.round(eased * total));
-        const src   = map.getSource(id);
-        if (src) src.setData({
-            type: 'Feature', properties: {},
-            geometry: { type: 'LineString', coordinates: coordinates.slice(0, count) }
-        });
-        if (p >= 1) {
-            clearInterval(_drawInterval);
-            _drawInterval = null;
-            applyGrade();
-        }
-    }, 100);
-
-    // ⚠️ Раскраску по уклону включаем **один раз**, когда линия дорисована.
-    //
-    // `line-progress` считается от нарисованной части, поэтому во время
-    // проявления градиент пришлось бы растягивать на неё на каждом кадре — а
-    // это полсотни пересборок выражения из двух сотен узлов и столько же
-    // перезаливок буфера на каждый открытый маршрут. На слабой машине карта
-    // от этого заикалась, а на промежуточных кадрах маршрут местами оставался
-    // цвета обводки, будто линия оборвалась (фидбэк 2026-09-18). Пока линия
-    // проявляется, она сплошного цвета своего типа — как было до раскраски.
-    function applyGrade() {
-        if (!stops || !map.getLayer(`layer-${id}`)) return;
-        const gradient = GradeColor.mapGradient(stops, 1);
-        if (gradient) map.setPaintProperty(`layer-${id}`, 'line-gradient', gradient);
-    }
-}
-
-/**
- * Спрятать всё, что закрывает вид во время облёта: вершину, старт/финиш и
- * метки фотографий. Возвращаются они сами, как только камеру отпустили.
- */
-/**
- * Пересчитать высоту меток маршрута на рельефе.
- *
- * ⚠️ Линия маршрута ложится на 3D-поверхность, а метки старта, финиша и
- * вершины — это DOM-элементы, и свою высоту они берут из тайла рельефа
- * **в момент постановки**. Пока тайл не приехал, высота считается нулевой, и
- * на наклонённой камере метка оказывается в стороне от тропы — тем дальше,
- * чем выше место (фидбэк 2026-09-18). Сам Mapbox пересчитывает их не всегда,
- * поэтому подталкиваем его: `setLngLat` с той же точкой заставляет метку
- * спросить высоту заново.
- */
-function refreshRouteMarkerElevation() {
-    [_startMarker, _finishMarker, _peakMapMarker].forEach(marker => {
-        if (marker) marker.setLngLat(marker.getLngLat());
-    });
+        // Прячем участок [нарисовано, 1]; когда нарисовано всё — не прячем ничего
+        const trim = p >= 1 ? [0, 0] : [eased, 1];
+        map.setPaintProperty(`layer-${id}`, 'line-trim-offset', trim);
+        if (map.getLayer(casingId)) map.setPaintProperty(casingId, 'line-trim-offset', trim);
+        if (p < 1) _dashAnimFrame = requestAnimationFrame(step);
+    };
+    _dashAnimFrame = requestAnimationFrame(step);
 }
 
 /**
@@ -2004,11 +1867,12 @@ function removeRouteLine(id) {
     if (map.getSource(id)) map.removeSource(id);
 }
 
+/**
+ * Спрятать всё, что закрывает вид во время облёта: вершину, старт/финиш и
+ * метки фотографий. Возвращаются они сами, как только камеру отпустили.
+ */
 window.setRouteDecorationsHidden = function(hidden) {
-    const display = hidden ? 'none' : '';
-    [_peakMapMarker, _startMarker, _finishMarker].forEach(m => {
-        if (m) m.getElement().style.display = display;
-    });
+    RouteMarks.setHidden(hidden);
     ['photo-markers-glow', 'photo-markers-layer', 'photo-active-glow', 'photo-active-layer'].forEach(layer => {
         if (map.getLayer(layer)) map.setLayoutProperty(layer, 'visibility', hidden ? 'none' : 'visible');
     });

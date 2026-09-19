@@ -238,8 +238,9 @@
             this.heading = bearing(start, this._coordinateAt(this.lookAhead));
             this.headingReady = false;
 
+            this.flyoverZoom = this._flyoverZoom();
             this.map.easeTo({
-                center: start, zoom: FLYOVER_ZOOM, bearing: this.heading,
+                center: start, zoom: this.flyoverZoom, bearing: this.heading,
                 pitch: FLYOVER_PITCH, padding: this.padding,
                 duration: 1600, easing: t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
             });
@@ -304,12 +305,40 @@
         _fitZoom(route, pad, box) {
             const fit = new OrbitFit(route, box.width - pad.left - pad.right,
                                             box.height - pad.top - pad.bottom);
-            // Если маршрут и так весь в кадре — зум не трогаем вовсе: иначе с
-            // приближенного маршрута камера отскакивает на обзор половины страны
-            if (this._routeFitsOnScreen(route, pad, box)) return this.map.getZoom();
             let lowest = Infinity;
             for (let d = 0; d < 360; d += 5) lowest = Math.min(lowest, fit.zoomForBearing(d));
+            // Если маршрут уже целиком в кадре и камера стоит **ближе**
+            // расчётного — остаёмся на её зуме: расчёт с запасом, и
+            // отъезжать от вписанного маршрута незачем.
+            // ⚠️ Только ближе, не дальше. Раньше любой видимый маршрут
+            // сохранял текущий зум — и после подлёта к маршруту на телефоне
+            // (где кадр считался под развёрнутую карточку) вращение шло с
+            // такого далека, что от маршрута оставалась закорючка (фидбэк
+            // 2026-09-19).
+            const current = this.map.getZoom();
+            if (current > lowest && this._routeFitsOnScreen(route, pad, box)) return current;
             return lowest;
+        }
+
+        /**
+         * Зум облёта под размер свободной части экрана.
+         *
+         * ⚠️ В приложении зум постоянный (15.2), но там экран — телефон шириной
+         * около 390 точек. Тот же зум на широком мониторе показывает впятеро
+         * больше земли, и тропа терялась в пейзаже (фидбэк 2026-09-19). Поэтому
+         * держим постоянным не зум, а **масштаб относительно кадра**: сколько
+         * земли помещается в меньшую сторону свободной области — столько же,
+         * сколько на телефоне. Маршрут тут ни при чём: скорость облёта задана
+         * по земле, и одинаковый зум на всех маршрутах даёт одинаковое
+         * ощущение полёта.
+         */
+        _flyoverZoom() {
+            const box = this.map.getCanvas().getBoundingClientRect();
+            const pad = this.padding;
+            const free = Math.min(box.width - pad.left - pad.right, box.height - pad.top - pad.bottom);
+            if (!(free > 100)) return FLYOVER_ZOOM;
+            // 390 — ширина телефона, под которую подобран зум в приложении
+            return Math.min(FLYOVER_ZOOM + 1.3, Math.max(FLYOVER_ZOOM, FLYOVER_ZOOM + Math.log2(free / 390)));
         }
 
         // MARK: - Пауза
@@ -485,7 +514,7 @@
             }
 
             this.map.jumpTo({
-                center: here, zoom: FLYOVER_ZOOM, bearing: this.heading,
+                center: here, zoom: this.flyoverZoom, bearing: this.heading,
                 pitch: FLYOVER_PITCH, padding: this.padding
             });
             if (this.onProgress) this.onProgress(here, progress, travelled);

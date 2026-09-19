@@ -289,6 +289,44 @@
     }
 
     /**
+     * Перевод «доли маршрута» (по полной геометрии — в ней считаются график,
+     * уклоны и узлы раскраски) в `line-progress` линии на карте.
+     *
+     * ⚠️ Линия на карте упрощена (RDP) и короче настоящего маршрута на 5–8 %,
+     * причём неравномерно: на извилистых кусках упрощение съедает больше.
+     * `line-progress` — это доля длины **упрощённой** линии, и узел «38 %
+     * маршрута», поставленный как есть, ложился не туда: оранжевый подъём на
+     * графике оказывался на карте уже после бегунка, на зелёном (фидбэк
+     * 2026-09-19). `coordKm` — километры вершин линии по полной геометрии —
+     * связывает обе шкалы в каждой вершине, между вершинами — линейно.
+     *
+     * Нет `coordKm` (старый индекс) — возвращает долю как есть.
+     */
+    function progressMapper(coordinates, coordKm) {
+        if (!coordinates || !coordKm || coordKm.length !== coordinates.length || coordinates.length < 2) {
+            return f => f;
+        }
+        const lineM = cumulativeMeters(coordinates);
+        const last = lineM.length - 1;
+        const lineTotal = lineM[last];
+        const kmTotal = coordKm[last];
+        if (!(lineTotal > 0) || !(kmTotal > 0)) return f => f;
+        return fraction => {
+            const km = Math.min(Math.max(fraction, 0), 1) * kmTotal;
+            if (km <= coordKm[0]) return 0;
+            if (km >= kmTotal) return 1;
+            let lo = 0, hi = last;
+            while (lo + 1 < hi) {
+                const mid = (lo + hi) >> 1;
+                if (coordKm[mid] <= km) lo = mid; else hi = mid;
+            }
+            const span = coordKm[hi] - coordKm[lo];
+            const t = span > 0 ? (km - coordKm[lo]) / span : 0;
+            return (lineM[lo] + (lineM[hi] - lineM[lo]) * t) / lineTotal;
+        };
+    }
+
+    /**
      * Градиент для canvas-графика: узлы, обрезанные по видимому куску
      * (`from`…`to` — доли маршрута) и растянутые обратно на 0…1.
      *
@@ -335,6 +373,6 @@
         meters, cumulativeMeters,
         segmentGrades, pointGrades,
         gradeStops, gradesAtDistances,
-        mapGradient, windowedStops, canvasGradient
+        mapGradient, windowedStops, canvasGradient, progressMapper
     };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
