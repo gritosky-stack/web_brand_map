@@ -588,8 +588,11 @@
                 id: 'builder-osm-trails', type: 'line', source: 'builder-trails',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: {
-                    'line-color': TRAILS_COLOR, 'line-opacity': 0.75,
-                    'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.8, 15, 1.8, 18, 3]
+                    // ⚠️ Ширина — число, а не выражение по зуму: такое
+                    // выражение у видимой линии каждый кадр сбрасывает кэш
+                    // рельефа для всего источника, а здесь в источнике
+                    // накапливаются тысячи троп (см. extra_layers.js, STACK)
+                    'line-color': TRAILS_COLOR, 'line-opacity': 0.75, 'line-width': 1.5
                 }
             }, before);
         }

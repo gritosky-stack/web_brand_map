@@ -29,6 +29,17 @@
     const PSS_ORANGE = '#FF8C1A';
     const OSM_GREEN = '#59D96B';
 
+    /**
+     * ⚠️ Ширина линии, зависящая от зума, дорого стоит на рельефе. Видимый
+     * line-слой с таким `line-width` каждый кадр сбрасывает кэш «натянутой»
+     * картинки **для всего своего источника**
+     * (`_clearLineLayersFromRenderCache` в mapbox-gl), и пачка рисуется
+     * заново по шестьдесят раз в секунду. У края гравюры это стоило половины
+     * кадров: вместе с ним заново натягивался лист бумаги во весь экран —
+     * 23 → 45 кадров в секунду от одной замены выражения на число (замер
+     * 2026-09-20). Поэтому ширины здесь постоянные, а где линия должна
+     * пропадать на обзоре — у слоя стоит `minzoom`.
+     */
     // Снизу вверх. Всё — под маской мира
     const STACK = [
         'topo-layer',
@@ -39,7 +50,11 @@
     ];
 
     const on = { topo: false, histmap: false, slope: false, pss: false, osm: false, rail: true };
-    let histAlpha = 0.92;
+    // Гравюра по умолчанию во всю силу: так под ней можно погасить основу
+    // (см. syncBase) — вдвое меньше работы на кадр. Ползунок её проявляет
+    let histAlpha = 1;
+    // С какой плотности накладки основа под ней уже не видна
+    const OPAQUE_FROM = 0.95;
 
     const map = () => window.map;
     /** Карта готова принимать наши слои (как в map_points.js) */
@@ -69,14 +84,10 @@
      * тоже растр над основой, а не смена стиля — стиль снёс бы все наши слои.
      * Три зеркала: сервер режет частые запросы с одного соединения.
      */
-    let hiddenLabels = [];
     function applyTopo() {
         const m = map();
         removeLayers(['topo-layer'], ['topo-source']);
-        // Подписи стиля (посёлки, вершины) на топо дублировали бы её собственные
-        hiddenLabels.forEach(id => { if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', 'visible'); });
-        hiddenLabels = [];
-        if (!on.topo) return;
+        if (!on.topo) { syncBase(); return; }
 
         m.addSource('topo-source', {
             type: 'raster', tileSize: 256, minzoom: 5, maxzoom: 17, bounds: SERBIA,
@@ -85,14 +96,55 @@
         });
         m.addLayer({ id: 'topo-layer', type: 'raster', source: 'topo-source',
                      paint: { 'raster-fade-duration': 0 } }, 'world-mask-layer');
-        for (const l of m.getStyle().layers) {
-            if (l.type === 'symbol' && l.source === 'composite' &&
-                m.getLayoutProperty(l.id, 'visibility') !== 'none') {
-                m.setLayoutProperty(l.id, 'visibility', 'none');
-                hiddenLabels.push(l.id);
-            }
-        }
+        syncBase();
         restack();
+    }
+
+    // ── Основа под непрозрачной накладкой ───────────────────────────────────
+
+    let hiddenBase = [];
+    const KEEPALIVE = 'composite-keepalive';
+
+    /**
+     * Спутник, дороги и подписи стиля под сплошной накладкой не видны, но
+     * карта их честно рисует и натягивает на рельеф каждый кадр. Гасим их,
+     * пока сверху лежит топооснова или гравюра во всю силу: на замере
+     * вращение с топо шло 21.6 кадра в секунду, а без основы под ней — 49.9
+     * (гравюра: 18.5 → 28.7). Свои слои и маску вокруг Сербии не трогаем.
+     *
+     * ⚠️ Источник `composite` при этом обязан остаться «используемым»: по
+     * нему работают тропы конструктора (`harvestTrails`) и ближайший посёлок
+     * в карточке точки. Mapbox перестаёт возить тайлы источника, у которого
+     * не осталось ни одного видимого слоя, — поэтому вместо основы кладём
+     * пустышку: слой с фильтром, под который не попадает ничего.
+     */
+    function syncBase() {
+        const m = map();
+        if (!m || !m.getStyle()) return;
+        const opaque = on.topo || (on.histmap && histAlpha >= OPAQUE_FROM);
+        if (opaque === !!hiddenBase.length) return;
+
+        if (!opaque) {
+            hiddenBase.forEach(id => { if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', 'visible'); });
+            hiddenBase = [];
+            if (m.getLayer(KEEPALIVE)) m.removeLayer(KEEPALIVE);
+            return;
+        }
+        for (const l of m.getStyle().layers) {
+            // Слои стиля — это `composite` (векторные данные) и `mapbox`
+            // (спутник). Всё наше лежит на своих источниках
+            if (l.source !== 'composite' && l.source !== 'mapbox') continue;
+            if (m.getLayoutProperty(l.id, 'visibility') === 'none') continue;
+            m.setLayoutProperty(l.id, 'visibility', 'none');
+            hiddenBase.push(l.id);
+        }
+        if (hiddenBase.length && !m.getLayer(KEEPALIVE)) {
+            // Кружком, а не линией: линию рельеф натягивал бы пачкой и брал
+            // за это отдельный проход, а круги на рельеф не натягиваются
+            m.addLayer({ id: KEEPALIVE, type: 'circle', source: 'composite', 'source-layer': 'road',
+                         filter: ['==', ['get', 'class'], '\u0000'],
+                         paint: { 'circle-radius': 0, 'circle-opacity': 0 } });
+        }
     }
 
     // ── Историческая карта ──────────────────────────────────────────────────
@@ -125,19 +177,27 @@
      * ⚠️ Тайлы идут из R2 в браузер, поэтому бакету нужен CORS на GET —
      * без него Mapbox GL JS картинку не примет. Приложению это не нужно.
      */
+    // Лист бумаги под гравюрой и пунктир по краю съёмки — **один** источник:
+    // см. `syncBase` о цене лишнего источника. Рамка с запасом вокруг всего,
+    // что может попасть в кадр
+    const PAPER_RING = [[13, 37], [29, 37], [29, 51], [13, 51], [13, 37]];
+    const PAPER = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [PAPER_RING] } };
+    let coverage = null;
+
+    function frameData() {
+        return { type: 'FeatureCollection', features: [PAPER].concat(coverage || []) };
+    }
+
     function applyHistMap() {
         const m = map();
         removeLayers(['histmap-edge', 'histmap-layer', 'histmap-backdrop'],
-                     ['histmap-edge-src', 'histmap-source', 'histmap-backdrop-src']);
-        if (!on.histmap) return;
+                     ['histmap-source', 'histmap-frame-src']);
+        if (!on.histmap) { syncBase(); return; }
 
         if (!m.hasImage('histmap-paper')) m.addImage('histmap-paper', paperPattern(), { pixelRatio: 2 });
-        m.addSource('histmap-backdrop-src', {
-            type: 'geojson',
-            data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon',
-                    coordinates: [[[13, 37], [29, 37], [29, 51], [13, 51], [13, 37]]] } }
-        });
-        m.addLayer({ id: 'histmap-backdrop', type: 'fill', source: 'histmap-backdrop-src',
+        m.addSource('histmap-frame-src', { type: 'geojson', data: frameData() });
+        m.addLayer({ id: 'histmap-backdrop', type: 'fill', source: 'histmap-frame-src',
+                     filter: ['==', ['geometry-type'], 'Polygon'],
                      paint: { 'fill-pattern': 'histmap-paper', 'fill-opacity': histAlpha } }, 'world-mask-layer');
 
         m.addSource('histmap-source', {
@@ -151,11 +211,18 @@
                      paint: { 'raster-opacity': histAlpha, 'raster-fade-duration': 0,
                               'raster-resampling': 'linear' } }, 'world-mask-layer');
 
-        m.addSource('histmap-edge-src', { type: 'geojson', data: 'histmap_coverage.geojson' });
-        m.addLayer({ id: 'histmap-edge', type: 'line', source: 'histmap-edge-src',
+        m.addLayer({ id: 'histmap-edge', type: 'line', source: 'histmap-frame-src',
+                     filter: ['==', ['geometry-type'], 'LineString'],
                      paint: { 'line-color': 'rgba(92,72,46,.85)', 'line-dasharray': [5, 3],
-                              'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1, 11, 1.8, 14, 2.6],
-                              'line-opacity': histAlpha } }, 'world-mask-layer');
+                              'line-width': 1.8, 'line-opacity': histAlpha } }, 'world-mask-layer');
+        if (!coverage) {
+            fetch('histmap_coverage.geojson').then(r => r.json()).then(gj => {
+                coverage = gj.features || [];
+                const src = map().getSource('histmap-frame-src');
+                if (src) src.setData(frameData());
+            }).catch(() => { coverage = []; });
+        }
+        syncBase();
         restack();
     }
 
@@ -163,6 +230,7 @@
      *  движении тайлы перезапрашивались бы заново */
     function setHistAlpha(a) {
         histAlpha = a;
+        syncBase();
         const m = map();
         if (!m || !m.getLayer('histmap-layer')) return;
         m.setPaintProperty('histmap-layer', 'raster-opacity', a);
@@ -200,11 +268,17 @@
             // Тот же облегчённый файл, что читает ассистент (pss_layer.js)
             m.addSource('pss-trails-source', { type: 'geojson', data: 'pss_routes_web.geojson' });
             const round = { 'line-join': 'round', 'line-cap': 'round' };
+            // Обводка — только вблизи (на обзоре она сливала тропы в пятно).
+            // Порог слоем, а не нулевой шириной на z9: выражение по зуму
+            // здесь дорого — см. STACK
             m.addLayer({ id: 'pss-trails-casing', type: 'line', source: 'pss-trails-source', layout: round,
-                         paint: { 'line-color': 'rgba(0,0,0,.5)', 'line-opacity': 0.65,
-                                  'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0, 10.5, 3.5, 14, 7] } },
+                         minzoom: 10,
+                         paint: { 'line-color': 'rgba(0,0,0,.5)', 'line-opacity': 0.65, 'line-width': 5 } },
                        'world-mask-layer');
+            // Свечение — только вблизи: размытие дорогое, а на обзоре страны
+            // три сотни маршрутов в ореолах всё равно сливаются в кашу
             m.addLayer({ id: 'pss-trails-glow', type: 'line', source: 'pss-trails-source', layout: round,
+                         minzoom: 11,
                          paint: { 'line-color': 'rgba(255,140,26,.28)', 'line-width': 8, 'line-blur': 3.5,
                                   'line-opacity': 0.9 } }, 'world-mask-layer');
             m.addLayer({ id: 'pss-trails-line', type: 'line', source: 'pss-trails-source', layout: round,
@@ -240,8 +314,7 @@
                 id: 'osm-trails', type: 'line', source: 'composite', 'source-layer': 'road', minzoom: 8,
                 filter: ['match', ['get', 'class'], ['path', 'track'], true, false],
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
-                paint: { 'line-color': OSM_GREEN, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.4, 16, 2.6],
-                         'line-opacity': 0.9 }
+                paint: { 'line-color': OSM_GREEN, 'line-width': 1.8, 'line-opacity': 0.9 }
             }, 'world-mask-layer');
             restack();
         }

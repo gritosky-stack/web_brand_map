@@ -872,7 +872,8 @@ function triggerRouteSelection(routeId) {
     const _onArrive = () => {
         if (_arrived) return;
         _arrived = true;
-        if (currentViewedRoute.id !== routeInfo.id) return;
+        // Маршрут успели закрыть или открыть другой, пока летели
+        if (!currentViewedRoute || currentViewedRoute.id !== routeInfo.id) return;
 
         addRouteToMap(routeInfo.id, routeData.coordinates, routeInfo.color, routeData.gradeStops, routeData.coordKm);
 
@@ -1502,6 +1503,13 @@ document.getElementById('btn-back').addEventListener('click', () => {
     if (_heroDescBack) _heroDescBack.classList.remove('hero-hidden');
 
     _removeStartFinishMarkers();
+    // ⚠️ Обнуляем **до** перелёта к обзору. Новый перелёт обрывает прежний, и
+    // Mapbox тут же, синхронно, шлёт `moveend` — тот самый, по которому ждёт
+    // отрисовки маршрут, который только летели показать. Пока маршрут
+    // считался открытым, эта отложенная отрисовка успевала положить на карту
+    // линию, старт, финиш и MAX уже закрытого маршрута (фидбэк 2026-09-19).
+    const _closing = currentViewedRoute;
+    currentViewedRoute = null;
     _selectedRouteId = null;
     _reviewsRouteId  = null;
     history.replaceState(null, '', location.pathname + location.search);
@@ -1518,7 +1526,7 @@ document.getElementById('btn-back').addEventListener('click', () => {
     // Камеру (вращение/облёт) останавливаем **до** перелёта к обзору: иначе
     // её последний кадр успевал вернуть карте отступ под карточку
     RouteProfile.hide();
-    removeRouteLine(currentViewedRoute.id);
+    removeRouteLine(_closing.id);
     // «Нарисовать» закрывает маршрут этой же кнопкой, но рисовать собираются
     // там, куда смотрят, — облёт к обзору всей Сербии пропускаем
     if (!(window.RouteBuilder && RouteBuilder.active)) {
@@ -1527,7 +1535,6 @@ document.getElementById('btn-back').addEventListener('click', () => {
             padding: { top: 0, bottom: 0, left: 0, right: 0 }
         });
     }
-    currentViewedRoute = null;
 
     const carousel = document.getElementById('route-carousel-outer');
     if (carousel) carousel.style.display = '';
@@ -1540,8 +1547,24 @@ document.getElementById('btn-back').addEventListener('click', () => {
 });
 
 // ── Filter ────────────────────────────────────────────────────────────────────
+/** Список в мобильном меню — по тому же фильтру, что и метки на карте */
+function _applyMenuFilter() {
+    const show = (id, on) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', !on);
+    };
+    // «Мои» списка каталога не касаются: свои маршруты живут отдельным блоком
+    const completed = _activeFilterType !== 'planned';
+    const planned   = _activeFilterType !== 'completed';
+    show('mobile-tours-completed',  completed);
+    show('mobile-tours-planned',    planned);
+    show('desktop-tours-completed', completed);
+    show('desktop-tours-planned',   planned);
+}
+
 window.setFilter = function(type) {
     _activeFilterType = type;
+    _applyMenuFilter();
     ['all', 'completed', 'planned', 'mine'].forEach(t => {
         [document.getElementById(`filter-${t}`), document.getElementById(`filter-${t}-mob`)].forEach(el => {
             if (el) el.classList.toggle('active', t === type);
@@ -2064,18 +2087,24 @@ document.addEventListener('DOMContentLoaded', () => {
             : `<div class="px-5 py-1.5 text-[9px] text-zinc-500 uppercase tracking-widest">${label}</div>`;
     }
 
-    // Desktop dropdown
+    // Desktop dropdown — теми же разделами и под тем же фильтром, что и на телефоне
     if (desktopList) {
         desktopList.innerHTML =
-            sectionHeader('Пройденные', false) + completedRoutes.map(r => menuBtn(r, false)).join('') +
-            `<div class="mx-4 my-1 border-t border-white/10"></div>` +
-            sectionHeader('Планируется', false) + futureRoutes.map(r => menuBtn(r, false)).join('');
+            `<div id="desktop-tours-completed">${sectionHeader('Пройденные', false)}` +
+                completedRoutes.map(r => menuBtn(r, false)).join('') +
+                `<div class="mx-4 my-1 border-t border-white/10"></div></div>` +
+            `<div id="desktop-tours-planned">${sectionHeader('Планируется', false)}` +
+                futureRoutes.map(r => menuBtn(r, false)).join('') + `</div>`;
     }
-    // Mobile list
+    // Mobile list. Разделами, чтобы фильтр над ним («Отчёты», «Планы») список
+    // тоже фильтровал: под кнопкой «Планы» пройденные маршруты не нужны
     if (mobileList) {
         mobileList.innerHTML =
-            sectionHeader('Пройденные', true) + completedRoutes.map(r => menuBtn(r, true)).join('') +
-            sectionHeader('Планируется', true) + futureRoutes.map(r => menuBtn(r, true)).join('');
+            `<div id="mobile-tours-completed">${sectionHeader('Пройденные', true)}` +
+                completedRoutes.map(r => menuBtn(r, true)).join('') + `</div>` +
+            `<div id="mobile-tours-planned">${sectionHeader('Планируется', true)}` +
+                futureRoutes.map(r => menuBtn(r, true)).join('') + `</div>`;
+        _applyMenuFilter();
     }
 
     // ── Carousel
