@@ -289,6 +289,15 @@
             for (const set of Object.keys(on)) if (on[set]) setVisible(set, true);
         });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCard(); });
+        // Клик по карте мимо точек снимает выделение — как тап мимо в
+        // приложении. Клик по самой плашке до карты не доходит.
+        if (window.map) window.map.on('click', e => {
+            if (!current) return;
+            const layers = ['water-poi-layer', 'water-poi-cluster-bg', 'shelter-poi-layer',
+                            'shelter-poi-cluster-bg', 'poi-selected-icon'].filter(l => window.map.getLayer(l));
+            const hit = layers.length && window.map.queryRenderedFeatures(e.point, { layers }).length;
+            if (!hit) hideCard();
+        });
     }
 
     window.MapPoints = { setVisible, hideCard };
