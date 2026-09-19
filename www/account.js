@@ -504,6 +504,8 @@
             <button class="tw-btn tw-btn-google" onclick="Account.signInWithGoogle()" ${busy ? 'disabled' : ''}>
                 ${GOOGLE_G}${state === 'working' ? 'Открываю Google…' : 'Войти через Google'}
             </button>
+            <p class="tw-note mt-4" style="font-size:11px">Входя, вы принимаете <a href="terms.html" target="_blank" style="text-decoration:underline">условия использования</a>
+               и <a href="privacy.html" target="_blank" style="text-decoration:underline">политику конфиденциальности</a>.</p>
             ${state === 'unavailable' ? '<div class="tw-error">Сервис входа сейчас недоступен</div>' : err}`;
     }
 
