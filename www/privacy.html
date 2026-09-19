@@ -10,8 +10,21 @@
 <body>
 <header class="lg-head">
     <a href="/" class="lg-logo">TOTSKII <span>Wild</span></a>
-    <nav class="lg-lang"><a href="#ru">RU</a><a href="#en">EN</a></nav>
+    <nav class="lg-lang"><a href="#ru">RU</a><a href="#en">EN</a>
+        <a href="/" class="lg-close" id="lg-close" aria-label="Закрыть" title="Закрыть">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </a></nav>
 </header>
+<script>
+  // Закрыть = вернуться туда, откуда пришли: открыли отдельной вкладкой —
+  // закрываем её, пришли с сайта — назад (карта останется как была), иначе —
+  // на карту. Без JS ссылка просто ведёт на главную.
+  document.getElementById('lg-close').addEventListener('click', function (e) {
+    if (window.opener && !window.opener.closed) { e.preventDefault(); window.close(); return; }
+    var fromSite = document.referrer && new URL(document.referrer).origin === location.origin;
+    if (fromSite && history.length > 1) { e.preventDefault(); history.back(); }
+  });
+</script>
 
 <main class="lg-main">
 <article id="ru" lang="ru">
@@ -26,7 +39,7 @@
     <ul>
         <li>Карта и маршруты доступны без регистрации. Аккаунт нужен только для того, чтобы хранить свои маршруты и видеть их и на сайте, и в приложении.</li>
         <li>Мы не продаём данные, не показываем рекламу и не используем аналитику или трекеры.</li>
-        <li>Свои маршруты вы можете удалить сами в любой момент, аккаунт — по письму.</li>
+        <li>Свои маршруты и весь аккаунт вы можете удалить сами в любой момент.</li>
     </ul>
 
     <h2>Какие данные мы получаем</h2>
@@ -74,7 +87,9 @@
     <h2>Сколько хранятся и как удалить</h2>
     <ul>
         <li>Маршруты хранятся, пока вы их не удалите. Удалить можно в приложении или на сайте (карточка маршрута → «Удалить»).</li>
-        <li>Аккаунт хранится, пока вы им пользуетесь. Чтобы удалить аккаунт со всеми маршрутами, напишите на
+        <li>Аккаунт хранится, пока вы им пользуетесь. Удалить его вместе со всеми маршрутами можно на сайте:
+            «Профиль» → «Удалить аккаунт». Удаление сразу и безвозвратно убирает профиль и маршруты из облака —
+            и для сайта, и для приложения. Если удобнее, напишите на
             <a href="mailto:gritosky@gmail.com">gritosky@gmail.com</a> с адреса, привязанного к аккаунту, — удалим в течение 30 дней.</li>
         <li>Данные на устройстве удаляются вместе с приложением или очисткой данных сайта в браузере.</li>
     </ul>
@@ -108,7 +123,7 @@
     <ul>
         <li>The map and routes work without an account. An account is only needed to keep your own routes and see them on both the website and the app.</li>
         <li>We do not sell data, show ads, or use analytics or trackers.</li>
-        <li>You can delete your routes yourself at any time, and your account by email.</li>
+        <li>You can delete your routes and your whole account yourself at any time.</li>
     </ul>
 
     <h2>Data we receive</h2>
@@ -156,8 +171,10 @@
     <h2>Retention and deletion</h2>
     <ul>
         <li>Routes are kept until you delete them, in the app or on the website (route card → “Delete”).</li>
-        <li>Your account is kept while you use it. To delete your account with all routes, email
-            <a href="mailto:gritosky@gmail.com">gritosky@gmail.com</a> from the address linked to the account — we will delete it within 30 days.</li>
+        <li>Your account is kept while you use it. You can delete it with all routes on the website:
+            “Profile” → “Delete account”. This immediately and permanently removes your profile and routes from the cloud,
+            for both the website and the app. Alternatively, email
+            <a href="mailto:gritosky@gmail.com">gritosky@gmail.com</a> from the address linked to the account and we will delete it within 30 days.</li>
         <li>On-device data is removed when you delete the app or clear the site data in your browser.</li>
     </ul>
 

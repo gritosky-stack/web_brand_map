@@ -10,8 +10,21 @@
 <body>
 <header class="lg-head">
     <a href="/" class="lg-logo">TOTSKII <span>Wild</span></a>
-    <nav class="lg-lang"><a href="#ru">RU</a><a href="#en">EN</a></nav>
+    <nav class="lg-lang"><a href="#ru">RU</a><a href="#en">EN</a>
+        <a href="/" class="lg-close" id="lg-close" aria-label="Закрыть" title="Закрыть">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </a></nav>
 </header>
+<script>
+  // Закрыть = вернуться туда, откуда пришли: открыли отдельной вкладкой —
+  // закрываем её, пришли с сайта — назад (карта останется как была), иначе —
+  // на карту. Без JS ссылка просто ведёт на главную.
+  document.getElementById('lg-close').addEventListener('click', function (e) {
+    if (window.opener && !window.opener.closed) { e.preventDefault(); window.close(); return; }
+    var fromSite = document.referrer && new URL(document.referrer).origin === location.origin;
+    if (fromSite && history.length > 1) { e.preventDefault(); history.back(); }
+  });
+</script>
 
 <main class="lg-main">
 <article id="ru" lang="ru">
@@ -41,6 +54,7 @@
 
     <h2>3. Аккаунт</h2>
     <p>Аккаунт необязателен. Входя через Google или Apple, вы отвечаете за доступ к своему аккаунту у них.
+       Удалить аккаунт со всеми маршрутами можно в любой момент: «Профиль» → «Удалить аккаунт» на сайте.
        Мы можем ограничить или закрыть доступ при нарушении этих условий.</p>
 
     <h2>4. Ваши маршруты</h2>
@@ -97,6 +111,7 @@
 
     <h2>3. Account</h2>
     <p>An account is optional. When signing in with Google or Apple you are responsible for access to that account.
+       You can delete your account with all routes at any time: “Profile” → “Delete account” on the website.
        We may restrict or close access for violations of these terms.</p>
 
     <h2>4. Your routes</h2>

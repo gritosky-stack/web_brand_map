@@ -40,3 +40,12 @@ b { color: #fff; font-weight: 600; }
     border-top: 1px solid rgba(255,255,255,.08); color: #71717a; font-size: 13px;
 }
 .lg-foot a { color: #a1a1aa; }
+
+.lg-lang { align-items: center; }
+.lg-close {
+    display: flex !important; align-items: center; justify-content: center;
+    width: 32px; height: 32px; padding: 0 !important; margin-left: 6px;
+    border-radius: 50% !important; background: rgba(255,255,255,.1);
+    color: #fff !important; border: none !important;
+}
+.lg-close:hover { background: rgba(255,255,255,.2); }

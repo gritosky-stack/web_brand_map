@@ -43,6 +43,9 @@
     let lastLoad = 0;
     let loadingRoutes = null;
     let hashHandled = false;
+    // Удаление аккаунта: idle | confirm | working
+    let deleteStep = 'idle';
+    const SUPPORT_EMAIL = 'gritosky@gmail.com';
 
     // ── Утилиты ─────────────────────────────────────────────────────────────
 
@@ -331,6 +334,34 @@
         // Иначе браузер уже уходит на Google
     }
 
+    /**
+     * Удаление аккаунта целиком — функция `delete_my_account` в базе
+     * (`hikingmap/supabase/schema.sql`): удаляет того, кто её вызвал, профиль
+     * и маршруты уходят каскадом. Клиенту с anon-ключом удалить пользователя
+     * из auth.users иначе нечем.
+     */
+    async function deleteAccount() {
+        if (!client || !user || deleteStep === 'working') return;
+        deleteStep = 'working'; errorMsg = null; render();
+        try {
+            const { error } = await client.rpc('delete_my_account');
+            if (error) throw error;
+        } catch (e) {
+            console.warn('[account] удаление аккаунта:', e);
+            deleteStep = 'confirm';
+            // Функцию в базе ещё не завели — честно говорим, куда писать
+            errorMsg = `Не удалось удалить аккаунт. Напишите на ${SUPPORT_EMAIL} — удалим вручную.`;
+            render();
+            return;
+        }
+        // Пользователя уже нет — сессию снимаем только у себя
+        try { await client.auth.signOut({ scope: 'local' }); } catch (e) {}
+        deleteStep = 'idle';
+        applySession(null);
+        closeModal();
+        toast('Аккаунт и все ваши маршруты удалены');
+    }
+
     async function signOut() {
         if (!client) return;
         state = 'working'; render();
@@ -489,6 +520,7 @@
                 </div>
                 <p class="tw-note mt-4">Это тот же профиль, что в приложении TOTSKII Wild: маршруты, записанные
                    или нарисованные в телефоне, появляются здесь, а загруженные здесь — в приложении.</p>
+                ${deleteBlock()}
                 ${err}`;
             return;
         }
@@ -504,9 +536,31 @@
             <button class="tw-btn tw-btn-google" onclick="Account.signInWithGoogle()" ${busy ? 'disabled' : ''}>
                 ${GOOGLE_G}${state === 'working' ? 'Открываю Google…' : 'Войти через Google'}
             </button>
-            <p class="tw-note mt-4" style="font-size:11px">Входя, вы принимаете <a href="terms.html" target="_blank" style="text-decoration:underline">условия использования</a>
-               и <a href="privacy.html" target="_blank" style="text-decoration:underline">политику конфиденциальности</a>.</p>
+            <p class="tw-note mt-4" style="font-size:11px">Входя, вы принимаете <a href="terms.html" style="text-decoration:underline">условия использования</a>
+               и <a href="privacy.html" style="text-decoration:underline">политику конфиденциальности</a>.</p>
             ${state === 'unavailable' ? '<div class="tw-error">Сервис входа сейчас недоступен</div>' : err}`;
+    }
+
+    /** Удаление аккаунта — в два шага, без системного confirm() */
+    function deleteBlock() {
+        if (deleteStep === 'idle') {
+            return `<button class="tw-delete-link" onclick="Account.askDelete()">Удалить аккаунт</button>`;
+        }
+        const n = rows.size;
+        const routesWord = n % 10 === 1 && n % 100 !== 11 ? 'маршрут'
+            : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'маршрута' : 'маршрутов';
+        const working = deleteStep === 'working';
+        return `
+            <div class="tw-delete-box">
+                <div class="text-white text-sm font-semibold mb-1">Удалить аккаунт?</div>
+                <p class="tw-note">Удалятся профиль и ${n ? `все ваши маршруты (${n} ${routesWord})` : 'все ваши маршруты'} —
+                   и здесь, и в приложении. Отменить это нельзя. Если маршруты нужны, сначала скачайте их в GPX.</p>
+                <div class="flex gap-2 mt-3">
+                    <button class="tw-btn tw-btn-ghost" onclick="Account.cancelDelete()" ${working ? 'disabled' : ''}>Отмена</button>
+                    <button class="tw-btn tw-btn-danger" onclick="Account.confirmDelete()" ${working ? 'disabled' : ''}>
+                        ${working ? 'Удаляю…' : 'Удалить навсегда'}</button>
+                </div>
+            </div>`;
     }
 
     /** Миниатюра трека для карточки — чтобы маршруты различались без фото. */
@@ -667,6 +721,7 @@
     function closeModal() {
         document.getElementById('account-modal').classList.remove('open');
         errorMsg = null;
+        if (deleteStep === 'confirm') deleteStep = 'idle';
     }
 
     function pickGPX() {
@@ -761,6 +816,9 @@
     window.Account = {
         openModal, closeModal, signInWithGoogle, signOut, pickGPX,
         showMine() { closeModal(); setFilter('mine'); },
+        askDelete() { deleteStep = 'confirm'; errorMsg = null; renderModal(); },
+        cancelDelete() { deleteStep = 'idle'; errorMsg = null; renderModal(); },
+        confirmDelete: deleteAccount,
         /** loading | signedOut | working | signedIn | unavailable */
         status() { return state === 'signedIn' && !user ? 'signedOut' : state; }
     };
