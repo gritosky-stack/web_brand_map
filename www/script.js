@@ -59,6 +59,9 @@ const HEATMAP_SOURCE = {
 
 let _heatmapOn = false;
 
+// Рамка Сербии вместе с Косово: [запад, юг, восток, север]
+const SERBIA_BOUNDS = [18.81, 41.85, 23.01, 46.19];
+
 /**
  * Куда класть линии и растры поверх рельефа: под первый слой подписей стиля.
  *
@@ -87,16 +90,23 @@ function toggleHeatmap(on) {
     if (map.getSource('heatmap-source')) map.removeSource('heatmap-source');
     if (!on) return;
 
+    // ⚠️ Только Сербия (вместе с Косово): за рамкой `bounds` тайлы вообще не
+    // запрашиваются. Вокруг карта затемнена маской, и грузить туда хитмап —
+    // лишний трафик и работа (фидбэк 2026-09-19).
     map.addSource('heatmap-source', {
         type: 'raster', tiles: HEATMAP_SOURCE.tiles, tileSize: 256,
         minzoom: 3, maxzoom: HEATMAP_SOURCE.maxzoom,
+        bounds: SERBIA_BOUNDS,
         attribution: '© OpenStreetMap contributors'
     });
-    // Под линиями маршрутов, чтобы красные треки не терялись в оранжевом.
+    // Под маской вокруг Сербии — край рамки, попавший за границу, затемнён
+    // вместе с остальной картой; и под линиями маршрутов, чтобы красные
+    // треки не терялись в оранжевом.
+    const below = map.getLayer('world-mask-layer') ? 'world-mask-layer' : 'overview-lines-completed';
     map.addLayer({
         id: 'heatmap-layer', type: 'raster', source: 'heatmap-source',
         paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 }
-    }, 'overview-lines-completed');
+    }, below);
 }
 
 // ── Route data ─────────────────────────────────────────────────────────────────

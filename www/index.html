@@ -3,12 +3,20 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>TOTSKII Wild</title>
     <script>
       // Прокрутка страницы не нужна и не восстанавливается (см. style.css):
       // иначе на iPhone шапка уезжала под статус-бар через миг после загрузки
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      // Страницу целиком не масштабируем: у карты, фото и графика высот свой
+      // зум. ⚠️ На iPhone после случайного щипка по интерфейсу у кнопок
+      // (position: fixed) съезжали зоны нажатия — подсветка тапа есть, а
+      // нажатие уходит мимо, и ни одна кнопка не работала (фидбэк 2026-09-19).
+      // Safari игнорирует maximum-scale ради доступности, поэтому ещё и
+      // гасим его жесты масштаба (см. также touch-action в style.css).
+      ['gesturestart', 'gesturechange'].forEach(type =>
+        document.addEventListener(type, e => e.preventDefault(), { passive: false }));
       window.addEventListener('scroll', () => {
         if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
       }, { passive: true });

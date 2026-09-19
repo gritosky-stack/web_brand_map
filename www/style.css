@@ -16,6 +16,9 @@ html, body {
     height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
+    /* Без щипка и двойного тапа по странице — масштабируется только то, у
+       чего свой зум (карта, фото, график сами разбирают жесты) */
+    touch-action: pan-x pan-y;
 }
 .hidden { display: none; }
 

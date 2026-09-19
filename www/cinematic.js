@@ -250,17 +250,24 @@
                 pitch: FLYOVER_PITCH, padding: this.padding,
                 duration: 1600, easing: t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
             });
-            this.map.once('moveend', () => {
-                if (token !== this._token || this.mode !== 'flyover') return;
-                // Стартуем, когда карта вокруг начала дорисовалась (но ждём не
-                // дольше пары секунд): первые кадры облёта — самые заметные,
-                // и дыры в них видны на любом записанном видео
-                this._whenTilesReady(token, 2200, () => {
-                    this.headingReady = true;
-                    this._startLoop();
-                    if (opts.onStarted) opts.onStarted();
-                });
-            });
+            // Трогаемся, как только камера встала в стартовую позу. ⚠️ Не
+            // ждём «карта догрузилась» (`areTilesLoaded`): с рельефом и
+            // горизонтом это почти никогда не наступает, и облёт каждый раз
+            // стоял на месте лишние секунды — казалось, что он не начался,
+            // пока не нажмёшь скорость (фидбэк 2026-09-19). Тайлы начала
+            // заказаны заранее (`_preloadAhead`) и успевают за время подлёта.
+            // Страховка по времени — если подлёт оборвали и `moveend` не
+            // пришёл (на телефоне бывает), облёт всё равно начинается.
+            let started = false;
+            const begin = () => {
+                if (started || token !== this._token || this.mode !== 'flyover') return;
+                started = true;
+                this.headingReady = true;
+                this._startLoop();
+                if (opts.onStarted) opts.onStarted();
+            };
+            this.map.once('moveend', begin);
+            setTimeout(begin, 2000);
         }
 
         /**
@@ -404,19 +411,6 @@
                 m += step;
                 count++;
             }
-        }
-
-        /** Дождаться, пока карта дорисует видимое, но не дольше `maxMs` */
-        _whenTilesReady(token, maxMs, done) {
-            const t0 = performance.now();
-            const check = () => {
-                if (token !== this._token) return;
-                let ready = false;
-                try { ready = this.map.areTilesLoaded(); } catch (e) { ready = true; }
-                if (ready || performance.now() - t0 > maxMs) done();
-                else setTimeout(check, 100);
-            };
-            check();
         }
 
         // MARK: - Пауза
