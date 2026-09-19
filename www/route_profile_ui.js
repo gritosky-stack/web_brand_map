@@ -79,7 +79,7 @@
         },
 
         hide() {
-            this.stopCinematic();
+            this.stopCinematic(true);
             if (this.chart) { this.chart.destroy(); this.chart = null; }
             this.clearScrub();
             this.clearSelection();
@@ -211,6 +211,7 @@
                 bar.innerHTML = this.readoutHTML(info);
                 bar.classList.remove('hidden');
                 document.body.classList.add('tw-immersive');
+                document.body.classList.add('tw-scrubbing');
             }
             this.keepScrubVisible(at);
         },
@@ -301,6 +302,7 @@
             this.hideFlyoverDot();
             const bar = document.getElementById('scrub-readout');
             if (bar) bar.classList.add('hidden');
+            document.body.classList.remove('tw-scrubbing');
             if (!this.camera || !this.camera.isRunning) document.body.classList.remove('tw-immersive');
             const map = this.map;
             if (map && map.getSource(SCRUB_SRC)) {
@@ -365,22 +367,40 @@
             }
             this._framing = true;
             const bounds = [[minLon, minLat], [maxLon, maxLat]];
-            const options = Object.assign({ padding: this.padding(), duration: 800, maxZoom: 16 }, opts || {});
-            // ⚠️ На телефоне над развёрнутой карточкой свободна узкая полоса, и
-            // при сильном наклоне (после облёта он 64°) маршрут в неё не
-            // вписывается: `fitBounds` тогда молча не делает ничего, и камера
-            // оставалась носом в финишный склон (фидбэк 2026-09-19). Пробуем
-            // с отступами поменьше, а в крайнем случае — без наклона.
-            if (!map.cameraForBounds(bounds, options)) {
-                const pad = options.padding;
-                options.padding = { top: Math.min(pad.top, 30), left: Math.min(pad.left, 16),
-                                    right: Math.min(pad.right, 16), bottom: pad.bottom };
-                if (!map.cameraForBounds(bounds, options)) {
-                    options.pitch = 0;
-                    if (!map.cameraForBounds(bounds, options)) options.padding.bottom = Math.round(pad.bottom * 0.6);
-                }
+            const o = Object.assign({ duration: 800, maxZoom: 16 }, opts || {});
+            const want = { padding: o.padding || this.padding(), maxZoom: o.maxZoom,
+                           bearing: o.bearing || 0, pitch: o.pitch || 0 };
+
+            // ⚠️ Кадр считаем при **нулевых** отступах самой карты и летим
+            // в него, сбрасывая их. Mapbox вычитает из экрана и переданный
+            // `padding`, и тот, что остался у карты с прошлого раза, — а
+            // облёт и вращение оставляют ей отступ под карточку снизу. На
+            // телефоне два отступа съедали весь экран, `fitBounds` молча не
+            // делал ничего, и камера не отъезжала ни после облёта, ни когда
+            // бегунок графика уходил за край (фидбэк 2026-09-19).
+            const tr = map.transform;
+            const saved = map.getPadding();
+            const zero = { top: 0, right: 0, bottom: 0, left: 0 };
+            // Не влезло — Mapbox не всегда возвращает пустоту, бывает и
+            // исключение (NaN в координатах): оно и обрывало перелёт
+            const fit = options => {
+                try { return map.cameraForBounds(bounds, options); } catch (e) { return null; }
+            };
+            tr.padding = zero;
+            let camera = fit(want);
+            // Над развёрнутой карточкой на телефоне свободна узкая полоса —
+            // если маршрут не влез, пробуем отступы поменьше и без наклона
+            if (!camera) {
+                const pad = want.padding;
+                want.padding = { top: Math.min(pad.top, 30), left: Math.min(pad.left, 16),
+                                 right: Math.min(pad.right, 16), bottom: Math.round(pad.bottom * 0.75) };
+                camera = fit(want) || fit(Object.assign({}, want, { pitch: 0 }));
             }
-            map.fitBounds(bounds, options);
+            tr.padding = saved;
+            if (!camera) { this._framing = false; return; }
+            map.flyTo(Object.assign({}, camera, {
+                padding: zero, duration: o.duration, essential: true
+            }));
             // Пока летим — считаем, что кадр уже подобран: иначе следующий же
             // кадр ведения решит, что бегунок снова вне экрана, и кадры
             // начнут затирать друг друга
@@ -606,10 +626,9 @@
 
         /** Общая подготовка: убрать всё, что перебивает камеру или закрывает вид */
         prepareForCinematic(mode) {
-            // ⚠️ Метки старта, финиша и вершины прячем только под облёт: он
-            // идёт низко над тропой, и бейджи там закрывают собой полкадра.
-            // Вращение показывает маршрут целиком и издалека — по этим меткам
-            // как раз и читается, где у него начало и где верх.
+            // Метки фото прячем только под облёт: он идёт низко над тропой, и
+            // они там густо закрывают вид. Бейджи старта/финиша/вершины
+            // остаются всегда — по ним и читается, где начало и где верх.
             if (root.setRouteDecorationsHidden) root.setRouteDecorationsHidden(mode === 'flyover');
             // Карточку облёта убираем до того, как считаем свободную часть
             // экрана: иначе вращение подберёт кадр с запасом под неё снизу
@@ -627,9 +646,16 @@
             if (group && mode === 'flyover') group.classList.add('panel-collapsed');
         },
 
-        stopCinematic() {
+        /**
+         * `quiet` — камеру гасим, потому что маршрут закрыли или сменили:
+         * тогда никакого «показать маршрут целиком» после облёта не нужно,
+         * камера уже летит в другое место.
+         */
+        stopCinematic(quiet) {
+            this._quietStop = !!quiet;
             if (this.camera && this.camera.isRunning) this.camera.stop();
             else this.onCinematicStopped();
+            this._quietStop = false;
         },
 
         onCinematicStopped() {
@@ -669,7 +695,7 @@
             // с 64° облёта маршрут над развёрнутой карточкой не вписывается.
             const wasFlyover = this._cineMode === 'flyover';
             this._cineMode = null;
-            if (wasFlyover && !byUser && this.routeData) {
+            if (wasFlyover && !byUser && !this._quietStop && this.routeData) {
                 this.fitCoordinates(this.routeData.coordinates, { duration: 1400, maxZoom: 15, pitch: 45 });
             }
         },

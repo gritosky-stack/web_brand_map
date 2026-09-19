@@ -785,6 +785,10 @@ function triggerRouteSelection(routeId) {
 
     if (window.hoverPopup) window.hoverPopup.remove();
 
+    // Облёт или вращение прошлого маршрута останавливаем сразу: их кадры
+    // перебивали бы перелёт к новому
+    if (window.RouteProfile) RouteProfile.stopCinematic(true);
+
     // Remove previous peak marker and start/finish markers whenever we switch routes
     _removeStartFinishMarkers();
 
@@ -824,16 +828,32 @@ function triggerRouteSelection(routeId) {
         ? { top: 40, bottom: Math.round(window.innerHeight * 0.58) + 50, left: 20, right: 20 }
         : { top: 80, bottom: 80, left: 400, right: 80 }; // 400px left = sidebar width + margin
 
-    map.fitBounds(routeData.bounds, {
-        padding: _fitPad,
-        pitch: 45,
-        bearing: -20,
-        speed: 0.8,
-        essential: true,
-        maxZoom: 14
-    });
+    // Кадр считаем при нулевых отступах карты и летим в него, сбрасывая их:
+    // после облёта или вращения у карты остаётся отступ под карточку, Mapbox
+    // складывает его с `_fitPad`, и на телефоне маршрут переставал
+    // помещаться — перелёт молча не случался (см. RouteProfile.fitCoordinates)
+    const _zeroPad = { top: 0, right: 0, bottom: 0, left: 0 };
+    const _savedPad = map.getPadding();
+    map.transform.padding = _zeroPad;
+    let _cam = null;
+    try { _cam = map.cameraForBounds(routeData.bounds, { padding: _fitPad, pitch: 45, bearing: -20, maxZoom: 14 }); } catch (e) {}
+    map.transform.padding = _savedPad;
+    if (_cam) {
+        map.flyTo(Object.assign({}, _cam, { padding: _zeroPad, speed: 0.8, essential: true }));
+    } else {
+        map.flyTo({ center: [(routeData.bounds[0][0] + routeData.bounds[1][0]) / 2,
+                             (routeData.bounds[0][1] + routeData.bounds[1][1]) / 2],
+                    zoom: 12, pitch: 45, bearing: -20, padding: _zeroPad, speed: 0.8, essential: true });
+    }
 
-    map.once('moveend', () => {
+    // Маршрут дорисовываем, когда камера долетела. ⚠️ С подстраховкой по
+    // времени: если перелёт перебили (новым касанием, другим маршрутом, камерой)
+    // и `moveend` не пришёл, карточка навсегда оставалась пустой, в блюре и со
+    // старым названием (фидбэк 2026-09-19)
+    let _arrived = false;
+    const _onArrive = () => {
+        if (_arrived) return;
+        _arrived = true;
         if (currentViewedRoute.id !== routeInfo.id) return;
 
         addRouteToMap(routeInfo.id, routeData.coordinates, routeInfo.color, routeData.gradeStops, routeData.coordKm);
@@ -956,7 +976,9 @@ function triggerRouteSelection(routeId) {
                 renderPhotoMapMarkers(routeInfo);
             }
         });
-    });
+    };
+    map.once('moveend', _onArrive);
+    setTimeout(_onArrive, 4000);
 }
 
 // ── Photo navigation in sidebar ───────────────────────────────────────────────
@@ -1456,6 +1478,9 @@ document.getElementById('btn-back').addEventListener('click', () => {
     if (map.getSource('photo-active-source')) {
         map.getSource('photo-active-source').setData({ type: 'FeatureCollection', features: [] });
     }
+    // Камеру (вращение/облёт) останавливаем **до** перелёта к обзору: иначе
+    // её последний кадр успевал вернуть карте отступ под карточку
+    RouteProfile.hide();
     removeRouteLine(currentViewedRoute.id);
     map.flyTo({
         center: [20.9029, 44.2107], zoom: 6.5, pitch: 0, bearing: 0, speed: 1.2,
@@ -1893,11 +1918,13 @@ function removeRouteLine(id) {
 }
 
 /**
- * Спрятать всё, что закрывает вид во время облёта: вершину, старт/финиш и
- * метки фотографий. Возвращаются они сами, как только камеру отпустили.
+ * Спрятать метки фотографий на время облёта — они густо сидят на тропе и
+ * закрывают собой вид. Возвращаются сами, как только камеру отпустили.
+ *
+ * Бейджи старта, финиша и вершины **не** прячем: по ним в полёте и видно,
+ * где начало, где верх и сколько ещё до финиша (фидбэк 2026-09-19).
  */
 window.setRouteDecorationsHidden = function(hidden) {
-    RouteMarks.setHidden(hidden);
     ['photo-markers-glow', 'photo-markers-layer', 'photo-active-glow', 'photo-active-layer'].forEach(layer => {
         if (map.getLayer(layer)) map.setLayoutProperty(layer, 'visibility', hidden ? 'none' : 'visible');
     });

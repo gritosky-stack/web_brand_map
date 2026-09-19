@@ -401,6 +401,11 @@
             opacity: 0 !important; pointer-events: none !important;
         }
         body.tw-immersive .app-overlay > header * { pointer-events: none !important; }
+        /* Ведут бегунок по графику во время вращения — плашка «Вращение
+           вокруг маршрута» стоит там же, где шкала с данными о точке, и
+           уходит, пока палец на графике */
+        #cinematic-status { transition: opacity .2s ease; }
+        body.tw-scrubbing #cinematic-status { opacity: 0; pointer-events: none; }
 
         /* ── Просмотр фото (photo_viewer.js) ──────────────────────── */
         /* touch-action: none — щипок и свайпы разбирает сам просмотрщик,
