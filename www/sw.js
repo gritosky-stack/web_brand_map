@@ -7,7 +7,7 @@
  *   - Mapbox: стиль, спрайты и шрифты — Network-first; **тайлы не трогаем**
  */
 
-const SHELL_VERSION = 'v17';
+const SHELL_VERSION = 'v18';
 const SHELL_CACHE   = `shell-${SHELL_VERSION}`;
 const GPX_CACHE     = 'gpx-v1';
 const PHOTO_CACHE   = 'photos-v1';
@@ -60,7 +60,14 @@ self.addEventListener('activate', event => {
           .filter(k => k !== SHELL_CACHE && k !== GPX_CACHE && k !== PHOTO_CACHE)
           .map(k => caches.delete(k))
       )
-    ).then(() => self.clients.claim())
+    )
+    // Вычищаем из кэша фото то, что туда натаскали тайлы хитмапа
+    .then(() => caches.open(PHOTO_CACHE))
+    .then(cache => cache.keys().then(keys => Promise.all(keys
+      .filter(r => new URL(r.url).origin !== self.location.origin)
+      .map(r => cache.delete(r)))))
+    .catch(() => {})
+    .then(() => self.clients.claim())
   );
 });
 
@@ -88,6 +95,15 @@ self.addEventListener('fetch', event => {
     event.respondWith(cacheFirst(request, GPX_CACHE));
     return;
   }
+
+  // Чужие хосты (хитмап OSM, аватары Google, BRouter, Supabase) — мимо SW.
+  // ⚠️ Тайлы хитмапа — это `.png`, и правило «Фото» ниже гнало каждый из
+  // них через Cache Storage с лимитом: поиск, `cache.keys()`, удаление
+  // старой записи — на каждый тайл. При прокрутке их сотни, очередь не
+  // успевала, хитмап оставался мыльным (тайлы соседнего зума), а после
+  // выключения и включения на телефоне не приходил вовсе (фидбэк
+  // 2026-09-19). Заодно он вытеснял из кэша настоящие фото маршрутов.
+  if (url.origin !== self.location.origin) return;
 
   // Фото (jpg/jpeg/png/webp)
   if (/\.(jpe?g|png|webp)$/i.test(url.pathname)) {
