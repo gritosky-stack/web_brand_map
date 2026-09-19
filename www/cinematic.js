@@ -24,8 +24,6 @@
     // выходило слишком низко — тропа во весь экран, а склонов вокруг не видно
     // (фидбэк 2026-09-19). Чуть выше — и видно, куда тропа идёт дальше.
     const FLYOVER_ZOOM = 14.7;
-    // Сколько секунд пути подгружаем заранее, до старта (см. _preloadAhead)
-    const PRELOAD_SECONDS = 5;
     // Наклон вращения — рельеф ещё объёмный, но маршрут целиком лежит в кадре
     const ORBIT_PITCH = 58;
     // Полный оборот, секунд
@@ -242,9 +240,6 @@
             this.headingReady = false;
 
             this.flyoverZoom = this._flyoverZoom();
-            // Тайлы первых секунд полёта заказываем ещё до подлёта к старту
-            this._preloadedTo = 0;
-            this._preloadAhead(0, this._groundSpeed() * PRELOAD_SECONDS);
             this.map.easeTo({
                 center: start, zoom: this.flyoverZoom, bearing: this.heading,
                 pitch: FLYOVER_PITCH, padding: this.padding,
@@ -254,8 +249,7 @@
             // ждём «карта догрузилась» (`areTilesLoaded`): с рельефом и
             // горизонтом это почти никогда не наступает, и облёт каждый раз
             // стоял на месте лишние секунды — казалось, что он не начался,
-            // пока не нажмёшь скорость (фидбэк 2026-09-19). Тайлы начала
-            // заказаны заранее (`_preloadAhead`) и успевают за время подлёта.
+            // пока не нажмёшь скорость (фидбэк 2026-09-19).
             // Страховка по времени — если подлёт оборвали и `moveend` не
             // пришёл (на телефоне бывает), облёт всё равно начинается.
             let started = false;
@@ -296,14 +290,6 @@
             this.orbitZoom = this._fitZoom(route, pad, box);
             const token = ++this._token;
 
-            // Тайлы на весь оборот — заранее: иначе первый круг вращения
-            // проявляет карту кусками
-            for (let b = 0; b < 360; b += 45) {
-                try {
-                    this.map.jumpTo({ center: this.orbitPivot, zoom: this.orbitZoom, bearing: b,
-                                      pitch: ORBIT_PITCH, padding: pad, preloadOnly: true });
-                } catch (e) { break; }
-            }
             this.map.easeTo({
                 center: this.orbitPivot, zoom: this.orbitZoom,
                 bearing: this.orbitBearing, pitch: ORBIT_PITCH, padding: pad,
@@ -366,52 +352,14 @@
             return Math.min(FLYOVER_ZOOM + 1.0, Math.max(FLYOVER_ZOOM, FLYOVER_ZOOM + Math.log2(free / 390)));
         }
 
-        // MARK: - Подгрузка тайлов наперёд
-
-        /** Скорость камеры по земле, м/с — с учётом множителя */
-        _groundSpeed() {
-            if (!(this.duration > 0)) return FLYOVER_METERS_PER_SECOND * (this.speed || 1);
-            return this.totalMeters / this.duration * Math.max(0.25, this.speed || 1);
-        }
-
-        /** Поза камеры облёта в точке маршрута — такая же, как в полёте */
-        _poseAt(meters) {
-            const here = this._coordinateAt(meters);
-            return {
-                center: here, zoom: this.flyoverZoom, pitch: FLYOVER_PITCH, padding: this.padding,
-                bearing: bearing(here, this._coordinateAt(meters + this.lookAhead))
-            };
-        }
-
-        /**
-         * Заказать тайлы для поз камеры впереди по маршруту, не двигая её
-         * (`jumpTo` с `preloadOnly`). Только **до старта** — для первых
-         * секунд полёта, пока камера подлетает к началу.
-         *
-         * ⚠️ Подгрузку наперёд прямо в полёте пробовали и убрали: каждая
-         * наклонённая поза тянет свой набор дальних тайлов горизонта, и
-         * облёт падал с 14 до 8–10 кадров в секунду (замер 2026-09-19) —
-         * заметно хуже, чем редкие недогруженные куски. Тайлы и так пошли
-         * быстрее, когда перестали проходить через service worker.
-         */
-        _preloadAhead(fromMeters, toMeters) {
-            if (!this.points || !(this.totalMeters > 0)) return;
-            // Шаг — меньше половины видимого у центра куска земли: около
-            // 180 точек экрана (на зуме 14.7 это ≈380 м), чтобы соседние позы
-            // перекрывались и между ними не оставалось незаказанных тайлов
-            const lat = this.points[0][1];
-            const metersPerPoint = 78271.516 * Math.cos(rad(lat)) / Math.pow(2, this.flyoverZoom);
-            const step = Math.max(120, metersPerPoint * 180);
-            let m = Math.max(fromMeters, this._preloadedTo || 0);
-            const end = Math.min(this.totalMeters, toMeters);
-            let count = 0;
-            while (m <= end && count < 12) {
-                try { this.map.jumpTo(Object.assign(this._poseAt(m), { preloadOnly: true })); } catch (e) { return; }
-                this._preloadedTo = m + step;
-                m += step;
-                count++;
-            }
-        }
+        // ⚠️ Подгрузку тайлов наперёд (`jumpTo` с `preloadOnly`) пробовали
+        // дважды и убрали. У Mapbox одна очередь запросов картинок на всю
+        // карту: 16 одновременно, дальше строго по порядку, и заказанные
+        // наперёд тайлы не отменяются. Сотни тайлов «на будущее» вставали в
+        // очередь перед теми, что нужны прямо сейчас, и во время облёта из
+        // ~110 видимых тайлов спутника грузилось 8–15 — белые провалы
+        // рельефа (замер 2026-09-19). Без подгрузки — 60–115, а с 32
+        // параллельными запросами (script.js) — почти все.
 
         // MARK: - Пауза
 

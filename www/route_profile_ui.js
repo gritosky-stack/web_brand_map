@@ -279,11 +279,15 @@
                 dot.id = 'flyover-dot';
                 document.body.appendChild(dot);
             }
+            // Ставим в экранную точку тропы (`project` — синхронно, тем же
+            // кадром, что и камера). ⚠️ Не в центр кадра «по построению»:
+            // пока тайл рельефа под камерой не приехал, центр стоит на нулевой
+            // высоте, тропа проецируется в сторону — и метка висела в
+            // пустоте далеко от линии (фидбэк 2026-09-19).
             const box = this.map.getCanvas().getBoundingClientRect();
-            const pad = camera.padding || { top: 0, right: 0, bottom: 0, left: 0 };
-            const x = box.left + pad.left + (box.width - pad.left - pad.right) / 2;
-            const y = box.top + pad.top + (box.height - pad.top - pad.bottom) / 2;
-            dot.style.transform = `translate(${x}px, ${y}px)`;
+            const p = this._flyCoord ? this.map.project(this._flyCoord) : null;
+            if (!p || !isFinite(p.x) || !isFinite(p.y)) return;
+            dot.style.transform = `translate(${box.left + p.x}px, ${box.top + p.y}px)`;
             if (dot.hidden) dot.hidden = false;
             if (!this._flyDotShown) {
                 this._flyDotShown = true;
