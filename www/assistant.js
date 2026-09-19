@@ -514,6 +514,51 @@
     document.head.appendChild(s);
   }
 
+  // ── Место плашки поиска (десктоп) ─────────────────────────
+  // В одном ряду с логотипом и плашкой фильтров, посередине промежутка
+  // между ними. Промежуток зависит от ширины окна и от имени в «Войти»,
+  // поэтому считаем по живым размерам, а не в CSS. Не влезает (узкое
+  // окно) — плашка встаёт под фильтры, выровненная по их правому краю:
+  // раньше она висела над шапкой по центру и наезжала на фильтры.
+  function placeSearchBar(bar) {
+    const header = document.querySelector('.app-overlay > header');
+    const logo = header && header.firstElementChild;
+    const nav = header && header.querySelector('nav');
+    if (!logo || !nav) return;
+    const GAP = 24, MIN = 300, MAX = 440;
+
+    const place = () => {
+      const st = bar.style;
+      if (innerWidth < 768 || !nav.offsetWidth) {
+        st.left = st.top = st.width = st.transform = '';
+        return;
+      }
+      const l = logo.getBoundingClientRect(), n = nav.getBoundingClientRect();
+      const h = bar.offsetHeight || 44;
+      const from = l.right + GAP, to = n.left - GAP;
+      if (to - from >= MIN) {
+        const w = Math.min(MAX, to - from);
+        st.width = w + 'px';
+        st.left = (from + (to - from - w) / 2) + 'px';
+        st.top = (n.top + n.height / 2 - h / 2) + 'px';
+      } else {
+        const w = Math.min(MAX, n.width);
+        st.width = w + 'px';
+        st.left = (n.right - w) + 'px';
+        st.top = (n.bottom + 12) + 'px';
+      }
+      st.transform = 'none';
+    };
+    place();
+    addEventListener('resize', place);
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(place);
+      ro.observe(nav); ro.observe(logo);
+    }
+    // Шрифты и Tailwind доезжают позже — шапка меняет размер ещё раз
+    addEventListener('load', place);
+  }
+
   // ── Build DOM ──────────────────────────────────────────────
   function buildDOM() {
     if (document.getElementById('asst-fab')) return;
@@ -534,6 +579,7 @@
       </div>
     `;
     document.body.appendChild(bar);
+    placeSearchBar(bar);
 
     // FAB
     const fab = document.createElement('button');

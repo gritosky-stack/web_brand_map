@@ -793,6 +793,12 @@
             <polyline points="2 12 12 17 22 12"/>
         </svg>
     </button>
+    <!-- «Нарисовать» — свой маршрут по тропам (route_builder.js) -->
+    <button id="btn-draw-route" aria-label="Нарисовать маршрут" title="Нарисовать маршрут" onclick="RouteBuilder.start()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16.86 4.49l2.65 2.65M4 20l4.2-.9L19.1 8.2a1.9 1.9 0 000-2.65l-.65-.65a1.9 1.9 0 00-2.65 0L4.9 15.8 4 20z"/>
+        </svg>
+    </button>
     <!-- Layers panel -->
     <div id="layers-panel">
         <label class="layer-row">
@@ -1308,6 +1314,7 @@
     <script src="pss_layer.js"></script>
     <script src="assistant.js"></script>
     <script src="account.js"></script>
+    <script src="route_builder.js"></script>
     <script>
       // На localhost кэш service worker только мешает: правка в файле не
       // видна, пока не сбросишь его руками. Там прошлый снимаем, новый не ставим.

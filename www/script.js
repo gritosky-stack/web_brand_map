@@ -791,6 +791,8 @@ function triggerRouteSelection(routeId) {
     const routeInfo = routes[routeId];
     const routeData = parsedRouteDataCache[routeId];
     if (!routeInfo || !routeData) return;
+    // Пока рисуют маршрут, клик по карте ставит точку, а не открывает чужой
+    if (window.RouteBuilder && RouteBuilder.active) return;
 
     // Update URL so this route can be shared / bookmarked
     history.replaceState(null, '', '#' + routeId);
@@ -1508,10 +1510,14 @@ document.getElementById('btn-back').addEventListener('click', () => {
     // её последний кадр успевал вернуть карте отступ под карточку
     RouteProfile.hide();
     removeRouteLine(currentViewedRoute.id);
-    map.flyTo({
-        center: [20.9029, 44.2107], zoom: 6.5, pitch: 0, bearing: 0, speed: 1.2,
-        padding: { top: 0, bottom: 0, left: 0, right: 0 }
-    });
+    // «Нарисовать» закрывает маршрут этой же кнопкой, но рисовать собираются
+    // там, куда смотрят, — облёт к обзору всей Сербии пропускаем
+    if (!(window.RouteBuilder && RouteBuilder.active)) {
+        map.flyTo({
+            center: [20.9029, 44.2107], zoom: 6.5, pitch: 0, bearing: 0, speed: 1.2,
+            padding: { top: 0, bottom: 0, left: 0, right: 0 }
+        });
+    }
     currentViewedRoute = null;
 
     const carousel = document.getElementById('route-carousel-outer');

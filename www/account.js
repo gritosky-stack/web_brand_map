@@ -245,12 +245,25 @@
                 toast(`Не удалось сохранить «${p.name}»`);
             }
         }
-        if (lastId) {
-            if (filter !== 'mine') setFilter('mine');
-            closeModal();
-            document.getElementById('mobile-info').classList.add('hidden');
-            triggerRouteSelection(routeIdOf(lastId));
-        }
+        if (lastId) showSaved(lastId);
+    }
+
+    function showSaved(cloudId) {
+        if (filter !== 'mine') setFilter('mine');
+        closeModal();
+        document.getElementById('mobile-info').classList.add('hidden');
+        triggerRouteSelection(routeIdOf(cloudId));
+    }
+
+    /**
+     * Нарисованный на сайте маршрут (route_builder.js). `beforeShow` — выйти
+     * из рисования: пока оно включено, карточку маршрута не открыть.
+     */
+    async function saveDrawn(p, beforeShow) {
+        if (!client || !user) throw new Error('not signed in');
+        await saveRow(p);
+        if (beforeShow) beforeShow();
+        showSaved(p.id);
     }
 
     async function renameRoute(cloudId, name) {
@@ -413,6 +426,8 @@
     const USER_ICON = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.1a7.5 7.5 0 0115 0A17.9 17.9 0 0112 21.75c-2.68 0-5.22-.58-7.5-1.65z"/></svg>';
     const UPLOAD_ICON = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4"/></svg>';
 
+    const PEN_ICON = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.86 4.49l2.65 2.65M4 20l4.2-.9L19.1 8.2a1.9 1.9 0 000-2.65l-.65-.65a1.9 1.9 0 00-2.65 0L4.9 15.8 4 20z"/></svg>';
+
     function statsLine() {
         const list = sortedRows();
         const km = list.reduce((s, r) => s + (r.distance_km || 0), 0);
@@ -468,6 +483,7 @@
                 </div>
                 <div class="flex flex-col gap-2">
                     <button class="tw-btn tw-btn-mine" onclick="Account.showMine()">Показать «Мои» на карте</button>
+                    <button class="tw-btn tw-btn-ghost" onclick="RouteBuilder.start()">${PEN_ICON}Нарисовать маршрут</button>
                     <button class="tw-btn tw-btn-ghost" onclick="Account.pickGPX()">${UPLOAD_ICON}Загрузить GPX</button>
                     <button class="tw-btn tw-btn-ghost" onclick="Account.signOut()">Выйти</button>
                 </div>
@@ -527,7 +543,8 @@
             </button>`).join('');
         const empty = !cards && !loadingRoutes
             ? `<div class="my-card my-card-add" style="cursor:default;border-style:solid">Здесь появятся маршруты, записанные или нарисованные в приложении</div>` : '';
-        strip.innerHTML = `<button class="my-card my-card-add" onclick="Account.pickGPX()">${UPLOAD_ICON}<span>Загрузить GPX</span></button>${cards}${empty}`;
+        strip.innerHTML = `<button class="my-card my-card-add" onclick="RouteBuilder.start()">${PEN_ICON}<span>Нарисовать</span></button>` +
+            `<button class="my-card my-card-add" onclick="Account.pickGPX()">${UPLOAD_ICON}<span>Загрузить GPX</span></button>${cards}${empty}`;
     }
 
     function renderMobileList() {
@@ -553,7 +570,8 @@
             </button>`).join('');
         box.innerHTML = head + `<div class="flex flex-col gap-4 pl-2">${list ||
             (loadingRoutes ? '' : '<p class="tw-note normal-case tracking-normal font-normal">Пока пусто: маршруты из приложения появятся здесь.</p>')}</div>
-            <button class="tw-btn tw-btn-ghost mt-4 normal-case tracking-normal" onclick="Account.pickGPX()">${UPLOAD_ICON}Загрузить GPX</button>`;
+            <button class="tw-btn tw-btn-ghost mt-4 normal-case tracking-normal" onclick="RouteBuilder.start()">${PEN_ICON}Нарисовать маршрут</button>
+            <button class="tw-btn tw-btn-ghost mt-2 normal-case tracking-normal" onclick="Account.pickGPX()">${UPLOAD_ICON}Загрузить GPX</button>`;
     }
 
     function renderLegend() {
@@ -561,7 +579,15 @@
         if (el) el.style.display = rows.size ? '' : 'none';
     }
 
+    let lastAnnounced = null;
+    function announce() {
+        if (state === lastAnnounced) return;
+        lastAnnounced = state;
+        document.dispatchEvent(new CustomEvent('tw-account', { detail: { state } }));
+    }
+
     function render() {
+        announce();
         renderButtons();
         renderModal();
         renderStrip();
@@ -646,6 +672,45 @@
         document.getElementById('my-gpx-input').click();
     }
 
+    /**
+     * Ленту листают колесом и мышью, как карусель каталога. Сама по себе она
+     * прокручивается только тачпадом вбок или Shift+колесо — обычной мышью
+     * дальше первых карточек было не уйти.
+     */
+    function makeStripScrollable(strip) {
+        if (!strip) return;
+        strip.addEventListener('wheel', e => {
+            if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;   // тачпад вбок — сам
+            if (strip.scrollWidth <= strip.clientWidth) return;
+            e.preventDefault();
+            strip.scrollLeft += e.deltaY;
+        }, { passive: false });
+
+        // Перетаскивание. Сдвинули дальше 5 px — это прокрутка, и клик по
+        // карточке под пальцем не открывает маршрут
+        let startX = 0, startScroll = 0, dragging = false, moved = false;
+        strip.addEventListener('mousedown', e => {
+            if (e.button !== 0) return;
+            dragging = true; moved = false;
+            startX = e.clientX; startScroll = strip.scrollLeft;
+        });
+        window.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            const dx = e.clientX - startX;
+            if (!moved && Math.abs(dx) > 5) { moved = true; strip.style.cursor = 'grabbing'; }
+            if (moved) { e.preventDefault(); strip.scrollLeft = startScroll - dx; }
+        });
+        window.addEventListener('mouseup', () => {
+            if (!dragging) return;
+            dragging = false;
+            strip.style.cursor = '';
+        });
+        strip.addEventListener('click', e => {
+            if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
+        }, true);
+        strip.addEventListener('dragstart', e => e.preventDefault());
+    }
+
     // ── Запуск ──────────────────────────────────────────────────────────────
 
     async function init() {
@@ -661,6 +726,7 @@
             if (files.length) importFiles(files);
         });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+        makeStripScrollable(document.getElementById('my-routes-strip'));
 
         const hadError = readOAuthError();
         render();
@@ -692,11 +758,13 @@
 
     window.Account = {
         openModal, closeModal, signInWithGoogle, signOut, pickGPX,
-        showMine() { closeModal(); setFilter('mine'); }
+        showMine() { closeModal(); setFilter('mine'); },
+        /** loading | signedOut | working | signedIn | unavailable */
+        status() { return state === 'signedIn' && !user ? 'signedOut' : state; }
     };
     window.MyRoutes = {
         onFilterChange(type) { filter = type; renderMobileList(); },
-        renderPanelActions
+        renderPanelActions, saveDrawn, toast
     };
 
     // Карта и каталог важнее: SDK и сессию поднимаем, когда страница встала

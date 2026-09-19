@@ -7,7 +7,7 @@
  *   - Mapbox: стиль, спрайты и шрифты — Network-first; **тайлы не трогаем**
  */
 
-const SHELL_VERSION = 'v15';
+const SHELL_VERSION = 'v16';
 const SHELL_CACHE   = `shell-${SHELL_VERSION}`;
 const GPX_CACHE     = 'gpx-v1';
 const PHOTO_CACHE   = 'photos-v1';
@@ -20,6 +20,7 @@ const SHELL_ASSETS = [
   '/script.js',
   '/assistant.js',
   '/account.js',
+  '/route_builder.js',
   '/route_matcher.js',
   '/pss_layer.js',
   '/grade_color.js',

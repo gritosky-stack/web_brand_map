@@ -82,3 +82,190 @@ nav.hidden.md\\:flex {
     backdrop-filter: blur(6px) !important;
     -webkit-backdrop-filter: blur(6px) !important;
 }
+
+/* ── «Нарисовать» (route_builder.js) ─────────────────────────────────────────
+   Порт RouteConstructorView: плашка режима сверху, сводка, статус и кнопки
+   снизу, прицел в центре кадра. Пока рисуют, всё про каталог уходит —
+   шапка, карусель, лента «Мои», ассистент; «Слои» остаются. */
+:root { --rb-accent: #FF5722; --rb-glass: rgba(255,255,255,.07); --rb-border: rgba(255,255,255,.1); }
+
+#btn-draw-route {
+    position: fixed; z-index: 30; right: 14px; bottom: 132px;
+    width: 40px; height: 40px; border-radius: 12px;
+    background: rgba(12,12,14,.92); border: 1px solid rgba(63,63,70,.6);
+    color: rgba(255,255,255,.55); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: color .2s, background .2s;
+    box-shadow: 0 4px 20px rgba(0,0,0,.6);
+}
+#btn-draw-route:hover { background: rgba(25,25,28,.98); color: rgba(255,255,255,.9); }
+@media (min-width: 768px) { #btn-draw-route { bottom: 282px; } }
+body.tw-immersive #btn-draw-route, body.tw-flyover #btn-draw-route { display: none; }
+
+#rb-root { display: none; }
+body.tw-drawing #rb-root { display: block; }
+body.tw-drawing .app-overlay,
+body.tw-drawing #route-carousel-outer,
+body.tw-drawing #my-routes-strip,
+body.tw-drawing #route-panel-group,
+body.tw-drawing #mobile-info,
+body.tw-drawing #lines-legend,
+body.tw-drawing #asst-fab,
+body.tw-drawing #asst-search-bar,
+body.tw-drawing #btn-draw-route { display: none !important; }
+
+#rb-aim-svg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; overflow: visible; }
+#rb-band line { stroke-linecap: round; stroke-dasharray: 7 8; animation: rb-ants 2s linear infinite; }
+#rb-band .rb-band-shadow { stroke: rgba(0,0,0,.35); stroke-width: 5; }
+#rb-band .rb-band-line { stroke: var(--rb-accent); stroke-opacity: .95; stroke-width: 2.5; }
+@keyframes rb-ants { to { stroke-dashoffset: -28; } }
+
+#rb-crosshair {
+    position: fixed; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+    z-index: 21; pointer-events: none; filter: drop-shadow(0 0 3px rgba(0,0,0,.35));
+}
+#rb-crosshair .rb-ring {
+    position: absolute; left: 10px; top: 10px; width: 24px; height: 24px; border-radius: 50%;
+    border: 1.8px solid var(--rb-accent); box-shadow: 0 0 0 1.2px rgba(0,0,0,.3), inset 0 0 0 1.2px rgba(0,0,0,.3);
+}
+/* Засечки крутятся: видно, что прицел живой и держит центр кадра */
+#rb-crosshair .rb-ticks { position: absolute; inset: 0; animation: rb-spin 8s linear infinite; }
+#rb-crosshair .rb-ticks i {
+    position: absolute; left: 21.1px; top: 1px; width: 1.8px; height: 6px; border-radius: 1px;
+    background: var(--rb-accent); transform-origin: 0.9px 21px; box-shadow: 0 0 2px rgba(0,0,0,.45);
+}
+#rb-crosshair .rb-ticks i:nth-child(2) { transform: rotate(90deg); }
+#rb-crosshair .rb-ticks i:nth-child(3) { transform: rotate(180deg); }
+#rb-crosshair .rb-ticks i:nth-child(4) { transform: rotate(270deg); }
+#rb-crosshair .rb-dot {
+    position: absolute; left: 19.75px; top: 19.75px; width: 4.5px; height: 4.5px; border-radius: 50%;
+    background: var(--rb-accent); box-shadow: 0 0 0 1.2px rgba(255,255,255,.9);
+}
+@keyframes rb-spin { to { transform: rotate(360deg); } }
+
+#rb-modebar {
+    position: fixed; z-index: 35; top: calc(16px + env(safe-area-inset-top)); left: 16px; right: 16px;
+    max-width: 520px; margin: 0 auto;
+    display: flex; align-items: center; gap: 8px; padding: 9px 10px 9px 14px;
+    background: rgba(10,10,10,.78); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,87,34,.4); border-radius: 999px;
+}
+.rb-mode-label { display: flex; align-items: center; gap: 6px; color: var(--rb-accent); font-size: 12px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+.rb-mode-label i { width: 7px; height: 7px; border-radius: 50%; background: var(--rb-accent); }
+.rb-spacer { flex: 1; }
+.rb-chip {
+    display: flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 999px; cursor: pointer;
+    font-size: 11px; font-weight: 500; color: rgba(255,255,255,.4);
+    background: var(--rb-glass); border: 1px solid var(--rb-border); white-space: nowrap;
+    transition: color .18s, background .18s, border-color .18s;
+}
+.rb-chip.on { color: var(--rb-accent); background: rgba(255,87,34,.15); border-color: rgba(255,87,34,.45); }
+.rb-chip-stop { color: rgba(255,255,255,.65); font-size: 12px; padding: 6px 12px; }
+.rb-chip:hover { color: #fff; }
+@media (max-width: 440px) {
+    #rb-modebar { left: 10px; right: 10px; gap: 6px; padding: 8px 8px 8px 12px; }
+    .rb-mode-label { font-size: 11px; letter-spacing: .02em; }
+    .rb-chip { padding: 6px 8px; }
+    .rb-chip-stop { font-size: 11px; padding: 6px 10px; }
+}
+@media (max-width: 360px) { #rb-btn-snap span { display: none; } }
+
+#rb-bottom {
+    position: fixed; z-index: 35; left: 16px; right: 16px; bottom: calc(66px + env(safe-area-inset-bottom));
+    max-width: 440px; margin: 0 auto;
+    display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none;
+}
+#rb-bottom > * { pointer-events: auto; }
+@media (min-width: 768px) { #rb-bottom { bottom: 44px; } }
+.rb-card {
+    width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 12px 18px; border-radius: 16px;
+    background: rgba(18,18,18,.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--rb-border); box-shadow: 0 0 16px rgba(0,0,0,.4);
+    animation: rb-pop .3s ease;
+}
+@keyframes rb-pop { from { transform: scale(.85); opacity: 0; } }
+.rb-stats-row { display: flex; align-items: center; gap: 12px; }
+.rb-stat { display: flex; align-items: baseline; gap: 3px; white-space: nowrap; }
+.rb-stat em { font-style: normal; font-size: 11px; color: rgba(255,255,255,.6); }
+.rb-stat b { font: 700 15px ui-monospace, SFMono-Regular, Menlo, monospace; color: #fff; }
+.rb-stat small { font-size: 10px; color: rgba(255,255,255,.6); }
+.rb-div { width: 1px; height: 22px; background: var(--rb-border); }
+.rb-time { font-size: 11px; font-weight: 500; color: rgba(255,255,255,.6); }
+.rb-done {
+    width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 9px; border-radius: 11px; cursor: pointer; font-size: 13px; font-weight: 600;
+    background: var(--rb-accent); color: #000;
+}
+.rb-done:disabled { background: var(--rb-glass); color: rgba(255,255,255,.35); cursor: default; }
+.rb-pill {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px;
+    font-size: 12px; color: rgba(255,255,255,.6); text-align: center;
+    background: rgba(10,10,10,.6); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--rb-border);
+}
+#rb-hint { font-size: 13px; padding: 10px 18px; }
+.rb-pill-accent { color: var(--rb-accent); border-color: rgba(255,87,34,.35); }
+.rb-controls { width: 100%; display: flex; gap: 10px; }
+.rb-hist {
+    flex: none; width: 52px; height: 48px; border-radius: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; color: #fff;
+    background: rgba(18,18,18,.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--rb-border); box-shadow: 0 2px 6px rgba(0,0,0,.35);
+}
+.rb-hist:disabled { color: rgba(255,255,255,.35); cursor: default; }
+.rb-step {
+    flex: 1; height: 48px; border-radius: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    font-size: 15px; font-weight: 600; color: #000; background: var(--rb-accent);
+    box-shadow: 0 2px 8px rgba(255,87,34,.35);
+}
+.rb-step:active, .rb-hist:active:not(:disabled) { transform: scale(.97); }
+
+/* Окна: сохранение и правила маршрута */
+/* Двойной класс: .tw-modal-inner задан в index.html позже этого файла */
+.tw-modal-inner.rb-sheet { background: #141414; }
+.rb-sheet-title { color: #fff; font-size: 17px; font-weight: 700; text-align: center; }
+.rb-sheet-stats { display: flex; justify-content: center; gap: 16px; margin: 6px 0 20px; font-size: 12px; color: rgba(255,255,255,.6); }
+.rb-field-label { display: block; font-size: 10px; font-weight: 600; letter-spacing: .06em; color: rgba(255,255,255,.6); margin-bottom: 6px; }
+.rb-input {
+    width: 100%; padding: 12px 14px; border-radius: 12px; outline: none; font: inherit; font-size: 15px; color: #fff;
+    background: var(--rb-glass); border: 1px solid var(--rb-border); caret-color: var(--rb-accent);
+}
+.rb-input:focus { border-color: rgba(255,87,34,.6); }
+.rb-sheet-buttons { display: flex; gap: 12px; margin-top: 20px; }
+.rb-btn { flex: 1; padding: 14px; border-radius: 14px; font-size: 15px; cursor: pointer; }
+.rb-btn-ghost { color: rgba(255,255,255,.6); font-weight: 500; background: var(--rb-glass); border: 1px solid var(--rb-border); }
+.rb-btn-accent { color: #000; font-weight: 600; background: var(--rb-accent); }
+.rb-btn:disabled { opacity: .6; cursor: default; }
+.rb-sheet-note { margin-top: 14px; text-align: center; }
+
+.tw-modal-inner.rb-prefs-sheet { max-width: 460px; padding: 0; display: flex; flex-direction: column; background: #0a0a0a; }
+.rb-prefs-head { display: flex; align-items: center; gap: 6px; padding: 14px 16px; border-bottom: 1px solid var(--rb-border); position: sticky; top: 0; background: #0a0a0a; z-index: 1; }
+.rb-prefs-body { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.rb-reset { color: var(--rb-accent); font-size: 12px; font-weight: 500; padding: 6px 10px; border-radius: 999px; background: var(--rb-glass); cursor: pointer; }
+.rb-x { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.6); background: var(--rb-glass); cursor: pointer; }
+.rb-pcard { padding: 14px; border-radius: 14px; background: #141414; border: 1px solid var(--rb-border); }
+.rb-pcard-title { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.rb-pcard-icon { font-size: 20px; line-height: 1.2; }
+.rb-pcard-h { color: #fff; font-size: 14px; font-weight: 600; }
+.rb-pcard-sub { color: rgba(255,255,255,.6); font-size: 11px; line-height: 1.4; }
+.rb-levels { display: flex; flex-direction: column; gap: 6px; }
+.rb-level {
+    display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 11px; text-align: left; cursor: pointer;
+    color: rgba(255,255,255,.6); background: var(--rb-glass);
+}
+.rb-level b { display: block; font-size: 13px; font-weight: 500; }
+.rb-level small { display: block; font-size: 10px; opacity: .75; }
+.rb-level.on { background: var(--rb-accent); color: #000; }
+.rb-radio { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--rb-border); position: relative; }
+.rb-level.on .rb-radio { border-color: rgba(0,0,0,.3); background: rgba(0,0,0,.15); }
+.rb-level.on .rb-radio::after { content: ''; position: absolute; left: 3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: #000; }
+.rb-segs { display: flex; gap: 6px; }
+.rb-seg { flex: 1; min-width: 0; white-space: nowrap; padding: 9px 2px; border-radius: 999px; font-size: 11.5px; font-weight: 500; color: rgba(255,255,255,.6); background: var(--rb-glass); cursor: pointer; }
+.rb-seg.on { background: var(--rb-accent); color: #000; }
+.rb-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; cursor: pointer; }
+.rb-toggle-row + .rb-toggle-row { border-top: 1px solid var(--rb-border); }
+.rb-toggle-row b { display: block; font-size: 13px; font-weight: 500; color: #fff; }
+.rb-toggle-row small { display: block; font-size: 10px; color: rgba(255,255,255,.6); }
+.rb-switch:checked { background: rgba(255,87,34,.6); border-color: rgba(255,87,34,.7); }
