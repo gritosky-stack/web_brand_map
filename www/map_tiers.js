@@ -65,10 +65,15 @@
         const m = window.map;
         if (!m || !m.isStyleLoaded || !m.getLayer) return;
         const open = hasOpenRoute();
+        // Множитель «Сравнения карт» (`map_slots.js`): крутизна и хитмап могут
+        // стоять вторым слотом, и тогда их прозрачность — это ярус, умноженный
+        // на ползунок. Собираем число в одном месте, иначе ползунок и ярусы
+        // затирали бы друг друга.
+        const slot = id => (window.MapSlots ? MapSlots.factorForLayer(id) : 1);
         for (const tier of TIERS) {
             if (!m.getLayer(tier.id)) continue;
             try {
-                m.setPaintProperty(tier.id, tier.prop, open ? tier.open : tier.idle);
+                m.setPaintProperty(tier.id, tier.prop, (open ? tier.open : tier.idle) * slot(tier.id));
             } catch (e) {
                 // Слой мог уехать со стилем между проверкой и записью
             }

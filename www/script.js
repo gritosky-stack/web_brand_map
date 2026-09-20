@@ -82,6 +82,9 @@ window.drapeBeforeId = function() {
 
 function toggleHeatmap(on) {
     _heatmapOn = on;
+    // Хитмап можно воткнуть в слот «Сравнения карт» — погасили тумблером,
+    // слот опустел (map_slots.js)
+    if (window.MapSlots) MapSlots.onLayerToggled('heat', on);
     // Слой кладём под линии маршрутов, а они появляются в обработчике map.on('load').
     // isStyleLoaded() бывает true ещё до него, поэтому ждём именно линии — иначе
     // хитмап встанет поверх треков.
@@ -2297,10 +2300,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const group = () => document.getElementById('route-panel-group');
         const fine = () => window.matchMedia &&
             matchMedia('(min-width: 768px) and (pointer: fine)').matches;
+        // Во время облёта и вращения карточка свёрнута — как раз тогда
+        // выглядывание нужнее всего: иначе вернуть её можно только попав в
+        // двадцатипиксельную вкладку (а под облётом её и вовсе не видно на
+        // телефоне). Камеру это не останавливает — см. `onPanelToggled`.
         const canPeek = g => g && fine() &&
             g.classList.contains('sidebar-open') && g.classList.contains('panel-collapsed') &&
-            !document.body.classList.contains('tw-immersive') &&
-            !document.body.classList.contains('tw-flyover');
+            !document.body.classList.contains('tw-drawing');
 
         function setPeek(g, on) {
             if (peeking === on) return;

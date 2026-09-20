@@ -9,7 +9,8 @@
  * ⚠️ Порядок. Растры и линии просятся в одно место — под маску вокруг Сербии
  * (`world-mask-layer`), и кто добавлен последним, тот и сверху: бумажная
  * подложка гравюры, включённая после хитмапа, просто стирала бы его. Поэтому
- * после каждого добавления стопка раскладывается заново по `STACK` (`restack`).
+ * после каждого добавления стопка раскладывается заново (`restack`, порядок
+ * собирает `stack()` — его же правит «Сравнение карт»).
  * Всё это лежит под первым слоем подписей — одной пачкой, которую рельеф
  * натягивает разом (см. `drapeBeforeId` в script.js).
  */
@@ -40,14 +41,32 @@
      * 2026-09-20). Поэтому ширины здесь постоянные, а где линия должна
      * пропадать на обзоре — у слоя стоит `minzoom`.
      */
-    // Снизу вверх. Всё — под маской мира
-    const STACK = [
-        'topo-layer',
-        'histmap-backdrop', 'histmap-layer', 'histmap-edge',
-        'slope-layer', 'heatmap-layer',
+    // Снизу вверх. Всё — под маской мира.
+    //
+    // Растры разложены по наборам, потому что порядок у них не жёсткий:
+    // «Сравнение карт» (`map_slots.js`) кладёт набор первого слота под набор
+    // второго, что бы в них ни воткнули. Линии всегда поверх растров.
+    const RASTER_GROUP = {
+        topo:    ['topo-layer'],
+        histmap: ['histmap-backdrop', 'histmap-layer', 'histmap-edge'],
+        slope:   ['slope-layer'],
+        heat:    ['heatmap-layer']
+    };
+    const RASTER_ORDER = ['topo', 'histmap', 'slope', 'heat'];
+    const LINE_STACK = [
         'osm-trails', 'pss-trails-casing', 'pss-trails-glow', 'pss-trails-line',
         'railway-line', 'railway-hatch'
     ];
+
+    function stack() {
+        const keys = window.MapSlots ? MapSlots.orderKeys(RASTER_ORDER) : RASTER_ORDER;
+        const ids = [];
+        for (const key of keys) ids.push.apply(ids, RASTER_GROUP[key]);
+        return ids.concat(LINE_STACK);
+    }
+
+    /** Насколько приглушён набор ползунком «Сравнения карт» */
+    const slotFactor = key => (window.MapSlots ? MapSlots.factorFor(key) : 1);
 
     const on = { topo: false, histmap: false, slope: false, pss: false, osm: false, rail: true };
     // Гравюра по умолчанию во всю силу: так под ней можно погасить основу
@@ -63,7 +82,7 @@
     function restack() {
         const m = map();
         if (!m || !m.getLayer('world-mask-layer')) return;
-        for (const id of STACK) if (m.getLayer(id)) m.moveLayer(id, 'world-mask-layer');
+        for (const id of stack()) if (m.getLayer(id)) m.moveLayer(id, 'world-mask-layer');
         // Слой мог только что появиться со своей полной прозрачностью, а
         // маршрут уже открыт — вернуть его в свой ярус (`map_tiers.js`)
         if (window.MapTiers) MapTiers.refresh();
@@ -98,9 +117,10 @@
             attribution: '© OpenTopoMap (CC-BY-SA) · © OpenStreetMap contributors'
         });
         m.addLayer({ id: 'topo-layer', type: 'raster', source: 'topo-source',
-                     paint: { 'raster-fade-duration': 0 } }, 'world-mask-layer');
-        syncBase();
+                     paint: { 'raster-opacity': slotFactor('topo'), 'raster-fade-duration': 0 } },
+                   'world-mask-layer');
         restack();
+        refreshAlpha();
     }
 
     // ── Основа под непрозрачной накладкой ───────────────────────────────────
@@ -124,7 +144,10 @@
     function syncBase() {
         const m = map();
         if (!m || !m.getStyle()) return;
-        const opaque = on.topo || (on.histmap && histAlpha >= OPAQUE_FROM);
+        // ⚠️ Накладка перестаёт быть сплошной, когда её гасит ползунок
+        // сравнения: под полупрозрачной топоосновой основа снова нужна
+        const eff = key => (on[key] ? (key === 'histmap' ? histAlpha : 1) * slotFactor(key) : 0);
+        const opaque = eff('topo') >= OPAQUE_FROM || eff('histmap') >= OPAQUE_FROM;
         if (opaque === !!hiddenBase.length) return;
 
         if (!opaque) {
@@ -225,20 +248,36 @@
                 if (src) src.setData(frameData());
             }).catch(() => { coverage = []; });
         }
-        syncBase();
         restack();
+        refreshAlpha();
     }
 
     /** Ползунок правит слои, а не пересобирает источник: иначе на каждом
      *  движении тайлы перезапрашивались бы заново */
     function setHistAlpha(a) {
         histAlpha = a;
+        refreshAlpha();
+    }
+
+    /**
+     * Прозрачность растров: своя у слоя, умноженная на множитель «Сравнения
+     * карт». Крутизну и хитмап трогаем не здесь — у них поверх ещё и
+     * приглушение под открытым маршрутом, и всё число собирает `map_tiers.js`.
+     */
+    function refreshAlpha() {
         syncBase();
         const m = map();
-        if (!m || !m.getLayer('histmap-layer')) return;
-        m.setPaintProperty('histmap-layer', 'raster-opacity', a);
-        m.setPaintProperty('histmap-backdrop', 'fill-opacity', a);
-        m.setPaintProperty('histmap-edge', 'line-opacity', a);
+        if (!m) return;
+        if (m.getLayer('topo-layer')) {
+            m.setPaintProperty('topo-layer', 'raster-opacity', slotFactor('topo'));
+        }
+        if (m.getLayer('histmap-layer')) {
+            const a = histAlpha * slotFactor('histmap');
+            m.setPaintProperty('histmap-layer', 'raster-opacity', a);
+            m.setPaintProperty('histmap-backdrop', 'fill-opacity', a);
+            m.setPaintProperty('histmap-edge', 'line-opacity', a);
+        }
+        if (window.MapTiers) MapTiers.refresh();
     }
 
     // ── Крутизна склонов ────────────────────────────────────────────────────
@@ -412,7 +451,10 @@
         on[key] = value;
         if (key === 'rail') { try { localStorage.setItem('tw-layer-rail', value ? '1' : '0'); } catch (e) {} }
         if (ready()) APPLY[key]();
+        if (key === 'histmap') syncHistRow();
         if (window.syncLayersBtn) syncLayersBtn();
+        // Слой погас — слот «Сравнения карт» с ним опустел
+        if (window.MapSlots) MapSlots.onLayerToggled(key, value);
     }
 
     /** Что-то включено сверх обычного вида — подсветить кнопку «Слои» */
@@ -437,7 +479,6 @@
             input.addEventListener('change', () => {
                 if (input.checked && guard && !guard()) { input.checked = false; return; }
                 set(key, input.checked);
-                if (key === 'histmap') syncHistRow();
             });
         };
         bind('layer-topo', 'topo');
@@ -476,7 +517,7 @@
         });
     }
 
-    window.ExtraLayers = { set, restack, anyOn, isOn: key => !!on[key] };
+    window.ExtraLayers = { set, restack, refreshAlpha, anyOn, isOn: key => !!on[key] };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();

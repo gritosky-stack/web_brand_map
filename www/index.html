@@ -675,11 +675,6 @@
             background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.22);
             color: #fff; font-size: 10px; font-weight: 700; white-space: nowrap;
         }
-        /* Стрелочка свёрнутой панели стоит там же, где ось километров.
-           Селектор длинный не от хорошей жизни: показывает её правило
-           `#route-panel-group.sidebar-open #panel-toggle-btn`, и перебить его
-           можно только не менее подробным */
-        body.tw-flyover #route-panel-group.sidebar-open #panel-toggle-btn { display: none; }
         #fp-chart { width: 100%; }
         /* Метка облёта в полёте (см. placeFlyoverDot) — как бегунок графика */
         #flyover-dot {
@@ -761,6 +756,15 @@
         }
 
         @media (max-width: 767px) {
+            /* Стрелочка свёрнутой панели стоит на телефоне внизу по центру —
+               там же, где у карточки облёта ось с километрами, и она
+               накрывала подпись под бегунком. На компьютере вкладка сидит у
+               левого края и ничему не мешает — там её оставляем, иначе
+               выехавшую панель (`panel-peek`) нечем свернуть обратно.
+               Селектор длинный не от хорошей жизни: показывает вкладку
+               правило `#route-panel-group.sidebar-open #panel-toggle-btn`,
+               и перебить его можно только не менее подробным */
+            body.tw-flyover #route-panel-group.sidebar-open #panel-toggle-btn { display: none; }
             /* Шапка в эти моменты спрятана (tw-immersive), и плашки встают
                на её место. В одну строку: с переносом шкала разрасталась на
                три строки и накрывала полкарты */
@@ -815,6 +819,130 @@
             width: 16px; height: 16px; border-radius: 50%; border: 2px solid #09090b;
             background: #ff4d4d; cursor: pointer;
         }
+
+        /* ── Сравнение карт: два слота и ползунок между ними ───────── */
+        /* Плашка стоит прямо у нижнего края. Пока маршрут не открыт, низ
+           занимает лента каталога — тогда она поднимается над ней. */
+        #compare-bar {
+            position: fixed; z-index: 45;
+            left: 50%; transform: translateX(-50%);
+            bottom: 18px;
+            width: min(430px, calc(100vw - 28px));
+            padding: 8px 10px;
+            background: rgba(12,12,14,.94); border: 1px solid rgba(63,63,70,.6);
+            border-radius: 14px; box-shadow: 0 8px 28px rgba(0,0,0,.7);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            display: flex; flex-direction: column; gap: 4px;
+            transition: bottom .3s cubic-bezier(.4,0,.2,1), left .3s cubic-bezier(.4,0,.2,1);
+        }
+        #compare-bar.hidden { display: none; }
+        @media (min-width: 768px) {
+            body:not(.route-open) #compare-bar { bottom: 170px; }
+            /* Открытая карточка маршрута забирает левую треть экрана — плашка
+               встаёт посередине того, что осталось (селектор по соседству:
+               она лежит в разметке сразу после панели) */
+            #route-panel-group.sidebar-open:not(.panel-collapsed) ~ #compare-bar {
+                left: calc(50% + 190px);
+            }
+        }
+        /* Вращение плашку не прячет: её для того и включают, чтобы смотреть,
+           как одна карта сменяет другую на живом кадре. А вот у облёта внизу
+           свой профиль, и там они встали бы друг на друга */
+        body.tw-flyover #compare-bar, body.tw-drawing #compare-bar { display: none; }
+        .cmp-row { display: flex; align-items: center; gap: 7px; }
+        .cmp-slot { flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px; }
+        /* Номер слота вместо подписи в отдельной строке: плашка висит над
+           картой, и каждая лишняя строка — это закрытый кусок карты */
+        .cmp-num {
+            width: 15px; height: 15px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 5px; background: rgba(255,255,255,.1);
+            color: rgba(255,255,255,.55); font-size: 9px; font-weight: 700;
+        }
+        /* Список выбора — свой вид: системный на тёмной плашке выглядит
+           заплаткой, а стрелку рисуем сами (у select её не перекрасить) */
+        .cmp-select { position: relative; display: block; flex: 1; min-width: 0; }
+        .cmp-select::after {
+            content: '▾'; position: absolute; right: 7px; top: 50%;
+            transform: translateY(-50%); pointer-events: none;
+            color: rgba(255,255,255,.45); font-size: 10px;
+        }
+        .cmp-select select {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; padding: 5px 20px 5px 8px;
+            background: rgba(255,255,255,.06); color: #fff;
+            border: 1px solid rgba(63,63,70,.7); border-radius: 8px;
+            font-size: 12px; font-family: inherit; cursor: pointer; outline: none;
+            text-overflow: ellipsis;
+        }
+        .cmp-select select:hover { background: rgba(255,255,255,.1); }
+        .cmp-select select:focus-visible { border-color: rgba(255,77,77,.55); }
+        .cmp-select option { background: #131316; color: #fff; }
+        #cmp-swap, #cmp-close {
+            flex-shrink: 0; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,.06); border: 1px solid rgba(63,63,70,.7);
+            color: rgba(255,255,255,.6);
+            transition: background .15s, color .15s;
+        }
+        #cmp-swap { width: 24px; height: 26px; border-radius: 8px; font-size: 12px; }
+        #cmp-swap:hover { background: rgba(255,255,255,.12); color: #fff; }
+        #cmp-swap:disabled { opacity: .3; cursor: default; background: rgba(255,255,255,.04); }
+        #cmp-close { width: 22px; height: 22px; border-radius: 7px; border: none; font-size: 11px; }
+        #cmp-close:hover { background: rgba(255,77,77,.25); color: #fff; }
+        .cmp-mix-row { gap: 9px; padding: 0 2px; }
+        #cmp-mix-value {
+            flex-shrink: 0; width: 34px; text-align: right;
+            font-size: 11px; font-weight: 600; color: rgba(255,255,255,.85);
+        }
+        /* Ползунок крупнее обычного `.tw-range`: по нему ведут курсором на
+           живой карте, и в трёхпиксельную дорожку попадать неудобно */
+        #cmp-mix {
+            -webkit-appearance: none; appearance: none;
+            flex: 1; min-width: 0; height: 22px;
+            background: transparent; outline: none; cursor: pointer;
+        }
+        #cmp-mix::-webkit-slider-runnable-track {
+            height: 6px; border-radius: 999px; background: rgba(255,255,255,.18);
+        }
+        #cmp-mix::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 20px; height: 20px; margin-top: -7px;
+            border-radius: 50%; background: #ff4d4d; border: 3px solid #09090b;
+            box-shadow: 0 2px 8px rgba(0,0,0,.55); cursor: pointer;
+        }
+        #cmp-mix::-moz-range-track {
+            height: 6px; border-radius: 999px; background: rgba(255,255,255,.18);
+        }
+        #cmp-mix::-moz-range-thumb {
+            width: 20px; height: 20px; border-radius: 50%;
+            background: #ff4d4d; border: 3px solid #09090b; cursor: pointer;
+        }
+        @media (max-width: 767px) {
+            /* Во всю ширину: на 390 px названия двух карт иначе не влезают.
+               Нижние 34 px оставлены логотипу Mapbox и ссылке на источники —
+               их прятать нельзя, а столбик кнопок справа уезжает вверх
+               (`body.tw-compare` ниже) */
+            #compare-bar {
+                left: 8px; right: 8px; width: auto; transform: none;
+                bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+            }
+            /* Плашка встала на место кнопок — двигаем весь столбик на её
+               высоту с зазором. Пока открыта шторка маршрута, кнопки и так
+               скрыты за ней, так что лишний сдвиг там никому не мешает */
+            body.tw-compare #btn-layers-toggle { bottom: calc(106px + env(safe-area-inset-bottom, 0px)); }
+            body.tw-compare #asst-fab          { bottom: calc(156px + env(safe-area-inset-bottom, 0px)); }
+            body.tw-compare #btn-draw-route    { bottom: calc(218px + env(safe-area-inset-bottom, 0px)); }
+            body.tw-compare #btn-my-location   { bottom: calc(268px + env(safe-area-inset-bottom, 0px)); }
+            /* Шторка маршрута занимает низ экрана — плашка встаёт над ней,
+               с запасом на вкладку-стрелочку (20 px над шторкой) */
+            #route-panel-group.sidebar-open:not(.panel-collapsed) ~ #compare-bar {
+                bottom: calc(58vh + 26px); right: 8px;
+            }
+            .cmp-select select { font-size: 11px; padding: 5px 17px 5px 7px; }
+            .cmp-select::after { right: 5px; }
+            .cmp-slot { gap: 4px; }
+            .cmp-row { gap: 6px; }
+        }
     </style>
     <!-- exifr грузится по требованию (_ensureExifr в script.js): GPS фотографий
          обычно уже посчитан в routes_geom.json -->
@@ -861,6 +989,13 @@
             <input id="histmap-alpha" type="range" min="10" max="100" step="1" class="tw-range" aria-label="Прозрачность исторической карты">
             <span id="histmap-alpha-value" class="tabular-nums"></span>
         </div>
+
+        <!-- Два слоя в слотах и ползунок между ними (map_slots.js) -->
+        <div class="layer-section">Сравнение карт</div>
+        <label class="layer-row">
+            <span class="layer-name">🎚 Слайдер между слоями<em>две карты в слотах, одна сквозь другую</em></span>
+            <input type="checkbox" id="layer-compare" class="layer-switch">
+        </label>
 
         <div class="layer-section">Тропы и рельеф</div>
         <label class="layer-row">
@@ -1361,6 +1496,28 @@
         <div id="fp-chart"></div>
     </div>
 
+    <!-- Сравнение карт: два слота и ползунок между ними (map_slots.js).
+         Стоит в разметке после #route-panel-group — по соседству с ней CSS
+         отодвигает плашку от открытой карточки маршрута -->
+    <div id="compare-bar" class="hidden" role="group" aria-label="Сравнение карт">
+        <div class="cmp-row">
+            <label class="cmp-slot" title="Слой 1 — лежит снизу">
+                <span class="cmp-num">1</span>
+                <span class="cmp-select"><select id="cmp-slot-a" aria-label="Слой 1, снизу"></select></span>
+            </label>
+            <button id="cmp-swap" aria-label="Поменять слои местами" title="Поменять местами">⇄</button>
+            <label class="cmp-slot" title="Слой 2 — лежит сверху, его и проявляет ползунок">
+                <span class="cmp-num">2</span>
+                <span class="cmp-select"><select id="cmp-slot-b" aria-label="Слой 2, сверху"></select></span>
+            </label>
+            <button id="cmp-close" aria-label="Закрыть сравнение" title="Закрыть">✕</button>
+        </div>
+        <div class="cmp-row cmp-mix-row">
+            <input id="cmp-mix" type="range" min="0" max="100" step="1" aria-label="Ползунок между слоями">
+            <b id="cmp-mix-value" class="tabular-nums"></b>
+        </div>
+    </div>
+
     <!-- Desktop Route Carousel -->
     <!-- Лента «Мои» — вместо карусели каталога, когда выбран фильтр «Мои» -->
     <div id="my-routes-strip" class="scrollbar-hide"></div>
@@ -1434,6 +1591,7 @@
     <script src="map_points.js"></script>
     <script src="premium.js"></script>
     <script src="extra_layers.js"></script>
+    <script src="map_slots.js"></script>
     <script src="point_insight.js"></script>
     <script src="my_location.js"></script>
     <script>
