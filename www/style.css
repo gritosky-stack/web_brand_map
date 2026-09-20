@@ -84,10 +84,22 @@ nav.hidden.md\\:flex {
 }
 
 /* ── «Нарисовать» (route_builder.js) ─────────────────────────────────────────
-   Порт RouteConstructorView: плашка режима сверху, сводка, статус и кнопки
-   снизу, прицел в центре кадра. Пока рисуют, всё про каталог уходит —
+   Порт RouteConstructorView, но разложенный по-веб: на компьютере вся сводка
+   живёт панелью слева (там же, где панель открытого маршрута), а под прицелом
+   в середине кадра остаются только «Шаг», отмена и подсказки. На телефоне та
+   же панель ложится шторкой над кнопками.
+
+   Цвет — сиреневый «моих маршрутов» (MINE_COLOR в script.js), а не оранжевый:
+   нарисованное и становится «моим», а оранжевый вдобавок спорил и с рельефом,
+   и с планами каталога (#FF8C00). Пока рисуют, всё про каталог уходит —
    шапка, карусель, лента «Мои», ассистент; «Слои» остаются. */
-:root { --rb-accent: #FF5722; --rb-glass: rgba(255,255,255,.07); --rb-border: rgba(255,255,255,.1); }
+:root {
+    --rb-accent:  #C3A6FF;
+    --rb-accent-s: 195,166,255;
+    --rb-glass:   rgba(255,255,255,.06);
+    --rb-border:  rgba(255,255,255,.1);
+    --rb-panel:   rgba(12,12,16,.84);
+}
 
 #btn-draw-route {
     position: fixed; z-index: 30; right: 14px; bottom: 132px;
@@ -143,69 +155,133 @@ body.tw-drawing #btn-draw-route { display: none !important; }
 }
 @keyframes rb-spin { to { transform: rotate(360deg); } }
 
-#rb-modebar {
-    position: fixed; z-index: 35; top: calc(16px + env(safe-area-inset-top)); left: 16px; right: 16px;
-    max-width: 520px; margin: 0 auto;
-    display: flex; align-items: center; gap: 8px; padding: 9px 10px 9px 14px;
-    background: rgba(10,10,10,.78); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255,87,34,.4); border-radius: 999px;
+/* ── Панель конструктора ─────────────────────────────────────────────────── */
+#rb-panel {
+    position: fixed; z-index: 35; display: flex; flex-direction: column;
+    left: 16px; top: calc(16px + env(safe-area-inset-top));
+    width: 336px;
+    /* Панель ровно по содержимому: пустой хвост до низа экрана и закрытый им
+       логотип Mapbox (его прятать нельзя) — то же «куча места», от которого
+       уходили. Длинный список точек упирается в потолок и листается сам. */
+    max-height: calc(100vh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    background: var(--rb-panel); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--rb-border); border-radius: 20px; box-shadow: 0 18px 50px rgba(0,0,0,.55);
+    overflow: hidden; animation: rb-slide-in .3s ease;
 }
-.rb-mode-label { display: flex; align-items: center; gap: 6px; color: var(--rb-accent); font-size: 12px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
-.rb-mode-label i { width: 7px; height: 7px; border-radius: 50%; background: var(--rb-accent); }
+@keyframes rb-slide-in { from { transform: translateX(-14px); opacity: 0; } }
+@media (max-width: 1080px) { #rb-panel { width: 300px; } }
+
+.rb-head {
+    flex: none; display: flex; align-items: center; gap: 6px; padding: 12px 12px 10px 14px;
+    border-bottom: 1px solid var(--rb-border);
+}
+.rb-mode-label { display: flex; align-items: center; gap: 7px; color: var(--rb-accent); font-size: 11.5px; font-weight: 700; letter-spacing: .05em; white-space: nowrap; }
+.rb-mode-label i { width: 7px; height: 7px; border-radius: 50%; background: var(--rb-accent); animation: rb-blink 2.4s ease-in-out infinite; }
+@keyframes rb-blink { 50% { opacity: .25; } }
 .rb-spacer { flex: 1; }
 .rb-chip {
-    display: flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 999px; cursor: pointer;
-    font-size: 11px; font-weight: 500; color: rgba(255,255,255,.4);
+    display: flex; align-items: center; gap: 5px; padding: 6px 9px; border-radius: 999px; cursor: pointer;
+    font-size: 11px; font-weight: 500; color: rgba(255,255,255,.45);
     background: var(--rb-glass); border: 1px solid var(--rb-border); white-space: nowrap;
     transition: color .18s, background .18s, border-color .18s;
 }
-.rb-chip.on { color: var(--rb-accent); background: rgba(255,87,34,.15); border-color: rgba(255,87,34,.45); }
-.rb-chip-stop { color: rgba(255,255,255,.65); font-size: 12px; padding: 6px 12px; }
+.rb-chip.on { color: var(--rb-accent); background: rgba(var(--rb-accent-s),.14); border-color: rgba(var(--rb-accent-s),.4); }
 .rb-chip:hover { color: #fff; }
-@media (max-width: 440px) {
-    #rb-modebar { left: 10px; right: 10px; gap: 6px; padding: 8px 8px 8px 12px; }
-    .rb-mode-label { font-size: 11px; letter-spacing: .02em; }
-    .rb-chip { padding: 6px 8px; }
-    .rb-chip-stop { font-size: 11px; padding: 6px 10px; }
-}
-@media (max-width: 360px) { #rb-btn-snap span { display: none; } }
+.rb-chip-stop { color: rgba(255,255,255,.7); }
+#rb-btn-more svg { transition: transform .2s; }
+#rb-panel:not(.rb-lean) #rb-btn-more svg { transform: rotate(180deg); }
 
-#rb-bottom {
-    position: fixed; z-index: 35; left: 16px; right: 16px; bottom: calc(66px + env(safe-area-inset-bottom));
-    max-width: 440px; margin: 0 auto;
-    display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none;
+/* Вторая строка головы: «По тропам» и «Правила» — они меняют, что произойдёт
+   со следующей точкой, поэтому стоят над сводкой, а не среди кнопок внизу */
+.rb-tools { flex: none; display: flex; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--rb-border); }
+.rb-tools .rb-chip { flex: 1; justify-content: center; padding: 7px 8px; }
+
+.rb-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.rb-body::-webkit-scrollbar { width: 6px; }
+.rb-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 3px; }
+
+.rb-empty { padding: 18px 12px; text-align: center; color: rgba(255,255,255,.45); font-size: 12px; line-height: 1.5; }
+.rb-empty b { display: block; color: rgba(255,255,255,.8); font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+
+/* Главные цифры — в строку, крупно; остальное плиткой ниже */
+.rb-hero { display: flex; align-items: flex-end; gap: 10px; }
+.rb-hero-main { flex: 1; min-width: 0; }
+.rb-hero-km { color: #fff; font: 700 30px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.02em; }
+.rb-hero-km small { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.5); margin-left: 4px; }
+.rb-hero-time { margin-top: 5px; font-size: 12px; color: var(--rb-accent); font-weight: 500; }
+.rb-hero-climb { display: flex; flex-direction: column; gap: 4px; text-align: right; }
+.rb-hero-climb span { font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: #fff; white-space: nowrap; }
+.rb-hero-climb span i { font-style: normal; color: rgba(255,255,255,.5); font-size: 11px; margin-right: 2px; }
+.rb-hero-climb span em { font-style: normal; font-size: 10px; color: rgba(255,255,255,.45); margin-left: 2px; }
+
+.rb-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.rb-cell { padding: 7px 9px; border-radius: 10px; background: var(--rb-glass); min-width: 0; }
+.rb-cell-h { font-size: 9px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.4); }
+.rb-cell-v { margin-top: 2px; color: #fff; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rb-cell-v small { font-size: 10px; font-weight: 500; color: rgba(255,255,255,.5); margin-left: 2px; }
+
+/* ── График высот ────────────────────────────────────────────────────────── */
+.rb-profile { position: relative; border-radius: 12px; background: rgba(0,0,0,.28); border: 1px solid var(--rb-border); overflow: hidden; }
+.rb-profile canvas { display: block; width: 100%; height: 118px; cursor: crosshair; }
+.rb-profile.rb-wait canvas { opacity: .25; }
+.rb-profile-wait {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    font-size: 11px; color: rgba(255,255,255,.5); pointer-events: none;
 }
-#rb-bottom > * { pointer-events: auto; }
-@media (min-width: 768px) { #rb-bottom { bottom: 44px; } }
-.rb-card {
-    width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px;
-    padding: 12px 18px; border-radius: 16px;
-    background: rgba(18,18,18,.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    border: 1px solid var(--rb-border); box-shadow: 0 0 16px rgba(0,0,0,.4);
-    animation: rb-pop .3s ease;
+.rb-profile.rb-wait .rb-profile-wait { display: flex; }
+
+/* ── Список точек ────────────────────────────────────────────────────────── */
+.rb-section { display: flex; align-items: center; gap: 8px; font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.35); }
+.rb-section::after { content: ''; flex: 1; height: 1px; background: var(--rb-border); }
+.rb-points { display: flex; flex-direction: column; }
+.rb-pt {
+    display: flex; align-items: center; gap: 9px; padding: 6px 7px; border-radius: 10px;
+    cursor: pointer; text-align: left; width: 100%; color: #fff;
+    transition: background .15s;
 }
-@keyframes rb-pop { from { transform: scale(.85); opacity: 0; } }
-.rb-stats-row { display: flex; align-items: center; gap: 12px; }
-.rb-stat { display: flex; align-items: baseline; gap: 3px; white-space: nowrap; }
-.rb-stat em { font-style: normal; font-size: 11px; color: rgba(255,255,255,.6); }
-.rb-stat b { font: 700 15px ui-monospace, SFMono-Regular, Menlo, monospace; color: #fff; }
-.rb-stat small { font-size: 10px; color: rgba(255,255,255,.6); }
-.rb-div { width: 1px; height: 22px; background: var(--rb-border); }
-.rb-time { font-size: 11px; font-weight: 500; color: rgba(255,255,255,.6); }
+.rb-pt:hover { background: rgba(255,255,255,.07); }
+.rb-pt-idx {
+    flex: none; width: 21px; height: 21px; border-radius: 50%; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--rb-accent); background: rgba(var(--rb-accent-s),.16); border: 1px solid rgba(var(--rb-accent-s),.35);
+    font-variant-numeric: tabular-nums;
+}
+.rb-pt-main { flex: 1; min-width: 0; }
+.rb-pt-name { font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rb-pt-sub { margin-top: 1px; font-size: 10px; color: rgba(255,255,255,.5); font-variant-numeric: tabular-nums; }
+.rb-pt-sub b { font-weight: 600; color: rgba(255,255,255,.7); }
+.rb-pt-leg { flex: none; text-align: right; font-size: 10px; color: rgba(255,255,255,.55); font-variant-numeric: tabular-nums; }
+.rb-pt-leg b { display: block; font-size: 11px; font-weight: 600; color: #fff; }
+.rb-pt-kind { display: inline-flex; align-items: center; gap: 3px; }
+.rb-pt-kind i { width: 12px; height: 2px; border-radius: 1px; background: var(--rb-accent); }
+.rb-pt-kind.rb-dashed i { background: repeating-linear-gradient(90deg, var(--rb-accent) 0 3px, transparent 3px 5px); }
+.rb-pt-kind.rb-wait-dot i { background: rgba(255,255,255,.35); animation: rb-blink 1.2s ease-in-out infinite; }
+.rb-grade { font-weight: 600; }
+
+.rb-foot { flex: none; display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--rb-border); }
 .rb-done {
-    width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 9px; border-radius: 11px; cursor: pointer; font-size: 13px; font-weight: 600;
-    background: var(--rb-accent); color: #000;
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 11px; border-radius: 12px; cursor: pointer; font-size: 13.5px; font-weight: 600;
+    background: var(--rb-accent); color: #1B0F33; transition: filter .15s;
 }
+.rb-done:hover:not(:disabled) { filter: brightness(1.08); }
 .rb-done:disabled { background: var(--rb-glass); color: rgba(255,255,255,.35); cursor: default; }
+
+/* ── Низ экрана: подсказки и «Шаг» под прицелом ──────────────────────────── */
+#rb-dock {
+    position: fixed; z-index: 35; left: 16px; right: 16px; bottom: calc(24px + env(safe-area-inset-bottom));
+    max-width: 380px; margin: 0 auto;
+    display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none;
+}
+#rb-dock > * { pointer-events: auto; }
 .rb-pill {
     display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px;
-    font-size: 12px; color: rgba(255,255,255,.6); text-align: center;
-    background: rgba(10,10,10,.6); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    border: 1px solid var(--rb-border);
+    font-size: 12px; color: rgba(255,255,255,.65); text-align: center;
+    background: rgba(10,10,10,.7); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--rb-border); box-shadow: 0 4px 16px rgba(0,0,0,.4);
 }
-#rb-hint { font-size: 13px; padding: 10px 18px; }
-.rb-pill-accent { color: var(--rb-accent); border-color: rgba(255,87,34,.35); }
+#rb-hint { font-size: 12.5px; padding: 9px 16px; }
+.rb-pill-accent { color: var(--rb-accent); border-color: rgba(var(--rb-accent-s),.35); }
 .rb-controls { width: 100%; display: flex; gap: 10px; }
 .rb-hist {
     flex: none; width: 52px; height: 48px; border-radius: 14px; cursor: pointer;
@@ -217,10 +293,34 @@ body.tw-drawing #btn-draw-route { display: none !important; }
 .rb-step {
     flex: 1; height: 48px; border-radius: 14px; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 7px;
-    font-size: 15px; font-weight: 600; color: #000; background: var(--rb-accent);
-    box-shadow: 0 2px 8px rgba(255,87,34,.35);
+    font-size: 15px; font-weight: 600; color: #1B0F33; background: var(--rb-accent);
+    box-shadow: 0 2px 10px rgba(var(--rb-accent-s),.35);
 }
 .rb-step:active, .rb-hist:active:not(:disabled) { transform: scale(.97); }
+
+/* Телефон: панель — шторка над кнопками, тянется до половины экрана */
+@media (max-width: 767px) {
+    #rb-panel {
+        left: 10px; right: 10px; width: auto; top: auto;
+        bottom: calc(92px + env(safe-area-inset-bottom));
+        max-height: min(52vh, 420px); border-radius: 18px;
+        animation: rb-pop .28s ease;
+    }
+    .rb-head { padding: 10px 10px 9px 12px; }
+    .rb-tools { padding: 8px 10px; }
+    .rb-body { padding: 10px; gap: 10px; }
+    .rb-foot { padding: 8px 10px; }
+    .rb-hero-km { font-size: 26px; }
+    .rb-profile canvas { height: 84px; }
+    #rb-dock { bottom: calc(16px + env(safe-area-inset-bottom)); left: 10px; right: 10px; max-width: none; }
+    /* Подробности на телефоне закрыты: там дорога каждая строка */
+    #rb-panel.rb-lean .rb-grid,
+    #rb-panel.rb-lean .rb-points,
+    #rb-panel.rb-lean .rb-section { display: none; }
+}
+@keyframes rb-pop { from { transform: scale(.94); opacity: 0; } }
+.rb-more { display: none; }
+@media (max-width: 767px) { .rb-more { display: flex; } }
 
 /* Окна: сохранение и правила маршрута */
 /* Двойной класс: .tw-modal-inner задан в index.html позже этого файла */
@@ -232,11 +332,11 @@ body.tw-drawing #btn-draw-route { display: none !important; }
     width: 100%; padding: 12px 14px; border-radius: 12px; outline: none; font: inherit; font-size: 15px; color: #fff;
     background: var(--rb-glass); border: 1px solid var(--rb-border); caret-color: var(--rb-accent);
 }
-.rb-input:focus { border-color: rgba(255,87,34,.6); }
+.rb-input:focus { border-color: rgba(var(--rb-accent-s),.6); }
 .rb-sheet-buttons { display: flex; gap: 12px; margin-top: 20px; }
 .rb-btn { flex: 1; padding: 14px; border-radius: 14px; font-size: 15px; cursor: pointer; }
 .rb-btn-ghost { color: rgba(255,255,255,.6); font-weight: 500; background: var(--rb-glass); border: 1px solid var(--rb-border); }
-.rb-btn-accent { color: #000; font-weight: 600; background: var(--rb-accent); }
+.rb-btn-accent { color: #1B0F33; font-weight: 600; background: var(--rb-accent); }
 .rb-btn:disabled { opacity: .6; cursor: default; }
 .rb-sheet-note { margin-top: 14px; text-align: center; }
 
@@ -257,18 +357,18 @@ body.tw-drawing #btn-draw-route { display: none !important; }
 }
 .rb-level b { display: block; font-size: 13px; font-weight: 500; }
 .rb-level small { display: block; font-size: 10px; opacity: .75; }
-.rb-level.on { background: var(--rb-accent); color: #000; }
+.rb-level.on { background: var(--rb-accent); color: #1B0F33; }
 .rb-radio { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--rb-border); position: relative; }
 .rb-level.on .rb-radio { border-color: rgba(0,0,0,.3); background: rgba(0,0,0,.15); }
-.rb-level.on .rb-radio::after { content: ''; position: absolute; left: 3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: #000; }
+.rb-level.on .rb-radio::after { content: ''; position: absolute; left: 3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: #1B0F33; }
 .rb-segs { display: flex; gap: 6px; }
 .rb-seg { flex: 1; min-width: 0; white-space: nowrap; padding: 9px 2px; border-radius: 999px; font-size: 11.5px; font-weight: 500; color: rgba(255,255,255,.6); background: var(--rb-glass); cursor: pointer; }
-.rb-seg.on { background: var(--rb-accent); color: #000; }
+.rb-seg.on { background: var(--rb-accent); color: #1B0F33; }
 .rb-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; cursor: pointer; }
 .rb-toggle-row + .rb-toggle-row { border-top: 1px solid var(--rb-border); }
 .rb-toggle-row b { display: block; font-size: 13px; font-weight: 500; color: #fff; }
 .rb-toggle-row small { display: block; font-size: 10px; color: rgba(255,255,255,.6); }
-.rb-switch:checked { background: rgba(255,87,34,.6); border-color: rgba(255,87,34,.7); }
+.rb-switch:checked { background: rgba(var(--rb-accent-s),.55); border-color: rgba(var(--rb-accent-s),.7); }
 
 /* ── Вода и укрытия (map_points.js) ────────────────────────────────────────── */
 .layer-section {

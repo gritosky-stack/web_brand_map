@@ -23,7 +23,10 @@
 (function () {
     'use strict';
 
-    const LINE_COLOR     = '#FF8C1A';    // линия конструктора, как в приложении
+    // Сиреневый «моих маршрутов» (MINE_COLOR в script.js): нарисованное ими и
+    // становится, а оранжевый спорил и с рельефом, и с планами каталога
+    const LINE_COLOR     = '#C3A6FF';
+    const LINE_CASING    = '#140B24';    // тёмная подложка: линию видно и на светлом склоне
     const TRAILS_COLOR   = '#59D96B';    // тропы OSM под рисованием (DS.osmUI)
     const SNAP_M         = 100;          // TrailSnapService.snapRadiusMeters
     const ANCHOR_SNAP_M  = 150;          // TrailRouter.anchorSnapMeters
@@ -490,6 +493,10 @@
 
     function reset() {
         waypoints = []; legs = []; undoStack = []; redoStack = [];
+        pointsInfo = [];
+        profile = null; revealKm = 0; revealAnim = null;
+        viewMin = viewMax = null; hoverKm = null;
+        auxLeg = -1; auxPoint = null;
     }
 
     /** Ставит точку и сразу прокладывает к ней путь от предыдущей. */
@@ -501,8 +508,11 @@
             const leg = { id: ++legSeq, path: [prev, p], kind: snapEnabled ? 'pending' : 'straight',
                           dist: meters(prev, p), ele: null };
             legs.push(leg);
+            // Высоты по рельефу — сразу, даже для «ожидающего» отрезка: иначе
+            // на время прокладки график высот пропадал бы целиком, а так он
+            // показывает временную прямую и обновляется, когда ляжет тропа
+            fillLegElevations(legs.length - 1);
             if (snapEnabled) routeLeg(leg.id, prev, p);
-            else fillLegElevations(legs.length - 1);
         }
         changed();
     }
@@ -599,6 +609,22 @@
         if (!map.getSource('builder-lines')) {
             map.addSource('builder-lines', { type: 'geojson', data: EMPTY });
             map.addSource('builder-dots', { type: 'geojson', data: EMPTY });
+            // Подсветка отрезка и бегунок графика — свой источник: он меняется
+            // от движения мыши, а линию маршрута трогать на каждом кадре нельзя
+            map.addSource('builder-aux', { type: 'geojson', data: EMPTY });
+            // Тёмная подложка под линией: сиреневый на светлом склоне (крутизна,
+            // гравюра) иначе сливается. Ширины — числа, не выражения по зуму
+            map.addLayer({
+                id: 'builder-line-casing', type: 'line', source: 'builder-lines',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: { 'line-color': LINE_CASING, 'line-opacity': 0.55, 'line-width': 7.5 }
+            }, before);
+            map.addLayer({
+                id: 'builder-leg-hl', type: 'line', source: 'builder-aux',
+                filter: ['==', ['geometry-type'], 'LineString'],
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: { 'line-color': '#FFFFFF', 'line-opacity': 0.55, 'line-width': 9, 'line-blur': 1.5 }
+            }, before);
             // Тропы сплошной линией, прямые куски — пунктиром: сразу видно,
             // где маршрут лёг на тропу, а где пошёл напрямик
             map.addLayer({
@@ -623,13 +649,61 @@
                     'circle-pitch-alignment': 'map'
                 }
             });
+            // Точка под пальцем на графике высот — поверх всего
+            map.addLayer({
+                id: 'builder-cursor', type: 'circle', source: 'builder-aux',
+                filter: ['==', ['geometry-type'], 'Point'],
+                paint: {
+                    'circle-radius': 6, 'circle-color': '#ffffff',
+                    'circle-stroke-width': 3, 'circle-stroke-color': LINE_COLOR,
+                    'circle-pitch-alignment': 'map'
+                }
+            });
         }
     }
 
     function removeLayers() {
-        ['builder-dots', 'builder-line-straight', 'builder-line-trail', 'builder-osm-trails']
+        ['builder-cursor', 'builder-dots', 'builder-line-straight', 'builder-line-trail',
+         'builder-leg-hl', 'builder-line-casing', 'builder-osm-trails']
             .forEach(id => { if (map.getLayer(id)) map.removeLayer(id); });
-        ['builder-dots', 'builder-lines', 'builder-trails'].forEach(id => { if (map.getSource(id)) map.removeSource(id); });
+        ['builder-dots', 'builder-lines', 'builder-aux', 'builder-trails']
+            .forEach(id => { if (map.getSource(id)) map.removeSource(id); });
+    }
+
+    /**
+     * Подсветка отрезка и точка-бегунок на карте. Обе живут в `builder-aux`:
+     * список точек наводят мышью, график ведут пальцем — оба меняются часто,
+     * и перезаливать из-за них саму линию маршрута незачем.
+     */
+    let auxLeg = -1, auxPoint = null;
+
+    function drawAux() {
+        const src = map.getSource && map.getSource('builder-aux');
+        if (!src) return;
+        const features = [];
+        const leg = legs[auxLeg];
+        if (leg && leg.path.length >= 2) {
+            features.push({ type: 'Feature', properties: {},
+                            geometry: { type: 'LineString', coordinates: leg.path } });
+        }
+        if (auxPoint) {
+            features.push({ type: 'Feature', properties: {},
+                            geometry: { type: 'Point', coordinates: auxPoint } });
+        }
+        src.setData({ type: 'FeatureCollection', features });
+    }
+
+    function highlightLeg(i) {
+        if (auxLeg === i) return;
+        auxLeg = i == null ? -1 : i;
+        drawAux();
+    }
+
+    function showMapCursor(p) {
+        const same = (!p && !auxPoint) || (p && auxPoint && p[0] === auxPoint[0] && p[1] === auxPoint[1]);
+        if (same) return;
+        auxPoint = p || null;
+        drawAux();
     }
 
     function drawOnMap() {
@@ -650,10 +724,36 @@
         });
     }
 
-    /** Середина кадра — у нас отступы нулевые, но берём от холста, как приложение. */
+    /**
+     * Куда целимся. На компьютере — середина холста, как в приложении. На
+     * телефоне панель занимает низ экрана, и геометрическая середина попадает
+     * под неё: прицел уезжал под шторку, а «Шаг» ставил точку вслепую.
+     * Поэтому там целимся в середину **свободной** части кадра — и прицел
+     * рисуется ровно в той же точке, иначе они разойдутся.
+     */
+    let aimPoint = null;
+
+    function layoutAim() {
+        const c = map && map.getContainer && map.getContainer();
+        if (!c) return;
+        const w = c.clientWidth, h = c.clientHeight;
+        let y = h / 2;
+        if (!wideScreen()) {
+            // У `position: fixed` нет offsetParent — о том, видна ли панель,
+            // спрашиваем сам прямоугольник
+            const panel = document.getElementById('rb-panel');
+            const box = panel && panel.getBoundingClientRect();
+            const top = box && box.height > 0 ? box.top : h;
+            y = Math.max(96, Math.min(h / 2, top / 2));
+        }
+        aimPoint = [w / 2, y];
+        const cross = document.getElementById('rb-crosshair');
+        if (cross) { cross.style.left = aimPoint[0] + 'px'; cross.style.top = aimPoint[1] + 'px'; }
+    }
+
     function screenCenter() {
-        const c = map.getContainer();
-        return [c.clientWidth / 2, c.clientHeight / 2];
+        if (!aimPoint) layoutAim();
+        return aimPoint || [0, 0];
     }
 
     /** «Резинка» от последней точки к прицелу — экранные координаты, каждый кадр. */
@@ -681,6 +781,9 @@
     // это зум, а не две точки, поэтому одиночный ждёт, не придёт ли второй.
     let lastGestureEnd = 0;
     let clickTimer = null;
+
+    /** Панель и график тянутся за окном — canvas пересобираем по размеру. */
+    function onWindowResize() { layoutAim(); updateAim(); requestProfileFrame(); }
 
     function onGestureEnd(e) {
         if (e && e.originalEvent) lastGestureEnd = performance.now();
@@ -728,6 +831,363 @@
         }
     }
 
+    // ── Сводка по точкам и отрезкам ─────────────────────────────────────────
+
+    /**
+     * Что известно про каждую опорную точку: высота, пройденный километр и
+     * отрезок, которым в неё пришли. Инвариант тот же — `legs[i]` ведёт из
+     * точки `i` в `i + 1`, поэтому «данные отрезка» висят на его конце.
+     */
+    let pointsInfo = [];        // пересчитывается в changed(), а не покадрово
+
+    function waypointInfo() {
+        const out = waypoints.map(w => ({
+            lon: w[0], lat: w[1], km: 0, ele: null,
+            legKm: 0, up: 0, down: 0, kind: null, grade: null
+        }));
+        let acc = 0;
+        for (let i = 0; i < legs.length && i + 1 < out.length; i++) {
+            const leg = legs[i];
+            acc += leg.dist / 1000;
+            const end = out[i + 1];
+            end.km = acc;
+            end.legKm = leg.dist / 1000;
+            end.kind = leg.kind;
+            const c = climb(leg.ele);
+            if (c) { end.up = c.ascent; end.down = c.descent; }
+            if (leg.ele && leg.ele.length === leg.path.length) {
+                if (out[i].ele == null) out[i].ele = leg.ele[0];
+                end.ele = leg.ele[leg.ele.length - 1];
+                if (leg.dist > 1) end.grade = (end.ele - leg.ele[0]) / leg.dist * 100;
+            }
+        }
+        // Высоту, которую не дал ни один отрезок, спрашиваем у рельефа
+        for (const p of out) if (p.ele == null) p.ele = terrainElevation([p.lon, p.lat]);
+        return out;
+    }
+
+    /** Доля пути, легшая на тропы, — 0…1 или null, пока отрезков нет. */
+    function trailShare() {
+        const total = legs.reduce((s, l) => s + l.dist, 0);
+        if (!(total > 0)) return null;
+        return legs.filter(l => l.kind === 'trail').reduce((s, l) => s + l.dist, 0) / total;
+    }
+
+    // ── Профиль высот ───────────────────────────────────────────────────────
+    //
+    // Тот же расчёт цвета, что у линии маршрута на карте (`grade_color.js`):
+    // раскраска графика и раскраска линии обязаны совпадать, иначе один и тот
+    // же подъём выглядит на карте ровным, а на графике полосатым.
+    //
+    // Профиль растёт вместе с маршрутом: новая часть не появляется рывком, а
+    // проявляется слева направо (`revealKm`), и граница по высоте переезжает
+    // плавно, а не прыгает на каждой точке.
+
+    const PROFILE_SAMPLES = 220;
+
+    let profile = null;           // { km[], ele[], coords, cum, totalKm, stops, min, max, pendingKm }
+    let revealKm = 0;             // сколько километров уже проявлено
+    let revealAnim = null;        // { from, to, t0, dur }
+    let viewMin = null, viewMax = null;
+    let profileRaf = 0;
+    let hoverKm = null;
+
+    const reducedMotion = () => window.matchMedia &&
+        matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function buildProfile() {
+        const coords = fullPath();
+        const eles = elevationProfile();
+        if (!eles || !coords || coords.length !== eles.length || coords.length < 2) return null;
+        const cum = GradeColor.cumulativeMeters(coords);
+        const total = cum[cum.length - 1];
+        if (!(total > 0)) return null;
+
+        // Равномерная выборка по расстоянию: у BRouter точки густеют на
+        // серпантинах, и «по номерам точек» первый километр занял бы полграфика
+        const km = [], ele = [];
+        let j = 0;
+        for (let i = 0; i < PROFILE_SAMPLES; i++) {
+            const d = total * i / (PROFILE_SAMPLES - 1);
+            while (j < cum.length - 2 && cum[j + 1] < d) j++;
+            const span = cum[j + 1] - cum[j];
+            const t = span > 0 ? (d - cum[j]) / span : 0;
+            km.push(d / 1000);
+            ele.push(eles[j] + (eles[j + 1] - eles[j]) * t);
+        }
+        // Лёгкое сглаживание ±1: на шуме DEM кривая иначе щетинится
+        const smooth = ele.map((v, i) => {
+            const a = ele[Math.max(0, i - 1)], b = ele[Math.min(ele.length - 1, i + 1)];
+            return (a + v * 2 + b) / 4;
+        });
+
+        // Где начинается ещё не проложенная часть: её рисуем пунктиром
+        let pendingKm = Infinity, acc = 0;
+        for (const leg of legs) {
+            if (leg.kind === 'pending') { pendingKm = acc / 1000; break; }
+            acc += leg.dist;
+        }
+
+        return {
+            km, ele: smooth, coords, cum, totalKm: total / 1000, pendingKm,
+            stops: GradeColor.gradeStops(coords, eles) || [],
+            min: Math.min.apply(null, smooth), max: Math.max.apply(null, smooth)
+        };
+    }
+
+    /** Точка маршрута на заданном километре — для бегунка на карте. */
+    function coordAtKm(kmValue) {
+        if (!profile) return null;
+        const target = Math.max(0, Math.min(profile.totalKm, kmValue)) * 1000;
+        const { cum, coords } = profile;
+        let lo = 0, hi = cum.length - 1;
+        while (lo < hi - 1) {
+            const mid = (lo + hi) >> 1;
+            if (cum[mid] <= target) lo = mid; else hi = mid;
+        }
+        const span = cum[hi] - cum[lo];
+        const t = span > 0 ? (target - cum[lo]) / span : 0;
+        return [coords[lo][0] + (coords[hi][0] - coords[lo][0]) * t,
+                coords[lo][1] + (coords[hi][1] - coords[lo][1]) * t];
+    }
+
+    /** Высота и уклон на километре — по выборке графика. */
+    function profileAt(kmValue) {
+        if (!profile) return null;
+        const { km, ele } = profile;
+        const step = profile.totalKm / (km.length - 1);
+        const i = Math.max(0, Math.min(km.length - 1, Math.round(kmValue / (step || 1))));
+        // Уклон — по окну ~150 м, а не между соседними выборками: на шаге в
+        // полсотни метров шум DEM даёт ±20 % на ровном месте
+        const half = Math.max(1, Math.round(0.075 / (step || 1)));
+        const a = Math.max(0, i - half), b = Math.min(km.length - 1, i + half);
+        const run = (km[b] - km[a]) * 1000;
+        return { ele: ele[i], km: km[i], grade: run > 5 ? (ele[b] - ele[a]) / run * 100 : 0 };
+    }
+
+    /** Самый крутой подъём и спуск на маршруте — окном ~150 м. */
+    function extremeGrades() {
+        if (!profile) return null;
+        const { km, ele } = profile;
+        const step = profile.totalKm / (km.length - 1);
+        const win = Math.max(1, Math.round(0.15 / (step || 1)));
+        let up = 0, down = 0;
+        for (let i = win; i < km.length; i++) {
+            const run = (km[i] - km[i - win]) * 1000;
+            if (run < 5) continue;
+            const g = (ele[i] - ele[i - win]) / run * 100;
+            if (g > up) up = g; else if (g < down) down = g;
+        }
+        return { up, down };
+    }
+
+    function syncProfile() {
+        profile = buildProfile();
+        const wrap = document.getElementById('rb-profile');
+        if (wrap) wrap.classList.toggle('rb-wait', !profile);
+        if (!profile) { revealKm = 0; revealAnim = null; viewMin = viewMax = null; return; }
+
+        const total = profile.totalKm;
+        if (viewMin == null) { viewMin = profile.min; viewMax = profile.max; }
+        if (revealKm > total + 1e-6 || reducedMotion()) {
+            // Отмена или «без анимации» — показываем новое состояние сразу
+            revealKm = total; revealAnim = null;
+        } else if (total > revealKm + 1e-4) {
+            const added = total - revealKm;
+            revealAnim = { from: revealKm, to: total, t0: performance.now(),
+                           dur: Math.min(900, 260 + added * 220) };
+        }
+        requestProfileFrame();
+    }
+
+    function requestProfileFrame() {
+        if (!profileRaf) profileRaf = requestAnimationFrame(profileFrame);
+    }
+
+    function profileFrame() {
+        profileRaf = 0;
+        if (!active || !profile) { drawProfile(); return; }
+        let more = false;
+
+        if (revealAnim) {
+            const t = Math.min(1, (performance.now() - revealAnim.t0) / revealAnim.dur);
+            const e = 1 - Math.pow(1 - t, 3);     // мягкое торможение в конце
+            revealKm = revealAnim.from + (revealAnim.to - revealAnim.from) * e;
+            if (t < 1) more = true; else { revealKm = revealAnim.to; revealAnim = null; }
+        }
+        // Границы по высоте догоняют новые: иначе весь график подпрыгивает,
+        // стоит новой точке оказаться выше прежнего максимума
+        const pad = Math.max(20, (profile.max - profile.min) * 0.12);
+        const tMin = profile.min - pad, tMax = profile.max + pad;
+        viewMin += (tMin - viewMin) * 0.22;
+        viewMax += (tMax - viewMax) * 0.22;
+        if (Math.abs(tMin - viewMin) > 0.4 || Math.abs(tMax - viewMax) > 0.4) more = true;
+        else { viewMin = tMin; viewMax = tMax; }
+
+        drawProfile();
+        if (more) profileRaf = requestAnimationFrame(profileFrame);
+    }
+
+    function drawProfile() {
+        const cv = document.getElementById('rb-canvas');
+        if (!cv) return;
+        const w = cv.clientWidth, h = cv.clientHeight;
+        if (!w || !h) return;
+        const dpr = window.devicePixelRatio || 1;
+        if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+            cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+        }
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        if (!profile || viewMin == null || !(viewMax > viewMin)) return;
+
+        const L = 34, R = 10, T = 12, B = 15;
+        const plotW = w - L - R, plotH = h - T - B;
+        if (plotW < 20 || plotH < 20) return;
+        const total = profile.totalKm || 1;
+        const xOf = k => L + Math.max(0, Math.min(1, k / total)) * plotW;
+        const yOf = e => T + plotH - (e - viewMin) / (viewMax - viewMin) * plotH;
+        const base = T + plotH;
+
+        // Сетка: только низ, верх и середина — больше на такой высоте не читается
+        ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace';
+        ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        for (const frac of [0, 0.5, 1]) {
+            const e = viewMin + (viewMax - viewMin) * frac;
+            const y = yOf(e);
+            ctx.strokeStyle = 'rgba(255,255,255,.07)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(L, y + 0.5); ctx.lineTo(w - R, y + 0.5); ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,.4)';
+            ctx.fillText(Math.round(e), L - 6, y);
+        }
+
+        const grad = GradeColor.canvasGradient(ctx, xOf(0), xOf(total), profile.stops, 1);
+        const fill = GradeColor.canvasGradient(ctx, xOf(0), xOf(total), profile.stops, 0.16);
+        const curve = () => {
+            ctx.beginPath();
+            for (let i = 0; i < profile.km.length; i++) {
+                const x = xOf(profile.km[i]), y = yOf(profile.ele[i]);
+                i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+            }
+        };
+        const clipTo = (from, to) => {
+            ctx.beginPath();
+            ctx.rect(xOf(from) - 0.5, 0, Math.max(0, xOf(to) - xOf(from)) + 1, h);
+            ctx.clip();
+        };
+
+        // Заливка под кривой — до проявленного края
+        ctx.save();
+        clipTo(0, revealKm);
+        curve();
+        ctx.lineTo(xOf(total), base); ctx.lineTo(xOf(0), base); ctx.closePath();
+        ctx.fillStyle = fill || 'rgba(195,166,255,.16)';
+        ctx.fill();
+        ctx.restore();
+
+        // Сама кривая: проложенное — сплошным, ещё считающийся хвост — пунктиром
+        const solidTo = Math.min(revealKm, profile.pendingKm);
+        ctx.save();
+        clipTo(0, solidTo);
+        curve();
+        ctx.strokeStyle = grad || LINE_COLOR;
+        ctx.lineWidth = 2.6; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.restore();
+        if (revealKm > profile.pendingKm) {
+            ctx.save();
+            clipTo(profile.pendingKm, revealKm);
+            curve();
+            ctx.setLineDash([3, 3]);
+            ctx.globalAlpha = 0.5;
+            ctx.strokeStyle = grad || LINE_COLOR;
+            ctx.lineWidth = 2.2;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Опорные точки на кривой — видно, какой кусок чьим шагом появился
+        const info = pointsInfo;
+        ctx.fillStyle = 'rgba(255,255,255,.85)';
+        for (let i = 0; i < info.length; i++) {
+            const k = info[i].km;
+            if (k > revealKm + 1e-6 || k > total + 1e-6) continue;
+            const at = profileAt(k);
+            if (!at) continue;
+            const x = xOf(k), y = yOf(at.ele);
+            ctx.strokeStyle = 'rgba(255,255,255,.14)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(x + 0.5, y); ctx.lineTo(x + 0.5, base); ctx.stroke();
+            ctx.beginPath(); ctx.arc(x, y, i === 0 || i === info.length - 1 ? 3 : 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Край проявления: пока часть едет, на границе горит точка
+        if (revealAnim) {
+            const at = profileAt(revealKm);
+            if (at) {
+                const x = xOf(revealKm), y = yOf(at.ele);
+                ctx.fillStyle = 'rgba(195,166,255,.25)';
+                ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        // Километры внизу
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = 'rgba(255,255,255,.4)';
+        ctx.textAlign = 'left';  ctx.fillText('0', L, h - 3);
+        ctx.textAlign = 'right'; ctx.fillText(total.toFixed(1) + ' км', w - R, h - 3);
+
+        // Бегунок: то же место, что точка на карте
+        if (hoverKm != null) {
+            const at = profileAt(hoverKm);
+            if (at) {
+                const x = xOf(hoverKm), y = yOf(at.ele);
+                ctx.strokeStyle = 'rgba(255,255,255,.5)';
+                ctx.setLineDash([2, 3]); ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(x + 0.5, T); ctx.lineTo(x + 0.5, base); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+
+                const label = `${Math.round(at.ele)} м · ${at.km.toFixed(1)} км · ${at.grade >= 0 ? '+' : ''}${at.grade.toFixed(0)}%`;
+                ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+                const tw = ctx.measureText(label).width + 12;
+                const tx = Math.max(L, Math.min(w - R - tw, x - tw / 2));
+                ctx.fillStyle = 'rgba(0,0,0,.72)';
+                ctx.beginPath();
+                (ctx.roundRect ? ctx.roundRect(tx, 1, tw, 16, 5) : ctx.rect(tx, 1, tw, 16));
+                ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(label, tx + tw / 2, 9.5);
+            }
+        }
+    }
+
+    function onProfilePointer(e) {
+        const cv = document.getElementById('rb-canvas');
+        if (!cv || !profile) return;
+        const rect = cv.getBoundingClientRect();
+        const L = 34, R = 10;
+        const plotW = rect.width - L - R;
+        if (plotW <= 0) return;
+        const frac = (e.clientX - rect.left - L) / plotW;
+        hoverKm = Math.max(0, Math.min(1, frac)) * profile.totalKm;
+        showMapCursor(coordAtKm(hoverKm));
+        requestProfileFrame();
+    }
+
+    function clearProfilePointer() {
+        if (hoverKm == null) return;
+        hoverKm = null;
+        showMapCursor(null);
+        requestProfileFrame();
+    }
+
     // ── Интерфейс ───────────────────────────────────────────────────────────
 
     const esc = s => String(s == null ? '' : s)
@@ -743,6 +1203,7 @@
         plus:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
         check:  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
         route:  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 6h7a3.5 3.5 0 010 7H10a3.5 3.5 0 000 7h7"/></svg>',
+        chevron:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
         warn:   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.01"/></svg>'
     };
 
@@ -776,27 +1237,53 @@
                 <div class="rb-ticks"><i></i><i></i><i></i><i></i></div>
                 <div class="rb-dot"></div>
             </div>
-            <div id="rb-modebar">
-                <span class="rb-mode-label"><i></i>РИСУЮ МАРШРУТ</span>
-                <span class="rb-spacer"></span>
-                <button id="rb-btn-prefs" class="rb-chip" title="Правила маршрута" aria-label="Правила маршрута">${ICONS.sliders}</button>
-                <button id="rb-btn-snap" class="rb-chip" title="Прокладывать по тропам">${ICONS.bolt}<span>По тропам</span></button>
-                <button id="rb-btn-stop" class="rb-chip rb-chip-stop">${ICONS.close}<span>Стоп</span></button>
-            </div>
-            <div id="rb-bottom">
-                <div id="rb-stats" class="rb-card hidden">
-                    <div class="rb-stats-row">
-                        <span class="rb-stat"><em>↔</em><b id="rb-km">0.0</b><small>км</small></span>
-                        <span class="rb-div"></span>
-                        <span class="rb-stat"><em>📍</em><b id="rb-pts">0</b><small id="rb-pts-word">точек</small></span>
-                        <span class="rb-div"></span>
-                        <span class="rb-stat"><em>↑</em><b id="rb-up">—</b><small>м</small></span>
-                        <span class="rb-div"></span>
-                        <span class="rb-stat"><em>↓</em><b id="rb-down">—</b><small>м</small></span>
-                    </div>
-                    <div id="rb-time" class="rb-time hidden"></div>
-                    <button id="rb-btn-done" class="rb-done hidden">${ICONS.check}<span>Готово</span></button>
+            <div id="rb-panel">
+                <div class="rb-head">
+                    <span class="rb-mode-label"><i></i>РИСУЮ МАРШРУТ</span>
+                    <span class="rb-spacer"></span>
+                    <button id="rb-btn-more" class="rb-chip rb-more" aria-label="Подробности">${ICONS.chevron}</button>
+                    <button id="rb-btn-stop" class="rb-chip rb-chip-stop">${ICONS.close}<span>Стоп</span></button>
                 </div>
+                <div class="rb-tools">
+                    <button id="rb-btn-snap" class="rb-chip" title="Прокладывать по тропам">${ICONS.bolt}<span>По тропам</span></button>
+                    <button id="rb-btn-prefs" class="rb-chip" title="Правила маршрута">${ICONS.sliders}<span>Правила</span></button>
+                </div>
+                <div class="rb-body">
+                    <div class="rb-empty" id="rb-empty">
+                        <b>Маршрут начинается с точки</b>
+                        Наведи прицел и нажми «Старт» — или поставь точку прямо по карте.
+                        Дальше каждая точка притянется к ближайшей тропе.
+                    </div>
+                    <div id="rb-summary" class="hidden">
+                        <div class="rb-hero">
+                            <div class="rb-hero-main">
+                                <div class="rb-hero-km"><span id="rb-km">0.0</span><small>км</small></div>
+                                <div class="rb-hero-time" id="rb-time"></div>
+                            </div>
+                            <div class="rb-hero-climb">
+                                <span><i>↑</i><b id="rb-up">—</b><em>м</em></span>
+                                <span><i>↓</i><b id="rb-down">—</b><em>м</em></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rb-grid hidden" id="rb-grid">
+                        <div class="rb-cell"><div class="rb-cell-h">Точек</div><div class="rb-cell-v" id="rb-pts">0</div></div>
+                        <div class="rb-cell"><div class="rb-cell-h">Высоты</div><div class="rb-cell-v" id="rb-alt">—</div></div>
+                        <div class="rb-cell"><div class="rb-cell-h">Круче всего</div><div class="rb-cell-v" id="rb-steep">—</div></div>
+                        <div class="rb-cell"><div class="rb-cell-h">По тропам</div><div class="rb-cell-v" id="rb-share">—</div></div>
+                    </div>
+                    <div class="rb-profile hidden" id="rb-profile">
+                        <canvas id="rb-canvas"></canvas>
+                        <div class="rb-profile-wait">Высоты подтянутся, как ляжет отрезок</div>
+                    </div>
+                    <div class="rb-section hidden" id="rb-points-h">Точки маршрута</div>
+                    <div class="rb-points" id="rb-points"></div>
+                </div>
+                <div class="rb-foot">
+                    <button id="rb-btn-done" class="rb-done">${ICONS.check}<span>Готово</span></button>
+                </div>
+            </div>
+            <div id="rb-dock">
                 <div id="rb-status" class="rb-pill hidden"></div>
                 <div id="rb-hint" class="rb-pill"></div>
                 <div class="rb-controls">
@@ -819,6 +1306,84 @@
         $('rb-btn-done').onclick = () => openSave(autoName());
         $('rb-save').onclick = e => { if (e.target.id === 'rb-save') closeSave(); };
         $('rb-prefs').onclick = e => { if (e.target.id === 'rb-prefs') closePrefs(); };
+        // На телефоне панель по умолчанию «худая»: плитки и список точек
+        // прячутся, чтобы шторка не съела пол-экрана
+        if (!wideScreen()) $('rb-panel').classList.add('rb-lean');
+        $('rb-btn-more').onclick = () => {
+            $('rb-panel').classList.toggle('rb-lean');
+            layoutAim(); updateAim();
+            requestProfileFrame();
+        };
+
+        const canvas = $('rb-canvas');
+        canvas.addEventListener('pointermove', onProfilePointer);
+        canvas.addEventListener('pointerdown', onProfilePointer);
+        canvas.addEventListener('pointerleave', clearProfilePointer);
+        canvas.addEventListener('pointercancel', clearProfilePointer);
+
+        // Список точек: наведение подсвечивает отрезок и ставит точку на карту,
+        // клик — подлетает к ней
+        const list = $('rb-points');
+        list.addEventListener('mouseover', e => {
+            const row = e.target.closest && e.target.closest('.rb-pt');
+            if (!row) return;
+            const i = Number(row.dataset.i);
+            highlightLeg(i > 0 ? i - 1 : null);
+            showMapCursor(waypoints[i] || null);
+        });
+        list.addEventListener('mouseleave', () => { highlightLeg(null); showMapCursor(null); });
+        list.addEventListener('click', e => {
+            const row = e.target.closest && e.target.closest('.rb-pt');
+            if (!row) return;
+            const w = waypoints[Number(row.dataset.i)];
+            if (w) map.easeTo({ center: w, duration: 600 });
+        });
+    }
+
+    const wideScreen = () => !window.matchMedia || matchMedia('(min-width: 768px)').matches;
+
+    /** «Старт», «Финиш», «Точка 3» — как подписаны концы маршрута на карте. */
+    function pointName(i, count) {
+        if (i === 0) return 'Старт';
+        if (i === count - 1 && count > 1) return 'Финиш';
+        return 'Точка ' + (i + 1);
+    }
+
+    const KIND_TITLE = { trail: 'Отрезок лёг на тропу', straight: 'Напрямик: тропы рядом нет',
+                         pending: 'Прокладываю…' };
+
+    function renderPoints(info) {
+        const list = document.getElementById('rb-points');
+        if (!list) return;
+        const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 24;
+        list.innerHTML = info.map((p, i) => {
+            const alt = p.ele == null ? '—' : Math.round(p.ele) + ' м';
+            let right = '';
+            if (i > 0) {
+                const gradeCol = p.grade == null ? 'rgba(255,255,255,.4)'
+                                                 : GradeColor.cssForGrade(p.grade, 1);
+                const dash = p.kind === 'trail'
+                    ? `background:${gradeCol}`
+                    : `background:repeating-linear-gradient(90deg, ${gradeCol} 0 3px, transparent 3px 5px)`;
+                const climbTxt = p.kind === 'pending' && !p.up && !p.down
+                    ? 'считаю…'
+                    : `↑${Math.round(p.up)} ↓${Math.round(p.down)}`;
+                right = `<span class="rb-pt-leg" title="${esc(KIND_TITLE[p.kind] || '')}">
+                            <b>+${p.legKm.toFixed(1)} км</b>
+                            <span class="rb-pt-kind"><i style="${dash}"></i>${climbTxt}</span>
+                         </span>`;
+            }
+            return `<button class="rb-pt" data-i="${i}">
+                        <span class="rb-pt-idx">${i + 1}</span>
+                        <span class="rb-pt-main">
+                            <span class="rb-pt-name">${esc(pointName(i, info.length))}</span>
+                            <span class="rb-pt-sub"><b>${alt}</b> · ${p.km.toFixed(1)} км</span>
+                        </span>
+                        ${right}
+                    </button>`;
+        }).join('');
+        // Новая точка приезжает вниз списка — держим её в виду
+        if (atBottom) list.scrollTop = list.scrollHeight;
     }
 
     function render() {
@@ -827,20 +1392,40 @@
         const n = waypoints.length;
         const km = distanceKm();
         const c = climb(elevationProfile());
+        const info = pointsInfo;
 
-        $('rb-stats').classList.toggle('hidden', n < 1);
+        $('rb-empty').classList.toggle('hidden', n > 0);
+        $('rb-summary').classList.toggle('hidden', n < 1);
+        $('rb-grid').classList.toggle('hidden', n < 1);
+        $('rb-profile').classList.toggle('hidden', n < 2);
+        $('rb-points-h').classList.toggle('hidden', n < 1);
+        $('rb-points').classList.toggle('hidden', n < 1);
+
         $('rb-km').textContent = km.toFixed(1);
-        $('rb-pts').textContent = n;
-        $('rb-pts-word').textContent = pointsWord(n);
         // Высот нет — прочерк, а не ноль: ноль читался бы как «ровная дорога»
         $('rb-up').textContent = c ? Math.round(c.ascent) : '—';
         $('rb-down').textContent = c ? Math.round(c.descent) : '—';
         // Время — сразу, как маршрут перестал быть точкой: именно оно решает,
         // влезет ли задумка в день. Набора пока нет — считаем по одной длине.
-        $('rb-time').classList.toggle('hidden', n < 2);
-        if (n >= 2 && window.HikingTime) {
-            $('rb-time').textContent = `≈ ${HikingTime.format(HikingTime.minutes(km, c ? c.ascent : 0))} в пути`;
-        }
+        $('rb-time').textContent = n >= 2 && window.HikingTime
+            ? `≈ ${HikingTime.format(HikingTime.minutes(km, c ? c.ascent : 0))} в пути` : '';
+
+        $('rb-pts').textContent = n;
+        const alts = info.map(p => p.ele).filter(v => v != null);
+        $('rb-alt').innerHTML = alts.length
+            ? `${Math.round(Math.min.apply(null, alts))}–${Math.round(Math.max.apply(null, alts))}<small>м</small>`
+            : '—';
+        const steep = extremeGrades();
+        $('rb-steep').innerHTML = steep
+            ? `<span style="color:${GradeColor.cssForGrade(steep.up, 1)}">+${steep.up.toFixed(0)}%</span>
+               <span style="color:rgba(255,255,255,.35)"> / </span>
+               <span style="color:${GradeColor.cssForGrade(steep.down, 1)}">${steep.down.toFixed(0)}%</span>`
+            : '—';
+        const share = trailShare();
+        $('rb-share').innerHTML = share == null ? '—' : `${Math.round(share * 100)}<small>%</small>`;
+
+        renderPoints(info);
+
         const done = $('rb-btn-done');
         done.classList.toggle('hidden', n < 2);
         // Пока роутер думает, сохранять нельзя — в маршрут ушла бы времянка
@@ -883,9 +1468,12 @@
     }
 
     function changed() {
+        pointsInfo = waypointInfo();
         drawOnMap();
-        updateAim();
+        syncProfile();      // до render(): из профиля берутся высоты и крутизна
         render();
+        layoutAim();        // после render(): панель выросла, край уехал
+        updateAim();
     }
 
     // ── Сохранение (SaveRouteSheet) ─────────────────────────────────────────
@@ -1163,6 +1751,7 @@
             map.on('sourcedata', scheduleHarvest);
             ['dragend', 'zoomend', 'rotateend', 'pitchend'].forEach(ev => map.on(ev, onGestureEnd));
             document.addEventListener('keydown', onKey);
+            window.addEventListener('resize', onWindowResize);
             listenersOn = true;
         }
         map.getCanvas().style.cursor = 'crosshair';
@@ -1175,6 +1764,7 @@
         if (!active) return;
         active = false;
         if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+        if (profileRaf) { cancelAnimationFrame(profileRaf); profileRaf = 0; }
         reset();
         closeSave();
         closePrefs();
@@ -1188,6 +1778,7 @@
             tileState = 'ok';
             ['dragend', 'zoomend', 'rotateend', 'pitchend'].forEach(ev => map.off(ev, onGestureEnd));
             document.removeEventListener('keydown', onKey);
+            window.removeEventListener('resize', onWindowResize);
             listenersOn = false;
         }
         removeLayers();

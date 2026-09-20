@@ -189,7 +189,33 @@
         #route-panel-group.panel-collapsed #panel-toggle-btn svg { transform: rotate(180deg); }
 
         /* Collapsed desktop: show only the 20px button tab */
-        #route-panel-group.sidebar-open.panel-collapsed { transform: translateX(-100%); }
+        #route-panel-group.sidebar-open.panel-collapsed {
+            transform: translateX(-100%);
+            /* Сворачивание и выглядывание — быстрые; плавные .45s оставлены
+               открытию панели */
+            transition: transform .28s cubic-bezier(.4,0,.2,1);
+        }
+
+        /* Курсор у края экрана — свёрнутая панель выглядывает краем
+           (`script.js`, «Свёрнутая панель выглядывает у края экрана»).
+           Пальцу край экрана не «наводят», поэтому только для мыши. */
+        @media (min-width: 768px) and (pointer: fine) {
+            #route-panel-group.sidebar-open.panel-collapsed.panel-peek {
+                transform: translateX(calc(-100% + 88px));
+            }
+            #route-panel-group.panel-peek { cursor: pointer; }
+            /* Выехавший край — приглушённая полоска, а не обрубок содержимого:
+               видно, что там панель, но читать обрезанные подписи не тянет */
+            #route-panel-group.panel-peek::after {
+                content: '';
+                position: absolute; top: 0; bottom: 0; right: 0; width: 88px;
+                background: linear-gradient(90deg, rgba(9,9,11,.94), rgba(9,9,11,.55));
+                pointer-events: none;
+            }
+            /* По выехавшему краю щёлкают, чтобы раскрыть панель целиком, —
+               её внутренности в этот момент кликов не ловят */
+            #route-panel-group.panel-peek .route-panel-inner { pointer-events: none; }
+        }
 
         @media (max-width: 767px) {
             #panel-toggle-btn {
@@ -1396,6 +1422,7 @@
     <script src="weather.js"></script>
     <script src="cinematic.js"></script>
     <script src="route_marks.js"></script>
+    <script src="map_tiers.js"></script>
     <script src="photo_viewer.js"></script>
     <script src="script.js"></script>
     <script src="route_profile_ui.js"></script>

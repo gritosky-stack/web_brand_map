@@ -51,6 +51,13 @@
   function ensureLayers(map) {
     if (map.getSource('pss-selected')) return;
     map.addSource('pss-selected', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    // Первый ярус — ореол, обводка, ядро (`map_tiers.js`). Открытый маршрут
+    // ПСС на карте главный, пока он открыт, и ореол должен быть у него
+    map.addLayer({
+      id: 'pss-selected-halo', type: 'line', source: 'pss-selected',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#FFFFFF', 'line-width': 11, 'line-opacity': 0.22, 'line-blur': 4 }
+    }, window.drapeBeforeId && window.drapeBeforeId());
     map.addLayer({
       id: 'pss-selected-casing', type: 'line', source: 'pss-selected',
       layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -91,6 +98,7 @@
       var run = function () {
         ensureLayers(map);
         map.getSource('pss-selected').setData(f);
+        if (window.MapTiers) MapTiers.setPSSOpen(true);
         var flat = flatten(f.geometry);
         if (!flat.length) return;
         map.fitBounds(boundsOf(flat), {
@@ -113,6 +121,7 @@
     if (map && map.getSource('pss-selected')) {
       map.getSource('pss-selected').setData({ type: 'FeatureCollection', features: [] });
     }
+    if (window.MapTiers) MapTiers.setPSSOpen(false);
   }
 
   window.showPSSRoute = show;

@@ -152,7 +152,8 @@
                 img.onload = () => {
                     if (img.naturalWidth) this.setAspect(slot, img.naturalWidth / img.naturalHeight);
                 };
-                img.onerror = () => { img.onerror = null; img.src = item.src; };
+                // Крупная копия живёт в R2; не доехала — остаёмся на мелкой
+                img.onerror = () => { img.onerror = null; img.src = thumb(item.src); };
                 img.src = offset === 0 ? med(item.src) : thumb(item.src);
             }
         },

@@ -439,29 +439,105 @@
         el.classList.add('open');
     }
 
-    // Булавка — кружок с перекрестьем, чтобы не путать с метками маршрута.
-    // Символьный слой, а не DOM-метка: на наклонённом рельефе DOM-метка
-    // висела бы в стороне от точки
+    // ── Булавка ─────────────────────────────────────────────────────────────
+    //
+    // Каплевидный пин, а не кружок: у маршрутов и фотографий метки — плоские
+    // точки на рельефе, и точка поиска должна читаться иначе. Кружок к тому же
+    // лежал в плоскости карты (`icon-pitch-alignment: 'map'`) и на наклонённой
+    // камере расплывался эллипсом по склону — при 70° от него оставалась
+    // чёрточка. Пин стоит по экрану (`viewport`) и «воткнут» остриём в точку
+    // (`icon-anchor: 'bottom'`), а на земле под ним остаётся тень с колечком:
+    // по ним видно точное место, а по пину — где оно на экране.
+    //
+    // Цвет нарочно не из набора карты (красный — маршруты, оранжевый — планы,
+    // сиреневый — свои, синий — локация, голубой — фото): серебристый корпус с
+    // тёмным нутром ни с чем не путается и читается и на зелени, и на снимке,
+    // и на бумаге исторической карты.
+
+    const PIN_W = 34, PIN_H = 46, PIN_RATIO = 2, PIN_PAD = 3;
+
     function pinImage() {
-        const size = 40, r = 2, px = size * r;
+        const w = PIN_W * PIN_RATIO, h = PIN_H * PIN_RATIO;
         const c = document.createElement('canvas');
-        c.width = c.height = px;
+        c.width = w; c.height = h;
         const ctx = c.getContext('2d');
-        const mid = px / 2, rad = px * 0.28;
-        ctx.fillStyle = 'rgba(0,0,0,.28)';
-        ctx.beginPath(); ctx.arc(mid, mid, mid - r, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#FF5722';
-        ctx.beginPath(); ctx.arc(mid, mid, rad, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * r;
-        ctx.beginPath(); ctx.arc(mid, mid, rad + 2 * r, 0, Math.PI * 2); ctx.stroke();
+        const pad = PIN_PAD * PIN_RATIO;           // место под тень и обводку
+        const R = (w - pad * 2) / 2;
+        const cx = w / 2, cy = pad + R, tip = h - pad;
+
+        // Контур капли: дуга по кругу сверху и две кривые, сходящиеся к острию
+        const a = Math.PI / 3;
+        const body = () => {
+            ctx.beginPath();
+            ctx.arc(cx, cy, R, a, Math.PI - a, true);
+            ctx.quadraticCurveTo(cx - R * 0.46, tip - R * 0.42, cx, tip);
+            ctx.quadraticCurveTo(cx + R * 0.46, tip - R * 0.42, cx + R * Math.cos(a), cy + R * Math.sin(a));
+            ctx.closePath();
+        };
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,.55)';
+        ctx.shadowBlur = 5 * PIN_RATIO;
+        ctx.shadowOffsetY = 1.5 * PIN_RATIO;
+        const metal = ctx.createLinearGradient(0, pad, 0, tip);
+        metal.addColorStop(0, '#FFFFFF');
+        metal.addColorStop(0.55, '#E6E9F0');
+        metal.addColorStop(1, '#B9C0CE');
+        ctx.fillStyle = metal;
+        body(); ctx.fill();
+        ctx.restore();
+
+        // Тёмная обводка — чтобы светлый корпус не пропадал на топооснове и
+        // на бумаге гравюры
+        ctx.strokeStyle = 'rgba(8,10,16,.8)';
+        ctx.lineWidth = 1.4 * PIN_RATIO;
+        body(); ctx.stroke();
+
+        // Нутро: тёмный глазок с точкой посередине — «прицел», а не значок
+        ctx.fillStyle = '#15171C';
+        ctx.beginPath(); ctx.arc(cx, cy, R * 0.46, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.22)';
+        ctx.lineWidth = 1 * PIN_RATIO;
+        ctx.beginPath(); ctx.arc(cx, cy, R * 0.46, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath(); ctx.arc(cx, cy, R * 0.15, 0, Math.PI * 2); ctx.fill();
+
+        // Блик сверху — из-за него пин выглядит выпуклым, а не наклейкой
+        const gloss = ctx.createLinearGradient(0, pad, 0, cy);
+        gloss.addColorStop(0, 'rgba(255,255,255,.75)');
+        gloss.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = gloss;
         ctx.beginPath();
-        const gap = rad + 3 * r, edge = 3 * r;
-        ctx.moveTo(mid, edge); ctx.lineTo(mid, mid - gap);
-        ctx.moveTo(mid, px - edge); ctx.lineTo(mid, mid + gap);
-        ctx.moveTo(edge, mid); ctx.lineTo(mid - gap, mid);
-        ctx.moveTo(px - edge, mid); ctx.lineTo(mid + gap, mid);
-        ctx.stroke();
-        return { image: ctx.getImageData(0, 0, px, px), pixelRatio: r };
+        ctx.ellipse(cx, pad + R * 0.55, R * 0.62, R * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        return { image: ctx.getImageData(0, 0, w, h), pixelRatio: PIN_RATIO };
+    }
+
+    // Пин «падает» в точку: полсекунды сверху вниз с отскоком. Анимация идёт
+    // по `icon-translate` и живёт ровно столько, сколько падение, — постоянно
+    // дёргать карту незачем.
+    let dropRaf = 0;
+
+    function animateDrop(m) {
+        if (dropRaf) cancelAnimationFrame(dropRaf);
+        if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            m.setPaintProperty('insight-pin', 'icon-translate', [0, 0]);
+            return;
+        }
+        const t0 = performance.now(), dur = 420, from = -26;
+        const step = () => {
+            dropRaf = 0;
+            if (!m.getLayer('insight-pin')) return;
+            const t = Math.min(1, (performance.now() - t0) / dur);
+            // Отскок: к концу пин слегка проседает и возвращается
+            const e = 1 - Math.pow(1 - t, 3);
+            const bounce = Math.sin(t * Math.PI) * 2.5 * (1 - t);
+            m.setPaintProperty('insight-pin', 'icon-translate', [0, from * (1 - e) + bounce]);
+            m.setPaintProperty('insight-pin', 'icon-opacity', Math.min(1, t * 3));
+            if (t < 1) dropRaf = requestAnimationFrame(step);
+        };
+        step();
     }
 
     function setPin(lngLat) {
@@ -471,13 +547,30 @@
             const pin = pinImage();
             if (!m.hasImage('insight-pin')) m.addImage('insight-pin', pin.image, { pixelRatio: pin.pixelRatio });
             m.addSource('insight-point', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            // Тень лежит на рельефе — от неё пин выглядит воткнутым в склон,
+            // а не парящим; отдельной метки «точное место» не нужно, остриё и
+            // так стоит ровно на точке
+            m.addLayer({ id: 'insight-shadow', type: 'circle', source: 'insight-point',
+                         paint: { 'circle-radius': 8, 'circle-color': 'rgba(0,0,0,.4)',
+                                  'circle-blur': 0.9, 'circle-pitch-alignment': 'map' } });
             m.addLayer({ id: 'insight-pin', type: 'symbol', source: 'insight-point',
                          layout: { 'icon-image': 'insight-pin', 'icon-allow-overlap': true,
-                                   'icon-ignore-placement': true, 'icon-pitch-alignment': 'map' } });
+                                   'icon-ignore-placement': true, 'icon-anchor': 'bottom',
+                                   // Снизу картинки оставлено место под тень —
+                                   // сдвигаем на него, чтобы остриё село в точку
+                                   'icon-offset': [0, PIN_PAD],
+                                   // Стоит по экрану: на наклоне пин не ложится на склон
+                                   'icon-pitch-alignment': 'viewport',
+                                   'icon-rotation-alignment': 'viewport' } });
         }
         m.getSource('insight-point').setData({ type: 'FeatureCollection', features: lngLat
             ? [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: lngLat } }] : [] });
-        if (lngLat) m.moveLayer('insight-pin');
+        if (lngLat) {
+            ['insight-shadow', 'insight-pin'].forEach(id => m.moveLayer(id));
+            animateDrop(m);
+        } else if (dropRaf) {
+            cancelAnimationFrame(dropRaf); dropRaf = 0;
+        }
     }
 
     async function fillTerrain(my) {

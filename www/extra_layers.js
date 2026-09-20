@@ -64,6 +64,9 @@
         const m = map();
         if (!m || !m.getLayer('world-mask-layer')) return;
         for (const id of STACK) if (m.getLayer(id)) m.moveLayer(id, 'world-mask-layer');
+        // Слой мог только что появиться со своей полной прозрачностью, а
+        // маршрут уже открыт — вернуть его в свой ярус (`map_tiers.js`)
+        if (window.MapTiers) MapTiers.refresh();
     }
 
     function removeLayers(ids, sources) {

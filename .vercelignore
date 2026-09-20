@@ -1,0 +1,34 @@
+# Что не уезжает в деплой Vercel.
+#
+# Главное — фотографии. Оригиналы (388 МБ) сайт не показывает никогда, а
+# крупные копии 1280 px берутся из R2 — того же бакета, откуда их берёт
+# приложение (`PHOTO_CDN` в www/script.js, `PhotoStore.swift` в приложении).
+# В деплое остаются только `photos_small` (400 px, 5 МБ): с них начинается
+# лента и лайтбокс.
+#
+# Без этого каждая сборка весила 475 МБ, а Vercel считает хранилище как сумму
+# дневных максимумов по всем удержанным деплоям — за день из восемнадцати
+# сборок набегало 6,5 ГБ при лимите в 10.
+#
+# ⚠️ Поэтому в `www/photos` нельзя класть видео: на сайте его не будет.
+# Добавил фото — прогони `bash tools/make_photo_variants.sh` и залей
+# `photos_med` в R2, иначе крупная копия не откроется.
+www/photos
+www/photos_med
+www/future_trips/photos
+www/future_trips/photos_med
+
+# То же самое на случай, если Root Directory проекта — папка www
+photos
+photos_med
+future_trips/photos
+future_trips/photos_med
+
+# Не веб: нативное приложение, обёртка Capacitor, скрапер, конвейер тайлов
+hikingmap
+ios
+pss_scraper
+tools
+design-canvas
+hikingmap.zip
+*.log

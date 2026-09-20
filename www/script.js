@@ -829,6 +829,8 @@ function triggerRouteSelection(routeId) {
     const _pg = document.getElementById('route-panel-group');
     _pg.classList.remove('panel-collapsed');
     _pg.classList.add('sidebar-open');
+    // Контекст и фон уходят во второй и третий ярус, пока маршрут открыт
+    if (window.MapTiers) MapTiers.refresh();
     document.getElementById('route-panel').classList.add('panel-loading');
     document.getElementById('hero-text').classList.add('hero-hidden');
     const _heroDesc = document.getElementById('hero-desc');
@@ -1042,7 +1044,8 @@ function showPanelPhoto(idx) {
         vid.classList.add('hidden');
         if (vid.src) { vid.pause(); vid.src = ''; }
         img.classList.remove('hidden');
-        img.onerror = () => { img.onerror = null; img.src = p.src; };   // нет копии — берём оригинал
+        // Не доехала крупная из R2 — остаёмся на мелкой копии из деплоя
+        img.onerror = () => { img.onerror = null; img.src = photoThumb(p.src); };
         img.src = photoMed(p.src);
         if (play) play.classList.add('hidden');
     }
@@ -1261,19 +1264,34 @@ function _initStarPicker() {
 }
 
 // ── Варианты фотографий по размеру ────────────────────────────────────────────
-// Оригиналы — по 2-3 МБ, поэтому в мелких местах показываем уменьшенные копии
-// (их готовит tools/make_photo_variants.sh). Если копии нет — onerror вернёт
-// оригинал, так что новые фото работают и до прогона скрипта.
+//
+// Мелкие копии (400 px, 5 МБ на весь сайт) едут в деплой и отдаются вместе с
+// кодом. Крупные (1280 px) лежат в R2 — **том же бакете**, откуда их берёт
+// приложение (`Services/PhotoStore.swift`), а оригиналы не нужны сайту вовсе:
+// он их никогда не показывает.
+//
+// ⚠️ Из-за этого `www/photos` и `www/photos_med` в деплой не входят
+// (`.vercelignore`): 450 МБ на каждую сборку — это и был счёт за хранилище
+// Vercel. Оригиналы остаются в гите для бандла iOS и для пересборки копий.
+// Поэтому же в `www/photos` нельзя класть видео: на сайте их не будет.
+const PHOTO_CDN = 'https://pub-46dba1bca6754d2499a2a5aa9d5c879f.r2.dev';
+
 function _photoVariant(src, suffix) {
     if (!src || typeof src !== 'string') return src;
     return src.replace(/(^|\/)photos\//, `$1photos${suffix}/`);
 }
-const photoThumb = src => _photoVariant(src, '_small');   // 400 px
-const photoMed   = src => _photoVariant(src, '_med');     // 1280 px
 
-// Подстраховка в разметке: если уменьшенной копии нет — грузим оригинал
+/** Путь в адрес R2: имена папок с пробелами и кириллицей — как в приложении */
+function _cdnURL(path) {
+    return PHOTO_CDN + '/' + String(path).split('/').map(encodeURIComponent).join('/');
+}
+
+const photoThumb = src => _photoVariant(src, '_small');           // 400 px, из деплоя
+const photoMed   = src => _cdnURL(_photoVariant(src, '_med'));    // 1280 px, из R2
+
+// Подстраховка в разметке: нет мелкой копии — берём крупную из R2
 function _imgFallback(orig) {
-    return `onerror="this.onerror=null;this.src='${String(orig).replace(/'/g, "\\'")}'"`;
+    return `onerror="this.onerror=null;this.src='${photoMed(orig).replace(/'/g, "\\'")}'"`;
 }
 
 // ── Photo map markers ──────────────────────────────────────────────────────────
@@ -1510,6 +1528,7 @@ document.getElementById('btn-back').addEventListener('click', () => {
     // линию, старт, финиш и MAX уже закрытого маршрута (фидбэк 2026-09-19).
     const _closing = currentViewedRoute;
     currentViewedRoute = null;
+    if (window.MapTiers) MapTiers.refresh();   // карта возвращается в полную силу
     _selectedRouteId = null;
     _reviewsRouteId  = null;
     history.replaceState(null, '', location.pathname + location.search);
@@ -1930,6 +1949,7 @@ function addRouteToMap(id, coordinates, color, gradeStops, coordKm) {
     if (_dashAnimFrame) { cancelAnimationFrame(_dashAnimFrame); _dashAnimFrame = null; }
 
     const casingId = `layer-${id}-casing`;
+    const haloId   = `layer-${id}-halo`;
     const line = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } };
     // Узлы заданы долями полной геометрии, а линия упрощена — переводим в
     // её `line-progress` (см. GradeColor.progressMapper)
@@ -1960,6 +1980,16 @@ function addRouteToMap(id, coordinates, color, gradeStops, coordKm) {
         // lineMetrics нужны и раскраске по уклону, и обрезке, и подсветке
         // выделенного на графике участка: все они считаются по `line-progress`
         map.addSource(id, { type: 'geojson', data: line, lineMetrics: true });
+        // Первый ярус: ореол → обводка → ядро (`map_tiers.js`). Ореол белый и
+        // широкий, но слабый — им открытый маршрут и отличается от контекста.
+        // ⚠️ Белым был весь трек, и это оказалось перебором: линия теряла
+        // смысл, который несла цветом сложности (фидбэк 2026-08-31).
+        map.addLayer({
+            id: haloId, type: 'line', source: id,
+            layout: { 'line-join': 'round', 'line-cap': 'round' },
+            paint: { 'line-color': '#FFFFFF', 'line-width': 11, 'line-opacity': 0.22,
+                     'line-blur': 4, 'line-trim-offset': hidden }
+        }, beforeId);
         map.addLayer({
             id: casingId, type: 'line', source: id,
             layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -1977,7 +2007,9 @@ function addRouteToMap(id, coordinates, color, gradeStops, coordKm) {
         map.getSource(id).setData(line);
         map.setPaintProperty(`layer-${id}`, 'line-gradient', gradient);
         map.setPaintProperty(`layer-${id}`, 'line-trim-offset', hidden);
-        if (map.getLayer(casingId)) map.setPaintProperty(casingId, 'line-trim-offset', hidden);
+        [casingId, haloId].forEach(l => {
+            if (map.getLayer(l)) map.setPaintProperty(l, 'line-trim-offset', hidden);
+        });
     }
 
     RouteMarks.setEnds(coordinates);
@@ -1994,7 +2026,9 @@ function addRouteToMap(id, coordinates, color, gradeStops, coordKm) {
         // Прячем участок [нарисовано, 1]; когда нарисовано всё — не прячем ничего
         const trim = p >= 1 ? [0, 0] : [eased, 1];
         map.setPaintProperty(`layer-${id}`, 'line-trim-offset', trim);
-        if (map.getLayer(casingId)) map.setPaintProperty(casingId, 'line-trim-offset', trim);
+        [casingId, haloId].forEach(l => {
+            if (map.getLayer(l)) map.setPaintProperty(l, 'line-trim-offset', trim);
+        });
         if (p < 1) _dashAnimFrame = requestAnimationFrame(step);
     };
     _dashAnimFrame = requestAnimationFrame(step);
@@ -2014,7 +2048,7 @@ function removeRouteLine(id) {
     // Подсветка выделенного участка живёт на том же источнике — без неё
     // источник удалить нельзя
     if (window.RouteProfile) RouteProfile.clearSelection();
-    [`layer-${id}`, `layer-${id}-casing`].forEach(layer => {
+    [`layer-${id}`, `layer-${id}-casing`, `layer-${id}-halo`].forEach(layer => {
         if (map.getLayer(layer)) map.removeLayer(layer);
     });
     if (map.getSource(id)) map.removeSource(id);
@@ -2244,6 +2278,60 @@ document.addEventListener('DOMContentLoaded', () => {
         // свернуть карточку во время вращения — это не «стоп».
         if (window.RouteProfile) RouteProfile.onPanelToggled();
     });
+
+    // ── Свёрнутая панель выглядывает у края экрана ───────────────────────────
+    //
+    // Свёрнутая карточка оставляла от себя вкладку в двадцать пикселей, и
+    // попасть в неё мышью — отдельное упражнение. Теперь достаточно подвести
+    // курсор к краю: панель выезжает краем, увели курсор — уезжает обратно,
+    // щёлкнули по выехавшему краю — раскрывается целиком.
+    //
+    // Только мышь: пальцем к краю экрана не «наводят», а на телефоне панель и
+    // сворачивается вниз, а не влево.
+    (function () {
+        const EDGE = 26;        // ближе этого к краю — выглядывает
+        const LEAVE = 140;      // дальше этого — прячется (и снова «взводится»)
+        let peeking = false;
+        let armed = true;       // после сворачивания ждём, пока курсор уйдёт от края
+
+        const group = () => document.getElementById('route-panel-group');
+        const fine = () => window.matchMedia &&
+            matchMedia('(min-width: 768px) and (pointer: fine)').matches;
+        const canPeek = g => g && fine() &&
+            g.classList.contains('sidebar-open') && g.classList.contains('panel-collapsed') &&
+            !document.body.classList.contains('tw-immersive') &&
+            !document.body.classList.contains('tw-flyover');
+
+        function setPeek(g, on) {
+            if (peeking === on) return;
+            peeking = on;
+            if (g) g.classList.toggle('panel-peek', on);
+        }
+
+        document.addEventListener('mousemove', e => {
+            const g = group();
+            if (!canPeek(g)) { setPeek(g, false); return; }
+            if (e.clientX > LEAVE) { armed = true; setPeek(g, false); }
+            else if (e.clientX <= EDGE && armed) setPeek(g, true);
+        });
+
+        document.documentElement.addEventListener('mouseleave', () => setPeek(group(), false));
+
+        // Свернули стрелочкой — курсор остаётся ровно на краю, и панель тут же
+        // полезла бы обратно. Ждём, пока его уведут.
+        document.getElementById('panel-toggle-btn').addEventListener('click', () => { armed = false; });
+
+        // Щелчок по выехавшему краю раскрывает панель
+        document.addEventListener('click', e => {
+            const g = group();
+            if (!peeking || !g || !e.target.closest) return;
+            if (!e.target.closest('#route-panel-group')) return;
+            if (e.target.closest('#panel-toggle-btn')) return;   // у вкладки своя роль
+            setPeek(g, false);
+            g.classList.remove('panel-collapsed');
+            if (window.RouteProfile) RouteProfile.onPanelToggled();
+        }, true);
+    })();
 
     // ── Description expand/collapse
     document.getElementById('panel-desc-toggle').addEventListener('click', () => {
