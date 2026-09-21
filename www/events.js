@@ -30,6 +30,7 @@
     let messages = [];
     let lastId = 0;
     let pollTimer = null;
+    let feedChain = Promise.resolve();   // очередь запросов чата, см. pullFeed
     let busy = false;
     let loadedFor = null;
     let draft = null;            // форма события
@@ -151,18 +152,40 @@
         }
     }
 
-    async function pullFeed(id, reset) {
+    /**
+     * Подтянуть чат.
+     *
+     * ⚠️⚠️ Запросы идут **строго по одному**, цепочкой. Два запроса
+     * одновременно берут один и тот же `after_id`, получают одни и те же
+     * сообщения и оба их дописывают — переписка дублировалась целиком
+     * (фидбэк 2026-09-21). Случалось это легко: карточку события открывали
+     * дважды — из `init` по хешу и из `onAccount` после входа.
+     *
+     * ⚠️ Плюс дедуп по `id` при склейке: даже если запрос всё-таки
+     * разъедется с состоянием, дубля в списке не будет.
+     */
+    function pullFeed(id, reset) {
+        feedChain = feedChain.then(() => doPull(id, reset)).catch(() => {});
+        return feedChain;
+    }
+
+    async function doPull(id, reset) {
         const c = client();
         if (!c) return;
+        const t = top();
+        // Событие успели сменить, пока запрос стоял в очереди
+        if (!t || t.kind !== 'event' || t.id !== id) return;
         if (reset) { messages = []; lastId = 0; }
         try {
             const { data } = await c.rpc('event_feed', { ev: id, after_id: lastId });
-            const fresh = data || [];
-            if (fresh.length) {
-                messages = messages.concat(fresh);
-                lastId = fresh[fresh.length - 1].id;
-                const t = top();
-                if (t && t.kind === 'event' && t.tab === 'chat') { renderChat(); scrollChat(); }
+            const seen = new Set(messages.map(m => m.id));
+            const fresh = (data || []).filter(m => m.id > lastId && !seen.has(m.id));
+            if (!fresh.length) return;
+            messages = messages.concat(fresh);
+            lastId = Math.max(lastId, ...fresh.map(m => m.id));
+            const cur = top();
+            if (cur && cur.kind === 'event' && cur.id === id && cur.tab === 'chat') {
+                renderChat(); scrollChat();
             }
         } catch (e) { /* сеть моргнула — следующий опрос догонит */ }
     }
@@ -233,6 +256,11 @@
     }
 
     async function openEvent(id, replace) {
+        // ⚠️ Одно и то же событие могут попросить открыть дважды: `init` по
+        // хешу и `onAccount` после входа. Второй раз — только показать, что
+        // уже открыто, иначе в стеке два экрана и два опроса чата
+        const cur = top();
+        if (!replace && cur && cur.kind === 'event' && cur.id === id) { show(); render(); return; }
         const entry = { kind: 'event', id, data: null, tab: 'info' };
         if (replace && top() && top().kind === 'event') stack[stack.length - 1] = entry;
         else push(entry);
@@ -824,8 +852,6 @@
                 .insert({ event_id: t.id, user_id: uid(), body: text.trim().slice(0, 1000) });
             if (error) throw error;
             await pullFeed(t.id);
-            renderChat();
-            scrollChat();
         } catch (e) {
             console.warn('[events] сообщение:', e);
             toast('Сообщение не отправилось');
