@@ -668,6 +668,57 @@
     }
 
     let pickHandler = null;
+    const PICK_SRC = 'event-pick-src';
+
+    /**
+     * Метка выбираемой точки сбора.
+     *
+     * ⚠️ Без неё режим был слепым: плашка внизу писала «Точка сбора:
+     * Јагодићи», а на карте не было ничего, и куда именно ты нажал — видно
+     * не было (фидбэк 2026-09-21). Слой транзиентный: заводится на время
+     * выбора и снимается на выходе.
+     */
+    function paintMeetDot(coords) {
+        const m = window.map;
+        if (!m) return;
+        if (!m.getSource(PICK_SRC)) {
+            m.addSource(PICK_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            m.addLayer({
+                id: 'event-pick-halo', type: 'circle', source: PICK_SRC,
+                paint: { 'circle-radius': 18, 'circle-color': '#7A5EA6',
+                         'circle-opacity': 0.25, 'circle-blur': 0.55 }
+            });
+            m.addLayer({
+                id: 'event-pick-dot', type: 'circle', source: PICK_SRC,
+                paint: { 'circle-radius': 8, 'circle-color': '#7A5EA6',
+                         'circle-stroke-width': 3, 'circle-stroke-color': '#fff' }
+            });
+            m.addLayer({
+                id: 'event-pick-label', type: 'symbol', source: PICK_SRC,
+                layout: { 'text-field': ['get', 'label'], 'text-size': 11.5,
+                          'text-offset': [0, 1.5], 'text-anchor': 'top',
+                          'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+                          'text-allow-overlap': true, 'text-letter-spacing': 0.04 },
+                paint: { 'text-color': '#fff', 'text-halo-color': 'rgba(10,8,14,.9)',
+                         'text-halo-width': 1.6 }
+            });
+        }
+        m.getSource(PICK_SRC).setData({
+            type: 'FeatureCollection',
+            features: coords ? [{ type: 'Feature',
+                geometry: { type: 'Point', coordinates: coords },
+                properties: { label: 'Сбор' } }] : []
+        });
+    }
+
+    function clearMeetDot() {
+        const m = window.map;
+        if (!m || !m.getStyle) return;
+        ['event-pick-label', 'event-pick-dot', 'event-pick-halo'].forEach(id => {
+            if (m.getLayer(id)) m.removeLayer(id);
+        });
+        if (m.getSource(PICK_SRC)) m.removeSource(PICK_SRC);
+    }
 
     /**
      * Указать точку сбора пальцем. Окно на это время **прячется**: карта под
@@ -708,16 +759,31 @@
             bar.querySelector('#epk-ok').onclick = () => finish(true, at, label);
         };
 
-        let at = null;
-        paint(null);
+        // Уже выбранную точку показываем сразу: «изменить» начинается с неё
+        let at = (draft.meet_lat != null && draft.meet_lon != null)
+            ? [draft.meet_lon, draft.meet_lat] : null;
+        paintMeetDot(at);
+        paint(at);
+        // ⚠️ С нулевым отступом: от открытой карточки маршрута у карты
+        // остаётся `padding`, и точка уезжает из кадра (та же грабля, что у
+        // `fitBounds` в script.js)
+        if (at) {
+            map.flyTo({ center: at, zoom: Math.max(map.getZoom(), 12), essential: true,
+                        padding: { top: 0, right: 0, bottom: 0, left: 0 } });
+        }
 
-        pickHandler = e => { at = [e.lngLat.lng, e.lngLat.lat]; paint(at); };
+        pickHandler = e => {
+            at = [e.lngLat.lng, e.lngLat.lat];
+            paintMeetDot(at);
+            paint(at);
+        };
         map.on('click', pickHandler);
 
         function finish(ok, point, label) {
             if (pickHandler) { map.off('click', pickHandler); pickHandler = null; }
             bar.classList.remove('open');
             document.body.classList.remove('tw-photo-place');
+            clearMeetDot();
             if (ok && point) {
                 draft.meet_lon = point[0];
                 draft.meet_lat = point[1];
