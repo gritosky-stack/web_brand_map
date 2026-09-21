@@ -421,6 +421,39 @@
             font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums;
         }
 
+        /* Фото и отчёт пользователя (route_status.js, user_photos.js) */
+        .rs-phs { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 8px; }
+        .rs-ph { position: relative; width: 58px; height: 58px; border-radius: 10px; overflow: hidden; }
+        .rs-ph img { width: 100%; height: 100%; object-fit: cover; }
+        .rs-ph-x {
+            position: absolute; top: 2px; right: 2px; width: 17px; height: 17px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; background: rgba(10,10,10,.82); color: #fff;
+            font-size: 13px; line-height: 1; cursor: pointer;
+        }
+        .rs-ph-x:hover { background: rgba(239,68,68,.9); }
+        .rs-ph-add {
+            width: 58px; height: 58px; border-radius: 10px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+            background: rgba(255,255,255,.05); border: 1px dashed rgba(255,255,255,.2);
+            color: rgba(255,255,255,.55); font-size: 9px; transition: background .2s, border-color .2s;
+        }
+        .rs-ph-add:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.35); }
+        .rs-report {
+            margin-top: 12px; padding: 12px; border-radius: 12px;
+            background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
+        }
+        .rs-report-h {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            color: rgba(255,255,255,.45); font-size: 9px;
+            letter-spacing: .14em; text-transform: uppercase;
+        }
+        .rs-report-t {
+            margin-top: 8px; color: rgba(255,255,255,.78); font-size: 12.5px;
+            line-height: 1.55; white-space: pre-line;
+        }
+        .rs-cta-sm { margin-top: 12px; padding: 9px 12px; font-size: 12px; }
+
         /* Метка статуса на карточке карусели */
         .cc-badge {
             position: absolute; top: 7px; right: 7px; z-index: 2;
@@ -1730,7 +1763,7 @@
 
                 <!-- Photos -->
                 <div id="panel-photos-section" class="hidden p-5 border-b border-zinc-800/60 shrink-0">
-                    <div class="text-zinc-400 text-[9px] uppercase tracking-widest mb-3">Фотографии</div>
+                    <div id="panel-photos-title" class="text-zinc-400 text-[9px] uppercase tracking-widest mb-3">Фотографии</div>
                     <!-- Current photo viewer -->
                     <div class="relative rounded-xl overflow-hidden bg-zinc-900 mb-3" style="aspect-ratio:4/3">
                         <img id="panel-photo-img" src="" class="w-full h-full object-cover" alt="">
@@ -1965,6 +1998,7 @@
     <script src="supa.js"></script>
     <script src="account.js"></script>
     <script src="route_status.js"></script>
+    <script src="user_photos.js"></script>
     <script src="profile.js"></script>
     <script src="mvt.js"></script>
     <script src="route_builder.js"></script>

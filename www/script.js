@@ -1205,10 +1205,13 @@ function triggerRouteSelection(routeId) {
         RouteProfile.show(routeInfo, routeData, routeInfo.id);
         if (window.RouteWeather) RouteWeather.show(routeInfo, routeData);
 
-        // Instagram
+        // Instagram. ⚠️ У маршрута, который пользователь отметил пройденным
+        // и наполнил своими фото и заметкой, авторских рилсов быть не должно:
+        // это уже его отчёт о походе, а не наш (фидбэк 2026-09-21)
         const igWrap = document.getElementById('panel-instagram-wrapper');
         const igLink = document.getElementById('panel-instagram-link');
-        if (routeInfo.instagramUrl) {
+        const personalized = window.RouteStatus && RouteStatus.isPersonalized(routeInfo);
+        if (routeInfo.instagramUrl && !personalized) {
             igLink.href = routeInfo.instagramUrl;
             igWrap.classList.remove('hidden');
         } else {
@@ -1315,14 +1318,20 @@ function renderPhotosInPanel(routeInfo) {
     const routeData = parsedRouteDataCache[routeInfo.id];
     const section = document.getElementById('panel-photos-section');
     const container = document.getElementById('panel-photos-container');
+    const title = document.getElementById('panel-photos-title');
 
     section.classList.add('hidden');
     container.innerHTML = '';
     _panelPhotos = [];
 
-    if (!routeData || !routeData.photoGeoms || !routeData.photoGeoms.length) return;
+    // Свои фото **заменяют** авторские: человек прошёл маршрут сам, и в его
+    // карточке должен быть его поход (route_status.js)
+    const own = window.RouteStatus ? RouteStatus.photosFor(routeInfo) : null;
+    const geoms = own || (routeData && routeData.photoGeoms) || [];
+    if (!geoms.length) return;
 
-    _panelPhotos = routeData.photoGeoms;
+    if (title) title.textContent = own ? 'Мои фотографии' : 'Фотографии';
+    _panelPhotos = geoms;
     section.classList.remove('hidden');
 
     _panelPhotos.forEach((p, i) => {
@@ -1518,13 +1527,23 @@ function _initStarPicker() {
 // Поэтому же в `www/photos` нельзя класть видео: на сайте их не будет.
 const PHOTO_CDN = 'https://pub-46dba1bca6754d2499a2a5aa9d5c879f.r2.dev';
 
+/**
+ * ⚠️ Готовый адрес оставляем как есть. Фото пользователя лежат в Supabase
+ * Storage и приходят абсолютной ссылкой (`user_photos.js`); копий `_small` и
+ * `_med` у них нет вовсе — они и загружены уже в нужном размере. Без этой
+ * проверки `photoMed` заворачивал ссылку в адрес R2
+ * (`pub-…r2.dev/https%3A%2F%2F…`), и просмотр своих фото ломался.
+ */
+const _isURL = src => typeof src === 'string' && /^(https?:|blob:|data:)/.test(src);
+
 function _photoVariant(src, suffix) {
-    if (!src || typeof src !== 'string') return src;
+    if (!src || typeof src !== 'string' || _isURL(src)) return src;
     return src.replace(/(^|\/)photos\//, `$1photos${suffix}/`);
 }
 
 /** Путь в адрес R2: имена папок с пробелами и кириллицей — как в приложении */
 function _cdnURL(path) {
+    if (_isURL(path)) return path;
     return PHOTO_CDN + '/' + String(path).split('/').map(encodeURIComponent).join('/');
 }
 
@@ -1533,6 +1552,7 @@ const photoMed   = src => _cdnURL(_photoVariant(src, '_med'));    // 1280 px, и
 
 // Подстраховка в разметке: нет мелкой копии — берём крупную из R2
 function _imgFallback(orig) {
+    if (_isURL(orig)) return '';
     return `onerror="this.onerror=null;this.src='${photoMed(orig).replace(/'/g, "\\'")}'"`;
 }
 

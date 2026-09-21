@@ -44,7 +44,8 @@
         idle:    'M4 7h16M4 12h16M4 17h10',
         planned: 'M8 3v3m8-3v3M4 9h16M5 6h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1z',
         done:    'M5 13l4 4L19 7',
-        flag:    'M5 21V4m0 0h9l1 2h5l-2.5 4.5L20 15h-6l-1-2H5'
+        flag:    'M5 21V4m0 0h9l1 2h5l-2.5 4.5L20 15h-6l-1-2H5',
+        camera:  'M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1zm8 9a4 4 0 100-8 4 4 0 000 8z'
     };
 
     const svg = (d, size = 13) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"
@@ -266,9 +267,14 @@
         setBusy(true);
         try {
             if (!status) {
+                const old = marks.get(key);
                 const { error } = await c.from('route_marks').delete().eq('route_key', key);
                 if (error) throw error;
                 marks.delete(key);
+                // Отметки нет — фото к ней тоже незачем занимать место
+                if (old && old.photos && old.photos.length && window.UserPhotos) {
+                    UserPhotos.remove(old.photos);
+                }
             } else {
                 // `user_id` явно: первичный ключ здесь составной, и на него
                 // опирается upsert. С одним лишь `default auth.uid()` цель
@@ -281,9 +287,19 @@
                     done_at: (dates && dates.doneAt) || null,
                     updated_at: new Date().toISOString()
                 };
+                // Фото и заметка приходят только из окна «Пройден»; при
+                // других переходах колонки не трогаем — иначе отметка
+                // «планирую» стёрла бы отчёт о прошлом прохождении
+                if (dates && dates.photos) row.photos = dates.photos;
+                if (dates && 'note' in dates) row.note = dates.note;
                 const { data, error } = await c.from('route_marks').upsert(row).select().single();
                 if (error) throw error;
                 marks.set(key, data || row);
+                // Убранные из окна фото сносим из хранилища **после** записи:
+                // упади она раньше — остались бы ссылки на удалённые файлы
+                if (dates && dates.removed && dates.removed.length && window.UserPhotos) {
+                    UserPhotos.remove(dates.removed);
+                }
             }
             afterChange();
             return true;
@@ -294,6 +310,32 @@
         } finally {
             setBusy(false);
         }
+    }
+
+    /**
+     * Свои фото к маршруту — их карточка показывает **вместо** авторских
+     * (`renderPhotosInPanel` в script.js). `null` — своих нет, остаются
+     * авторские.
+     */
+    function photosFor(routeInfo) {
+        if (!routeInfo || routeInfo.mine) return null;
+        const m = marks.get(keyOf(routeInfo));
+        const ph = m && Array.isArray(m.photos) ? m.photos : null;
+        if (!ph || !ph.length || !window.UserPhotos) return null;
+        return ph.map(x => ({ src: UserPhotos.urlOf(x.p), coords: x.c || null, own: true }));
+    }
+
+    /** Есть ли у пользователя свой отчёт: тогда авторские рилсы прячем. */
+    function isPersonalized(routeInfo) {
+        if (!routeInfo || routeInfo.mine) return false;
+        const m = marks.get(keyOf(routeInfo));
+        return !!(m && ((m.photos && m.photos.length) || (m.note && m.note.trim())));
+    }
+
+    function noteOf(routeInfo) {
+        if (!routeInfo || routeInfo.mine) return null;
+        const m = marks.get(keyOf(routeInfo));
+        return (m && m.note && m.note.trim()) ? m.note.trim() : null;
     }
 
     /** Карточки для лент «Планы» и «Пройденные» — отмеченные маршруты каталога. */
@@ -425,6 +467,19 @@
         if (personal === 'done') {
             rows.push(`<div class="rs-tally">${svg(ICON.done, 12)}
                 <span>${distanceOf(routeInfo).toFixed(1)} км в вашем счётчике пройденного</span></div>`);
+            const note = noteOf(routeInfo);
+            const mark = marks.get(keyOf(routeInfo));
+            const nPh = (mark && mark.photos && mark.photos.length) || 0;
+            if (note || nPh) {
+                rows.push(`<div class="rs-report">
+                    <div class="rs-report-h">Мой отчёт${nPh ? ` · ${nPh} фото` : ''}
+                        <button class="rs-link" id="rs-report-edit">изменить</button></div>
+                    ${note ? `<p class="rs-report-t">${esc(note)}</p>` : ''}
+                </div>`);
+            } else if (!own) {
+                rows.push(`<button class="rs-cta rs-cta-sm" id="rs-report-edit">
+                    ${svg(ICON.camera, 14)}<span>Добавить свои фото и заметку</span></button>`);
+            }
         }
 
         // Авторский статус каталога — только автору
@@ -489,6 +544,8 @@
         });
         const edit = el.querySelector('#rs-edit');
         if (edit) edit.onclick = () => onPick(routeInfo, personal, own, true);
+        const report = el.querySelector('#rs-report-edit');
+        if (report) report.onclick = () => onPick(routeInfo, 'done', own, true);
     }
 
     /**
@@ -514,7 +571,11 @@
         const res = await askStatus({
             status, name: routeInfo.name, single: true,
             lat: start && start.lat, lon: start && start.lon,
-            when: personalDateOf(routeInfo)
+            when: personalDateOf(routeInfo),
+            routeKey: keyOf(routeInfo),
+            // Своё фото и заметку кладём к отметке каталожного маршрута;
+            // у своего маршрута для этого есть его собственная карточка
+            mark: own ? null : marks.get(keyOf(routeInfo))
         });
         if (!res) return false;                             // отменили окно
         const ok = own ? await applyOwn(routeInfo, res.status, res)
@@ -564,12 +625,18 @@
      */
     function askStatus(opts) {
         const when = opts.when ? String(opts.when) : '';
+        const mark = opts.mark || {};
         return new Promise(resolve => {
             modalState = {
                 opts,
                 status: opts.status || 'mine',
                 date: when.slice(0, 10) || todayISO(),
                 time: when.length > 10 ? fmtTime(when) : '09:00',
+                note: mark.note || '',
+                keep: Array.isArray(mark.photos) ? mark.photos.slice() : [],
+                removed: [],
+                files: [],           // File[] — ещё не загруженные
+                uploading: false,
                 resolve
             };
             ensureModal().classList.add('open');
@@ -597,6 +664,37 @@
                     </span>
                     <span class="rs-opt-tick">${svg(ICON.done, 14)}</span>
                 </button>`;
+    }
+
+    /**
+     * Полоска фото в окне «Пройден». Уже загруженные (`keep`) и только что
+     * выбранные (`files`) показываются одинаково — разница лишь в том, что
+     * второе ещё предстоит залить.
+     */
+    function photoField(st) {
+        const own = window.UserPhotos;
+        if (!own) return '';
+        const kept = st.keep.map((ph, i) =>
+            `<div class="rs-ph"><img src="${esc(UserPhotos.urlOf(ph.p))}" alt="" loading="lazy">
+                <button class="rs-ph-x" data-drop-keep="${i}" title="Убрать">×</button></div>`).join('');
+        const fresh = st.files.map((f, i) =>
+            `<div class="rs-ph"><img src="${esc(URL.createObjectURL(f))}" alt="">
+                <button class="rs-ph-x" data-drop-file="${i}" title="Убрать">×</button></div>`).join('');
+        const total = st.keep.length + st.files.length;
+        const add = total < UserPhotos.MAX_FILES
+            ? `<button class="rs-ph-add" id="rs-ph-add">${svg(ICON.plus, 18)}<span>Фото</span></button>` : '';
+        return `<div class="rs-field mt-4"><span>Фото с маршрута</span>
+            <div class="rs-phs">${add}${kept}${fresh}</div>
+            <div class="tw-note" id="rs-ph-note">${total
+                ? `${total} из ${UserPhotos.MAX_FILES}` : 'Необязательно — но с ними это уже ваш отчёт'}</div>
+        </div>`;
+    }
+
+    /** Перед перерисовкой окна забираем набранный текст: `innerHTML`
+     *  подменяет `textarea`, и заметка пропала бы вместе с ней. */
+    function keepText(inner) {
+        const n = inner && inner.querySelector('#rs-note');
+        if (n && modalState) modalState.note = n.value;
     }
 
     function renderModal() {
@@ -629,7 +727,13 @@
                     <label class="rs-field"><span>Когда прошли</span>
                         <input type="date" id="rs-date" class="review-input" value="${esc(st.date)}" max="${todayISO()}"></label>
                 </div>
-                <p class="tw-note mt-2">Километры маршрута зачтутся в ваш счётчик пройденного.</p>`;
+                ${photoField(st)}
+                <label class="rs-field mt-4"><span>Как прошло</span>
+                    <textarea class="review-input" id="rs-note" maxlength="1000" rows="3"
+                        placeholder="Пара слов о походе — их увидите вы и те, кому открыт ваш профиль"
+                        style="resize:none;display:block">${esc(st.note)}</textarea></label>
+                <p class="tw-note mt-2">Километры зачтутся в ваш счётчик. Свои фото и текст заменят
+                   авторские в карточке этого маршрута — у вас.</p>`;
         }
 
         inner.innerHTML = `
@@ -652,13 +756,27 @@
         });
         inner.querySelector('#rs-x').onclick = () => closeModal(null);
         inner.querySelector('#rs-cancel').onclick = () => closeModal(null);
-        inner.querySelector('#rs-ok').onclick = () => {
-            const d = inner.querySelector('#rs-date');
-            const t = inner.querySelector('#rs-time');
-            if (d && d.value) st.date = d.value;
-            if (t && t.value) st.time = t.value;
-            closeModal(result(st));
+        inner.querySelector('#rs-ok').onclick = () => submitModal(inner);
+        const addBtn = inner.querySelector('#rs-ph-add');
+        if (addBtn) addBtn.onclick = async () => {
+            const files = await UserPhotos.pick(true);
+            const room = UserPhotos.MAX_FILES - st.keep.length - st.files.length;
+            st.files = st.files.concat(files.slice(0, Math.max(0, room)));
+            keepText(inner);
+            renderModal();
         };
+        inner.querySelectorAll('[data-drop-keep]').forEach(b => {
+            b.onclick = () => {
+                // Убранное из хранилища сносим только после сохранения:
+                // отменили окно — фото должно остаться на месте
+                st.removed = st.removed.concat(st.keep.splice(+b.dataset.dropKeep, 1));
+                keepText(inner);
+                renderModal();
+            };
+        });
+        inner.querySelectorAll('[data-drop-file]').forEach(b => {
+            b.onclick = () => { st.files.splice(+b.dataset.dropFile, 1); keepText(inner); renderModal(); };
+        });
         const d = inner.querySelector('#rs-date');
         if (d) d.onchange = () => { st.date = d.value || st.date; renderModal(); };
         const t = inner.querySelector('#rs-time');
@@ -666,13 +784,54 @@
         if (st.status === 'planned') showForecast();
     }
 
-    function result(st) {
+    function result(st, photos) {
         if (st.status === 'planned') {
             const iso = new Date(`${st.date}T${st.time || '09:00'}`);
             return { status: 'planned', plannedAt: isNaN(iso) ? null : iso.toISOString(), doneAt: null };
         }
-        if (st.status === 'done') return { status: 'done', plannedAt: null, doneAt: st.date };
+        if (st.status === 'done') {
+            return { status: 'done', plannedAt: null, doneAt: st.date,
+                     note: st.note.trim() || null, photos: photos || st.keep, removed: st.removed };
+        }
         return { status: 'mine', plannedAt: null, doneAt: null };
+    }
+
+    /**
+     * Нажали «Готово». Фото заливаются **здесь**, пока окно открыто: только
+     * так видно, что идёт загрузка. Закрывать окно и грузить в тишине нельзя
+     * — с телефона пять фотографий это десятки секунд.
+     */
+    async function submitModal(inner) {
+        const st = modalState;
+        if (!st || st.uploading) return;
+        const d = inner.querySelector('#rs-date');
+        const t = inner.querySelector('#rs-time');
+        const n = inner.querySelector('#rs-note');
+        if (d && d.value) st.date = d.value;
+        if (t && t.value) st.time = t.value;
+        if (n) st.note = n.value;
+
+        let photos = st.keep;
+        if (st.status === 'done' && st.files.length && window.UserPhotos) {
+            st.uploading = true;
+            const ok = inner.querySelector('#rs-ok');
+            const note = inner.querySelector('#rs-ph-note');
+            ok.disabled = true;
+            try {
+                const up = await UserPhotos.upload(st.files, st.opts.routeKey || 'misc', (i, total) => {
+                    if (note) note.textContent = `Загружаю фото ${Math.min(i + 1, total)} из ${total}…`;
+                });
+                photos = st.keep.concat(up);
+            } catch (e) {
+                console.warn('[status] загрузка фото:', e);
+                st.uploading = false;
+                ok.disabled = false;
+                if (note) note.textContent = 'Не удалось загрузить фото — попробуйте ещё раз';
+                return;
+            }
+            st.uploading = false;
+        }
+        closeModal(result(st, photos));
     }
 
     /**
@@ -747,6 +906,7 @@
 
     window.RouteStatus = {
         STATUS, askStatus, renderPanel, personalStatusOf, personalDateOf,
+        photosFor, isPersonalized, noteOf,
         markedCards, onAccount, refreshKm, personalKm, applyCatalog,
         isAdmin() { return admin; },
         /** Подпись для значка в карточке: «План», «Пройден», «Мой». */

@@ -628,3 +628,52 @@ $$;
 
 revoke all on function public.username_available(text) from public;
 grant execute on function public.username_available(text) to authenticated;
+
+-- ═══════════ Фото пользователя к пройденному маршруту (сайт) ═══════════
+-- Отметив авторский маршрут пройденным, человек может приложить свои фото и
+-- заметку — и в карточке маршрута он увидит **свой** отчёт: его фотографии
+-- вместо авторских, его текст, без кнопки «Смотреть Reels» автора.
+--
+-- Фото лежат в Storage, путь `<user_id>/<route_key>/<uuid>.jpg` — первым
+-- сегментом всегда id владельца, и на этом стоит вся защита: политика
+-- сверяет его с `auth.uid()`. Бакет публичный на чтение: фото показываются
+-- в карточке и в профиле, а подписанные ссылки потребовали бы серверной
+-- функции ради каждой картинки.
+--
+-- ⚠️ Координаты фото храним рядом с путём (`{"p": "...", "c": [lon, lat]}`):
+-- пережатие в браузере стирает EXIF, а GPS нужен, чтобы поставить фото на
+-- тропу. Нет координат — `c: null`, и точку можно будет указать руками.
+
+alter table public.route_marks add column if not exists photos jsonb not null default '[]'::jsonb;
+alter table public.route_marks add column if not exists note   text;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('route-photos', 'route-photos', true, 8388608,
+        array['image/jpeg', 'image/png', 'image/webp'])
+    on conflict (id) do update
+   set public             = true,
+       file_size_limit    = 8388608,
+       allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "route-photos: владелец пишет" on storage.objects;
+create policy "route-photos: владелец пишет"
+    on storage.objects for insert to authenticated
+    with check (bucket_id = 'route-photos'
+                and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "route-photos: владелец правит" on storage.objects;
+create policy "route-photos: владелец правит"
+    on storage.objects for update to authenticated
+    using (bucket_id = 'route-photos'
+           and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "route-photos: владелец удаляет" on storage.objects;
+create policy "route-photos: владелец удаляет"
+    on storage.objects for delete to authenticated
+    using (bucket_id = 'route-photos'
+           and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "route-photos: читают все" on storage.objects;
+create policy "route-photos: читают все"
+    on storage.objects for select
+    using (bucket_id = 'route-photos');
