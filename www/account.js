@@ -784,6 +784,8 @@
                     <button class="tw-btn tw-btn-ghost" onclick="Profile.open('settings')">Настройки профиля и приватность</button>
                     <button class="tw-btn tw-btn-ghost" onclick="Profile.open('friends')">Друзья${
                         window.Profile && Profile.requestCount() ? ` <b class="tw-pill">${Profile.requestCount()}</b>` : ''}</button>
+                    <button class="tw-btn tw-btn-ghost" onclick="Events.open()">Походы и события${
+                        window.Events && Events.count() ? ` <b class="tw-pill">${Events.count()}</b>` : ''}</button>
                     <button class="tw-btn tw-btn-ghost" onclick="Account.showMine()">Показать «Мои» на карте</button>
                     ${doneLine() ? `<button class="tw-btn tw-btn-ghost" onclick="Account.showDone()">Показать пройденные</button>` : ''}
                     <button class="tw-btn tw-btn-ghost" onclick="RouteBuilder.start()">${PEN_ICON}Нарисовать маршрут</button>
@@ -954,6 +956,7 @@
         // появилась сессия, и сбрасывают их на выходе
         if (window.RouteStatus) RouteStatus.onAccount();
         if (window.Profile) Profile.onAccount();
+        if (window.Events) Events.onAccount();
         document.dispatchEvent(new CustomEvent('tw-account', { detail: { state } }));
     }
 

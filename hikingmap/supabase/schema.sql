@@ -683,3 +683,321 @@ create policy "route-photos: читают все"
 -- значения сохраняются (как `shared` и `status` выше).
 alter table public.routes add column if not exists photos jsonb not null default '[]'::jsonb;
 alter table public.routes add column if not exists note   text;
+
+-- ═════════════════ События: походы, чат и сборы (сайт) ═════════════════
+-- Событие — «идём туда-то тогда-то»: маршрут, дата, лидеры и участники,
+-- внутри чат и чек-лист общего снаряжения с ответственными.
+--
+-- ⚠️ Права здесь опаснее, чем в профилях: нужно, чтобы участники видели друг
+-- друга и переписку, а посторонние — ничего, и при этом пришедший по ссылке
+-- должен увидеть карточку **до** того, как вступит. Отсюда два приёма:
+--
+--   1. `is_event_member` / `is_event_leader` / `event_joinable` — функции с
+--      правами владельца. Без них политика `events` смотрела бы в
+--      `event_members`, политика `event_members` — в `events`, и RLS
+--      уходил бы в бесконечную рекурсию (Postgres отвечает ошибкой
+--      «infinite recursion detected in policy»).
+--   2. `get_event` / `event_feed` — тоже с правами владельца: они отдают
+--      карточку и переписку вместе с именами авторов. Напрямую участник
+--      чужой профиль прочитать не может (RLS `profiles` — только свой), а
+--      имена в чате нужны.
+--
+-- Идентификатор события — uuid, и по ссылке `#e/<id>` его видит любой, кому
+-- ссылку дали: перебором uuid не находится.
+
+create table if not exists public.events (
+    id          uuid primary key default gen_random_uuid(),
+    owner       uuid not null references auth.users (id) on delete cascade default auth.uid(),
+    title       text not null,
+    description text,
+    starts_at   timestamptz,
+    meeting     text,                       -- место и время сбора словами
+    route_key   text,                       -- 'route_3' / 'future_5' / 'my_<uuid>'
+    route_name  text,
+    route_km    double precision,
+    visibility  text not null default 'link',
+    created_at  timestamptz not null default now(),
+    updated_at  timestamptz not null default now()
+);
+
+alter table public.events drop constraint if exists events_visibility_check;
+alter table public.events add constraint events_visibility_check
+    check (visibility in ('link', 'friends'));
+
+create table if not exists public.event_members (
+    event_id  uuid not null references public.events (id) on delete cascade,
+    user_id   uuid not null references auth.users (id) on delete cascade default auth.uid(),
+    role      text not null default 'member' check (role in ('leader', 'member')),
+    joined_at timestamptz not null default now(),
+    primary key (event_id, user_id)
+);
+
+create index if not exists event_members_user_idx on public.event_members (user_id);
+
+create table if not exists public.event_messages (
+    id         bigserial primary key,
+    event_id   uuid not null references public.events (id) on delete cascade,
+    user_id    uuid not null references auth.users (id) on delete cascade default auth.uid(),
+    body       text not null,
+    created_at timestamptz not null default now()
+);
+
+create index if not exists event_messages_feed_idx on public.event_messages (event_id, id);
+
+-- Чек-лист сборов: пункт можно назначить участнику, и он его отмечает
+create table if not exists public.event_items (
+    id         bigserial primary key,
+    event_id   uuid not null references public.events (id) on delete cascade,
+    title      text not null,
+    assignee   uuid references auth.users (id) on delete set null,
+    done       boolean not null default false,
+    done_at    timestamptz,
+    created_by uuid not null default auth.uid(),
+    created_at timestamptz not null default now()
+);
+
+create index if not exists event_items_event_idx on public.event_items (event_id, id);
+
+-- ─────────────────── Кто есть кто (без рекурсии RLS) ───────────────────
+create or replace function public.is_event_member(ev uuid)
+returns boolean language sql stable security definer set search_path = ''
+as $$
+    select exists (select 1 from public.event_members m
+                    where m.event_id = ev and m.user_id = auth.uid())
+$$;
+
+create or replace function public.is_event_leader(ev uuid)
+returns boolean language sql stable security definer set search_path = ''
+as $$
+    select exists (select 1 from public.event_members m
+                    where m.event_id = ev and m.user_id = auth.uid() and m.role = 'leader')
+$$;
+
+/* Можно ли вступить: по ссылке — всем, «только друзья» — друзьям владельца */
+create or replace function public.event_joinable(ev uuid)
+returns boolean language sql stable security definer set search_path = ''
+as $$
+    select exists (
+        select 1 from public.events e
+         where e.id = ev
+           and auth.uid() is not null
+           and (e.visibility = 'link'
+                or (e.visibility = 'friends' and public.are_friends(auth.uid(), e.owner)))
+    )
+$$;
+
+revoke all on function public.is_event_member(uuid), public.is_event_leader(uuid),
+                       public.event_joinable(uuid) from public;
+grant execute on function public.is_event_member(uuid), public.is_event_leader(uuid),
+                          public.event_joinable(uuid) to authenticated;
+
+-- ─────────────────────────── Политики ──────────────────────────────────
+alter table public.events         enable row level security;
+alter table public.event_members  enable row level security;
+alter table public.event_messages enable row level security;
+alter table public.event_items    enable row level security;
+
+drop policy if exists "events: участники читают" on public.events;
+create policy "events: участники читают"
+    on public.events for select using (public.is_event_member(id));
+
+drop policy if exists "events: заводит сам" on public.events;
+create policy "events: заводит сам"
+    on public.events for insert with check (auth.uid() = owner);
+
+drop policy if exists "events: правит лидер" on public.events;
+create policy "events: правит лидер"
+    on public.events for update using (public.is_event_leader(id))
+    with check (public.is_event_leader(id));
+
+-- Удалить событие может только владелец: лидеров может быть несколько, и
+-- сносить общий поход не должен никто, кроме того, кто его собрал
+drop policy if exists "events: удаляет владелец" on public.events;
+create policy "events: удаляет владелец"
+    on public.events for delete using (auth.uid() = owner);
+
+drop policy if exists "members: участники видят друг друга" on public.event_members;
+create policy "members: участники видят друг друга"
+    on public.event_members for select using (public.is_event_member(event_id));
+
+-- Вступают сами (если событие пускает) или добавляет лидер
+drop policy if exists "members: вступление" on public.event_members;
+create policy "members: вступление"
+    on public.event_members for insert
+    with check ((user_id = auth.uid() and public.event_joinable(event_id))
+                or public.is_event_leader(event_id));
+
+drop policy if exists "members: роли меняет лидер" on public.event_members;
+create policy "members: роли меняет лидер"
+    on public.event_members for update using (public.is_event_leader(event_id))
+    with check (public.is_event_leader(event_id));
+
+drop policy if exists "members: уходят сами, исключает лидер" on public.event_members;
+create policy "members: уходят сами, исключает лидер"
+    on public.event_members for delete
+    using (user_id = auth.uid() or public.is_event_leader(event_id));
+
+drop policy if exists "messages: участники читают" on public.event_messages;
+create policy "messages: участники читают"
+    on public.event_messages for select using (public.is_event_member(event_id));
+
+drop policy if exists "messages: участники пишут" on public.event_messages;
+create policy "messages: участники пишут"
+    on public.event_messages for insert
+    with check (user_id = auth.uid() and public.is_event_member(event_id));
+
+drop policy if exists "messages: своё удаляет автор" on public.event_messages;
+create policy "messages: своё удаляет автор"
+    on public.event_messages for delete
+    using (user_id = auth.uid() or public.is_event_leader(event_id));
+
+-- Чек-лист правят все участники: это общие сборы, а не приказ. Кто взял
+-- котелок, тот и отмечает — включая «я возьму вместо него»
+drop policy if exists "items: участники читают" on public.event_items;
+create policy "items: участники читают"
+    on public.event_items for select using (public.is_event_member(event_id));
+
+drop policy if exists "items: участники добавляют" on public.event_items;
+create policy "items: участники добавляют"
+    on public.event_items for insert with check (public.is_event_member(event_id));
+
+drop policy if exists "items: участники правят" on public.event_items;
+create policy "items: участники правят"
+    on public.event_items for update using (public.is_event_member(event_id))
+    with check (public.is_event_member(event_id));
+
+drop policy if exists "items: удаляет автор или лидер" on public.event_items;
+create policy "items: удаляет автор или лидер"
+    on public.event_items for delete
+    using (created_by = auth.uid() or public.is_event_leader(event_id));
+
+-- Собравший событие сразу становится его лидером
+create or replace function public.handle_new_event()
+returns trigger language plpgsql security definer set search_path = public
+as $$
+begin
+    insert into public.event_members (event_id, user_id, role)
+    values (new.id, new.owner, 'leader')
+    on conflict (event_id, user_id) do update set role = 'leader';
+    return new;
+end;
+$$;
+
+drop trigger if exists on_event_created on public.events;
+create trigger on_event_created
+    after insert on public.events
+    for each row execute function public.handle_new_event();
+
+-- ──────────────── Карточка события, список, чат ────────────────────────
+-- ⚠️ Функции с правами владельца, потому что участнику нужны **имена**
+-- других участников и авторов сообщений, а чужой профиль RLS ему читать не
+-- даёт. Плюс карточку должен увидеть пришедший по ссылке — до вступления он
+-- ещё не участник, и обычный select его не пустит.
+create or replace function public.get_event(ev uuid)
+returns jsonb language plpgsql stable security definer set search_path = ''
+as $$
+declare
+    e   public.events;
+    mine text;
+begin
+    select * into e from public.events x where x.id = ev;
+    if e.id is null then
+        return jsonb_build_object('state', 'not_found');
+    end if;
+
+    select m.role into mine from public.event_members m
+     where m.event_id = ev and m.user_id = auth.uid();
+
+    -- Не участник и вступить не может — значит это не его событие
+    if mine is null and not public.event_joinable(ev) then
+        return jsonb_build_object('state', 'closed');
+    end if;
+
+    return jsonb_build_object(
+        'state', 'ok',
+        'id', e.id, 'title', e.title, 'description', e.description,
+        'starts_at', e.starts_at, 'meeting', e.meeting,
+        'route_key', e.route_key, 'route_name', e.route_name, 'route_km', e.route_km,
+        'visibility', e.visibility, 'owner', e.owner,
+        'my_role', mine,
+        'members', coalesce((
+            select jsonb_agg(jsonb_build_object(
+                       'id', m.user_id, 'role', m.role,
+                       'username', p.username, 'display_name', p.display_name,
+                       'avatar_url', p.avatar_url)
+                   order by (m.role = 'leader') desc, m.joined_at)
+              from public.event_members m
+              left join public.profiles p on p.id = m.user_id
+             where m.event_id = ev), '[]'::jsonb),
+        'items', case when mine is null then '[]'::jsonb else coalesce((
+            select jsonb_agg(jsonb_build_object(
+                       'id', i.id, 'title', i.title, 'assignee', i.assignee,
+                       'done', i.done, 'created_by', i.created_by) order by i.id)
+              from public.event_items i where i.event_id = ev), '[]'::jsonb) end,
+        'messages_count', case when mine is null then 0 else
+            (select count(*) from public.event_messages g where g.event_id = ev) end
+    );
+end;
+$$;
+
+revoke all on function public.get_event(uuid) from public;
+grant execute on function public.get_event(uuid) to authenticated;
+
+/* Мои события — с числом участников и ближайшей датой */
+create or replace function public.my_events()
+returns jsonb language sql stable security definer set search_path = ''
+as $$
+    select coalesce(jsonb_agg(x order by x -> 'starts_at' nulls last), '[]'::jsonb)
+      from (
+        select jsonb_build_object(
+                   'id', e.id, 'title', e.title, 'starts_at', e.starts_at,
+                   'route_name', e.route_name, 'route_km', e.route_km,
+                   'my_role', m.role,
+                   'members', (select count(*) from public.event_members k where k.event_id = e.id)
+               ) as x
+          from public.event_members m
+          join public.events e on e.id = m.event_id
+         where m.user_id = auth.uid()
+      ) q
+$$;
+
+revoke all on function public.my_events() from public, anon;
+grant execute on function public.my_events() to authenticated;
+
+/* Вступить. Отдельной функцией: политика на insert это тоже позволяет, но
+   через функцию клиенту не нужен доступ к таблице ради одной строки. */
+create or replace function public.join_event(ev uuid)
+returns text language plpgsql security definer set search_path = ''
+as $$
+begin
+    if auth.uid() is null then return 'unauthenticated'; end if;
+    if not public.event_joinable(ev) then return 'closed'; end if;
+    insert into public.event_members (event_id, user_id, role)
+    values (ev, auth.uid(), 'member')
+    on conflict (event_id, user_id) do nothing;
+    return 'ok';
+end;
+$$;
+
+revoke all on function public.join_event(uuid) from public, anon;
+grant execute on function public.join_event(uuid) to authenticated;
+
+/* Переписка с именами авторов. `after_id` — только новое: чат опрашивается
+   раз в несколько секунд, и таскать всю историю каждый раз незачем. */
+create or replace function public.event_feed(ev uuid, after_id bigint default 0)
+returns jsonb language sql stable security definer set search_path = ''
+as $$
+    select case when public.is_event_member(ev) then coalesce((
+        select jsonb_agg(jsonb_build_object(
+                   'id', g.id, 'user_id', g.user_id, 'body', g.body,
+                   'created_at', g.created_at,
+                   'display_name', p.display_name, 'avatar_url', p.avatar_url,
+                   'username', p.username) order by g.id)
+          from public.event_messages g
+          left join public.profiles p on p.id = g.user_id
+         where g.event_id = ev and g.id > coalesce(after_id, 0)
+    ), '[]'::jsonb) else '[]'::jsonb end
+$$;
+
+revoke all on function public.event_feed(uuid, bigint) from public, anon;
+grant execute on function public.event_feed(uuid, bigint) to authenticated;

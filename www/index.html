@@ -319,6 +319,8 @@
         }
         .pf-btn-accent:hover:not(:disabled) { filter: brightness(1.08); }
         .pf-btn-sm { padding: 6px 11px; font-size: 12px; border-radius: 9px; }
+        .pf-btn-danger { background: rgba(239,68,68,.12); color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+        .pf-btn-danger:hover:not(:disabled) { background: rgba(239,68,68,.2); }
         .pf-link {
             color: rgba(255,255,255,.5); font-size: 11.5px; cursor: pointer;
             border-bottom: 1px dashed rgba(255,255,255,.3); transition: color .2s;
@@ -509,6 +511,143 @@
             #photo-place-bar { left: auto; right: 24px; bottom: 24px; width: 460px; border-radius: 18px;
                                border: 1px solid rgba(255,255,255,.1); }
         }
+
+        /* ── События: походы, чат, сборы (events.js) ───────────── */
+        .ev-inner { max-width: 470px; padding: 0; overflow: hidden auto; display: flex; flex-direction: column; }
+        .ev-head {
+            display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+            padding: 14px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.08);
+        }
+        .ev-head-t {
+            flex: 1; min-width: 0; color: #fff; font-size: 15px; font-weight: 600;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .ev-head > span { flex: 0 0 30px; }
+        .ev-body { padding: 16px 18px 24px; }
+        .ev-wide { width: 100%; }
+
+        .ev-tabs { display: flex; gap: 2px; padding: 8px 12px 0; flex-shrink: 0; }
+        .ev-tab {
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 9px 4px; border-radius: 10px 10px 0 0; cursor: pointer;
+            color: rgba(255,255,255,.5); font-size: 11.5px; font-weight: 600;
+            border-bottom: 2px solid transparent; transition: color .2s, border-color .2s;
+        }
+        .ev-tab.active { color: #fff; border-bottom-color: #7A5EA6; background: rgba(122,94,166,.1); }
+        .ev-tab b {
+            min-width: 16px; padding: 0 4px; border-radius: 999px;
+            background: rgba(255,255,255,.15); font-size: 9.5px; font-weight: 800;
+        }
+        .ev-tab.active b { background: #7A5EA6; }
+
+        .ev-cards { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+        .ev-card {
+            position: relative; text-align: left; padding: 13px 14px; border-radius: 14px; cursor: pointer;
+            background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08);
+            transition: background .2s, border-color .2s;
+        }
+        .ev-card:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.16); }
+        .ev-card-t { color: #fff; font-size: 14px; font-weight: 600; padding-right: 54px; }
+        .ev-card-m {
+            display: flex; flex-direction: column; gap: 3px; margin-top: 7px;
+            color: rgba(255,255,255,.45); font-size: 11.5px;
+        }
+        .ev-card-m span { display: flex; align-items: center; gap: 6px; }
+        .ev-role {
+            padding: 2px 7px; border-radius: 999px; font-size: 8.5px; font-weight: 800;
+            letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+            color: #c4b0e8; background: rgba(122,94,166,.2); border: 1px solid rgba(122,94,166,.4);
+        }
+        /* ⚠️ Только на карточке списка: в строке участника абсолютная метка
+           улетала в угол ближайшего позиционированного родителя */
+        .ev-card .ev-role { position: absolute; top: 12px; right: 12px; }
+
+        .ev-when {
+            display: flex; align-items: center; gap: 9px; color: #fff; font-size: 14px; font-weight: 600;
+        }
+        .ev-when svg { color: #FFB347; }
+        .ev-line { display: flex; align-items: flex-start; gap: 9px; margin-top: 12px;
+                   color: rgba(255,255,255,.72); font-size: 12.5px; line-height: 1.5; }
+        .ev-line svg { flex-shrink: 0; margin-top: 2px; color: rgba(255,255,255,.4); }
+        .ev-desc { margin-top: 14px; color: rgba(255,255,255,.75); font-size: 13px;
+                   line-height: 1.6; white-space: pre-line; }
+        .ev-route {
+            display: flex; align-items: center; gap: 11px; width: 100%; margin-top: 14px;
+            padding: 12px 14px; border-radius: 13px; cursor: pointer; text-align: left;
+            background: rgba(122,94,166,.12); border: 1px solid rgba(122,94,166,.3);
+            transition: background .2s;
+        }
+        .ev-route:hover { background: rgba(122,94,166,.2); }
+        .ev-route svg { color: #c4b0e8; flex-shrink: 0; }
+        .ev-route-t { flex: 1; min-width: 0; color: #fff; font-size: 13px; font-weight: 600; }
+        .ev-route-t em { display: block; font-style: normal; color: rgba(255,255,255,.45);
+                         font-size: 11px; font-weight: 400; margin-top: 2px; }
+        .ev-route-go { color: #c4b0e8; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; }
+
+        .ev-people { display: flex; flex-direction: column; gap: 4px; }
+        .ev-person { display: flex; align-items: center; gap: 9px; padding: 5px 0; flex-wrap: wrap; }
+        .ev-person-n { color: #e4e4e7; font-size: 12.5px; }
+        .ev-person-a { display: flex; gap: 10px; margin-left: auto; }
+        .ev-ava {
+            width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; object-fit: cover;
+            display: flex; align-items: center; justify-content: center;
+            background: #7A5EA6; color: #fff; font-size: 11px; font-weight: 700; text-transform: uppercase;
+        }
+
+        /* Чат */
+        .ev-chat {
+            display: flex; flex-direction: column; gap: 10px;
+            max-height: 46vh; min-height: 180px; overflow-y: auto; padding-right: 4px;
+        }
+        .ev-day {
+            align-self: center; padding: 2px 10px; border-radius: 999px; margin: 4px 0;
+            background: rgba(255,255,255,.06); color: rgba(255,255,255,.45); font-size: 10px;
+        }
+        .ev-msg { display: flex; gap: 8px; align-items: flex-end; max-width: 88%; }
+        .ev-msg.own { align-self: flex-end; }
+        .ev-bubble {
+            padding: 8px 11px 6px; border-radius: 14px 14px 14px 4px;
+            background: rgba(255,255,255,.07); min-width: 0;
+        }
+        .ev-msg.own .ev-bubble { border-radius: 14px 14px 4px 14px; background: rgba(122,94,166,.28); }
+        .ev-msg-n { color: #c4b0e8; font-size: 10.5px; font-weight: 700; margin-bottom: 3px; }
+        .ev-msg-b { color: #f4f4f5; font-size: 13px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+        .ev-msg-t { color: rgba(255,255,255,.35); font-size: 9.5px; text-align: right; margin-top: 3px; }
+        .ev-send { display: flex; gap: 8px; margin-top: 14px; }
+        .ev-send input { flex: 1; min-width: 0; }
+        .ev-send .pf-btn { flex-shrink: 0; padding: 10px 13px; }
+
+        /* Сборы */
+        .ev-mine {
+            display: flex; align-items: center; gap: 8px; margin: 12px 0;
+            padding: 9px 12px; border-radius: 11px; font-size: 12px;
+            color: #FFB347; background: rgba(255,140,0,.1); border: 1px solid rgba(255,140,0,.28);
+        }
+        .ev-items { display: flex; flex-direction: column; gap: 3px; margin-top: 12px; }
+        .ev-item {
+            display: flex; align-items: center; gap: 9px; padding: 7px 0;
+            border-bottom: 1px solid rgba(255,255,255,.05);
+        }
+        .ev-item.done .ev-item-t { color: rgba(255,255,255,.35); text-decoration: line-through; }
+        .ev-item-t { flex: 1; min-width: 0; color: #e4e4e7; font-size: 12.5px; }
+        .ev-tick {
+            width: 22px; height: 22px; flex-shrink: 0; border-radius: 7px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.18);
+            color: #fff; transition: background .2s, border-color .2s;
+        }
+        .ev-tick:hover { border-color: rgba(255,255,255,.4); }
+        .ev-tick.on { background: #7A5EA6; border-color: #7A5EA6; }
+        .ev-who {
+            flex-shrink: 0; max-width: 110px; padding: 4px 6px; border-radius: 8px;
+            background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+            color: rgba(255,255,255,.7); font-size: 11px; font-family: inherit;
+        }
+        .ev-del {
+            flex-shrink: 0; padding: 4px; border-radius: 7px; cursor: pointer;
+            color: rgba(255,255,255,.3); transition: color .2s, background .2s;
+        }
+        .ev-del:hover { color: #f87171; background: rgba(239,68,68,.12); }
 
         /* Метка статуса на карточке карусели */
         .cc-badge {
@@ -2057,6 +2196,7 @@
     <script src="user_photos.js"></script>
     <script src="photo_place.js"></script>
     <script src="profile.js"></script>
+    <script src="events.js"></script>
     <script src="mvt.js"></script>
     <script src="route_builder.js"></script>
     <script src="map_points.js"></script>
