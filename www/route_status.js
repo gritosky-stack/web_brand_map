@@ -523,7 +523,9 @@
             { value: 'done',                label: 'Пройден',                     icon: ICON.done,    color: C().done }
         ];
         const rows = [
-            `<div class="rs-head">${own ? 'Мой маршрут' : 'Я и этот маршрут'}</div>`,
+            // Не «Мой маршрут»: так уже подписан блок действий ниже
+            // (переименовать, скачать, удалить), и заголовок шёл дважды
+            `<div class="rs-head">${own ? 'Статус и отчёт' : 'Я и этот маршрут'}</div>`,
             segment(items, current, 'data-status', busy)
         ];
 
