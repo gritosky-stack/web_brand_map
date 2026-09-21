@@ -214,7 +214,7 @@
     /** Смена авторского статуса. Пустит только админа — проверяет RLS. */
     async function setCatalogStatus(routeKey, status, date) {
         const c = client();
-        if (!c) return;
+        if (!c) return false;
         setBusy(true);
         try {
             const row = { route_key: routeKey, status, date: date || null,
@@ -227,9 +227,11 @@
             toast(status === 'planned' ? 'Анонс: маршрут показан как «скоро идём»'
                 : status === 'done'    ? 'Маршрут отмечен пройденным'
                                        : 'Маршрут убран в запас');
+            return true;
         } catch (e) {
             console.warn('[status] авторский статус:', e);
             toast('Не удалось поменять статус. Это может только автор каталога');
+            return false;
         } finally {
             setBusy(false);
         }
@@ -441,27 +443,48 @@
 
         el.innerHTML = rows.join('');
 
-        // Пилюля переезжает **сразу**, не дожидаясь ответа базы: иначе
-        // между нажатием и ответом кнопка выглядит не нажатой
+        /**
+         * Пилюля переезжает **сразу**, не дожидаясь ответа базы: иначе между
+         * нажатием и ответом кнопка выглядит не нажатой.
+         *
+         * ⚠️ Возвращает откат, и звать его обязательно, если статус в итоге
+         * не поменялся — отменили окно с датой или база не приняла запись.
+         * Без этого на экране оставался выбранный статус, которого на бэке
+         * нет, и правда возвращалась только перезагрузкой (фидбэк 2026-09-21).
+         */
         const moveThumb = b => {
             const seg = b.closest('.rs-seg');
-            if (!seg) return;
+            if (!seg) return () => {};
             const btns = [...seg.querySelectorAll('.rs-seg-btn')];
+            const was = {
+                i: seg.style.getPropertyValue('--seg-i'),
+                color: seg.style.getPropertyValue('--seg-color'),
+                active: seg.querySelector('.rs-seg-btn.active')
+            };
             seg.style.setProperty('--seg-i', btns.indexOf(b));
             const v = b.dataset.status || b.dataset.cat;
             seg.style.setProperty('--seg-color', C()[STATUS[v] ? STATUS[v].key : v] || C().idle);
             btns.forEach(x => x.classList.toggle('active', x === b));
             const thumb = seg.querySelector('.rs-seg-thumb');
             if (thumb) { thumb.classList.remove('rs-pop'); void thumb.offsetWidth; thumb.classList.add('rs-pop'); }
+            return () => {
+                seg.style.setProperty('--seg-i', was.i);
+                seg.style.setProperty('--seg-color', was.color);
+                btns.forEach(x => x.classList.toggle('active', x === was.active));
+            };
         };
         el.querySelectorAll('.rs-seg-btn[data-status]').forEach(b => {
-            b.onclick = () => { moveThumb(b); onPick(routeInfo, b.dataset.status, own); };
+            b.onclick = async () => {
+                const undo = moveThumb(b);
+                if (!await onPick(routeInfo, b.dataset.status, own)) undo();
+            };
         });
         el.querySelectorAll('.rs-seg-btn[data-cat]').forEach(b => {
-            b.onclick = () => {
+            b.onclick = async () => {
                 if (b.dataset.cat === (routeInfo.status || 'done')) return;
-                moveThumb(b);
-                setCatalogStatus(routeInfo.id, b.dataset.cat, (routeInfo.date || '').slice(0, 10) || null);
+                const undo = moveThumb(b);
+                if (!await setCatalogStatus(routeInfo.id, b.dataset.cat,
+                                            (routeInfo.date || '').slice(0, 10) || null)) undo();
             };
         });
         const edit = el.querySelector('#rs-edit');
@@ -475,16 +498,16 @@
      * пройденного — когда прошли.
      */
     async function onPick(routeInfo, status, own, forceAsk) {
-        if (busy || !status) return;
+        if (busy || !status) return false;
         const current = own ? ((window.MyRoutes && MyRoutes.statusOf(routeInfo.cloudId)) || 'mine')
                             : (personalStatusOf(routeInfo) || 'idle');
-        if (status === current && !forceAsk) return;
+        if (status === current && !forceAsk) return true;   // и так на месте
 
         // «В запасе» даты не требует: это отсутствие планов
         if (status === 'mine' || status === 'idle') {
             const ok = own ? await applyOwn(routeInfo, 'mine', {}) : await setMark(routeInfo, null);
             if (ok) flash('idle');
-            return;
+            return ok;
         }
 
         const start = startOf(routeInfo);
@@ -493,10 +516,11 @@
             lat: start && start.lat, lon: start && start.lon,
             when: personalDateOf(routeInfo)
         });
-        if (!res) return;
+        if (!res) return false;                             // отменили окно
         const ok = own ? await applyOwn(routeInfo, res.status, res)
                        : await setMark(routeInfo, res.status, res);
         if (ok) flash(res.status);
+        return ok;
     }
 
     async function applyOwn(routeInfo, status, dates) {

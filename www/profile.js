@@ -189,18 +189,41 @@
         }
     }
 
+    /** Подпись под полем ника. Отдельной функцией — см. `checkNick`. */
+    function nickNoteHTML() {
+        const ns = nickState;
+        if (!(me && me.username) && !ns) return '<em class="pf-warn">Придумайте ник — без него профилем не поделиться</em>';
+        if (!ns) return '';
+        if (ns.state === 'bad')      return '<em class="pf-warn">3–20 символов: латиница, цифры, подчёркивание</em>';
+        if (ns.state === 'checking') return '<em>Проверяю…</em>';
+        if (ns.state === 'taken')    return '<em class="pf-warn">Занят</em>';
+        if (ns.state === 'free')     return '<em class="pf-ok">Свободен</em>';
+        return '';
+    }
+
+    function paintNickNote() {
+        const el = document.getElementById('pf-nicknote');
+        if (el) el.innerHTML = nickNoteHTML();
+    }
+
     let nickTimer = null;
+    /**
+     * ⚠️ Перерисовывать здесь можно **только подпись** под полем.
+     * `renderSettings()` собирает блок заново через `innerHTML`, то есть
+     * подменяет само поле ввода: набранный символ пропадал вместе с фокусом,
+     * и ник было не набрать вовсе (фидбэк 2026-09-21).
+     */
     function checkNick(value) {
         const v = String(value || '').trim().toLowerCase();
         clearTimeout(nickTimer);
         if (!/^[a-z0-9_]{3,20}$/.test(v)) {
             nickState = { value: v, state: v ? 'bad' : null };
-            renderSettings();
+            paintNickNote();
             return;
         }
-        if (me && v === me.username) { nickState = null; renderSettings(); return; }
+        if (me && v === me.username) { nickState = null; paintNickNote(); return; }
         nickState = { value: v, state: 'checking' };
-        renderSettings();
+        paintNickNote();
         nickTimer = setTimeout(async () => {
             const c = client();
             if (!c) return;
@@ -208,7 +231,7 @@
                 const { data } = await c.rpc('username_available', { handle: v });
                 nickState = { value: v, state: data === false ? 'taken' : 'free' };
             } catch (e) { nickState = { value: v, state: null }; }
-            renderSettings();
+            paintNickNote();
         }, 420);
     }
 
@@ -521,10 +544,12 @@
 
     // ── Настройки профиля ───────────────────────────────────────────────────
 
+    const levelColor = l => l === 'public' ? '#7A5EA6' : l === 'friends' ? '#FF8C00' : '#52525b';
+
     function visRow(f) {
         const cur = (me && me[f.key]) || 'public';
         const i = Math.max(0, LEVELS.findIndex(l => l.value === cur));
-        const color = cur === 'public' ? '#7A5EA6' : cur === 'friends' ? '#FF8C00' : '#52525b';
+        const color = levelColor(cur);
         return `<div class="pf-vis">
             <div class="pf-vis-l">${esc(f.label)}${f.hint ? `<em>${esc(f.hint)}</em>` : ''}</div>
             <div class="rs-seg pf-seg" style="--seg-n:3;--seg-i:${i};--seg-color:${color}">
@@ -545,12 +570,7 @@
             return;
         }
         const nick = me.username || '';
-        const ns = nickState;
-        const nickNote = !nick && !ns ? '<em class="pf-warn">Придумайте ник — без него профилем не поделиться</em>'
-            : ns && ns.state === 'bad'      ? '<em class="pf-warn">3–20 символов: латиница, цифры, подчёркивание</em>'
-            : ns && ns.state === 'checking' ? '<em>Проверяю…</em>'
-            : ns && ns.state === 'taken'    ? '<em class="pf-warn">Занят</em>'
-            : ns && ns.state === 'free'     ? '<em class="pf-ok">Свободен</em>' : '';
+        const nickNote = nickNoteHTML();
 
         const link = nick ? profileLink(nick) : '';
         box.innerHTML = `
@@ -582,7 +602,7 @@
                            placeholder="${esc(suggestNick())}" value="${esc(nick)}">
                     <button class="pf-btn pf-btn-accent" id="pf-nick-save" ${busy ? 'disabled' : ''}>Сохранить</button>
                 </div>
-                <div class="pf-nicknote">${nickNote}</div>`)}
+                <div class="pf-nicknote" id="pf-nicknote">${nickNote}</div>`)}
 
             ${section('О себе', null, `
                 <textarea class="review-input" id="pf-bio" maxlength="280" rows="3"
@@ -726,16 +746,24 @@
             b.onclick = () => respondRequest(b.dataset.decline, false);
         });
         box.querySelectorAll('[data-vis]').forEach(b => {
-            b.onclick = () => {
-                // Пилюля переезжает сразу, как в блоке статуса маршрута
+            b.onclick = async () => {
+                // Пилюля переезжает сразу, как в блоке статуса маршрута, —
+                // и возвращается, если база не приняла
                 const seg = b.closest('.rs-seg');
+                const was = { i: seg.style.getPropertyValue('--seg-i'),
+                              color: seg.style.getPropertyValue('--seg-color'),
+                              level: me ? me[b.dataset.vis] : null,
+                              active: seg.querySelector('.rs-seg-btn.active') };
                 const btns = [...seg.querySelectorAll('.rs-seg-btn')];
                 seg.style.setProperty('--seg-i', btns.indexOf(b));
-                seg.style.setProperty('--seg-color', b.dataset.level === 'public' ? '#7A5EA6'
-                    : b.dataset.level === 'friends' ? '#FF8C00' : '#52525b');
+                seg.style.setProperty('--seg-color', levelColor(b.dataset.level));
                 btns.forEach(x => x.classList.toggle('active', x === b));
                 if (me) me[b.dataset.vis] = b.dataset.level;
-                saveProfile({ [b.dataset.vis]: b.dataset.level }, false);
+                if (await saveProfile({ [b.dataset.vis]: b.dataset.level }, false)) return;
+                seg.style.setProperty('--seg-i', was.i);
+                seg.style.setProperty('--seg-color', was.color);
+                btns.forEach(x => x.classList.toggle('active', x === was.active));
+                if (me) me[b.dataset.vis] = was.level;
             };
         });
 
