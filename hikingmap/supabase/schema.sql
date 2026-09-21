@@ -710,8 +710,11 @@ create table if not exists public.events (
     owner       uuid not null references auth.users (id) on delete cascade default auth.uid(),
     title       text not null,
     description text,
-    starts_at   timestamptz,
-    meeting     text,                       -- место и время сбора словами
+    starts_at   timestamptz,                -- сбор: дата и время
+    ends_at     timestamptz,                -- возвращение: дата и время
+    meeting     text,                       -- где сбор, словами
+    meet_lat    double precision,           -- и точкой на карте
+    meet_lon    double precision,
     route_key   text,                       -- 'route_3' / 'future_5' / 'my_<uuid>'
     route_name  text,
     route_km    double precision,
@@ -719,6 +722,16 @@ create table if not exists public.events (
     created_at  timestamptz not null default now(),
     updated_at  timestamptz not null default now()
 );
+
+-- ⚠️ И то же самое `alter`-ами — **здесь, до функций**. Таблица могла быть
+-- создана прежней версией файла, и тогда `create table if not exists` её не
+-- тронет. А `my_events` ниже объявлена как `language sql`: её тело Postgres
+-- проверяет **при создании**, и без этих колонок прогон файла падает на
+-- `column e.ends_at does not exist` (фидбэк 2026-09-21). Дописывая колонку,
+-- которую читает функция, ставь `alter` выше самой функции.
+alter table public.events add column if not exists ends_at  timestamptz;
+alter table public.events add column if not exists meet_lat double precision;
+alter table public.events add column if not exists meet_lon double precision;
 
 alter table public.events drop constraint if exists events_visibility_check;
 alter table public.events add constraint events_visibility_check
@@ -797,9 +810,15 @@ alter table public.event_members  enable row level security;
 alter table public.event_messages enable row level security;
 alter table public.event_items    enable row level security;
 
+-- ⚠️ Владелец читает событие **по колонке owner**, а не только как
+-- участник. Участником он становится триггером `on_event_created`, то есть
+-- уже после вставки, — а `insert ... returning` проверяет строку политикой
+-- на select в той же команде. Без этого создание похода честно записывало
+-- строку и возвращало ошибку (фидбэк 2026-09-21).
 drop policy if exists "events: участники читают" on public.events;
 create policy "events: участники читают"
-    on public.events for select using (public.is_event_member(id));
+    on public.events for select
+    using (auth.uid() = owner or public.is_event_member(id));
 
 drop policy if exists "events: заводит сам" on public.events;
 create policy "events: заводит сам"
@@ -1003,17 +1022,3 @@ $$;
 revoke all on function public.event_feed(uuid, bigint) from public, anon;
 grant execute on function public.event_feed(uuid, bigint) to authenticated;
 
--- ─────────── Правки событий: окончание, точка сбора, чтение владельцем ──
-alter table public.events add column if not exists ends_at  timestamptz;
-alter table public.events add column if not exists meet_lat double precision;
-alter table public.events add column if not exists meet_lon double precision;
-
--- ⚠️ Владелец читает событие **по колонке owner**, а не только как участник.
--- Участником он становится триггером `on_event_created`, то есть уже после
--- вставки, — а `insert ... returning` проверяет строку политикой на select
--- в той же команде. Из-за этого создание похода честно записывало строку и
--- возвращало ошибку: «Не удалось сохранить поход» на пустом месте.
-drop policy if exists "events: участники читают" on public.events;
-create policy "events: участники читают"
-    on public.events for select
-    using (auth.uid() = owner or public.is_event_member(id));
