@@ -88,7 +88,7 @@ function toggleHeatmap(on) {
     // Слой кладём под линии маршрутов, а они появляются в обработчике map.on('load').
     // isStyleLoaded() бывает true ещё до него, поэтому ждём именно линии — иначе
     // хитмап встанет поверх треков.
-    if (!window.map || !map.getLayer('overview-lines-completed')) return;
+    if (!window.map || !map.getLayer('overview-lines-done')) return;
     if (map.getLayer('heatmap-layer')) map.removeLayer('heatmap-layer');
     if (map.getSource('heatmap-source')) map.removeSource('heatmap-source');
     if (!on) return;
@@ -105,7 +105,7 @@ function toggleHeatmap(on) {
     // Под маской вокруг Сербии — край рамки, попавший за границу, затемнён
     // вместе с остальной картой; и под линиями маршрутов, чтобы красные
     // треки не терялись в оранжевом.
-    const below = map.getLayer('world-mask-layer') ? 'world-mask-layer' : 'overview-lines-completed';
+    const below = map.getLayer('world-mask-layer') ? 'world-mask-layer' : 'overview-lines-done';
     map.addLayer({
         id: 'heatmap-layer', type: 'raster', source: 'heatmap-source',
         paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 }
@@ -361,13 +361,32 @@ const routesList = [
     }
 ];
 
+/**
+ * Три статуса — три цвета, одни и те же у авторских маршрутов и у своих.
+ *
+ *   done    красный     пройден
+ *   planned оранжевый   планируется: скоро идём (у автора таких 1–2)
+ *   idle    фиолетовый  в запасе / просто сохранён
+ *
+ * ⚠️ Цвет значит **статус**, а не владельца. Авторский маршрут от своего
+ * отличает **форма** метки: у авторского диск, у своего кольцо (см.
+ * `makePulsingDot`). Раньше цвет нёс и то и другое, и свой пройденный
+ * маршрут оставался фиолетовым, хотя пройден (фидбэк 2026-09-21).
+ */
+const STATUS_COLOR = { done: '#ff4d4d', planned: '#FF8C00', idle: '#7A5EA6' };
+window.STATUS_COLOR = STATUS_COLOR;
+
+/** `future` остался производным от статуса — на него смотрит weather.js. */
+function _isPlanned(status) { return status === 'planned'; }
+
 const routes = {};
 routesList.forEach((data, index) => {
     routes[`route_${index}`] = {
         id: `route_${index}`,
         file: data.file,
         name: data.name || data.file.replace('.gpx', ''),
-        color: '#ff4d4d',
+        status: 'done',
+        color: STATUS_COLOR.done,
         future: false,
         overrideAscent: data.overrideAscent,
         overrideDescent: data.overrideDescent,
@@ -427,12 +446,15 @@ const futureRoutesList = [
         ],
     },
 ];
+// ⚠️ Эти маршруты теперь **в запасе** (`idle`, фиолетовые), а не «планы».
+// Планируемый — это поход, на который скоро идёт группа; таких в моменте
+// один-два, и назначает их админ через `catalog_status` (route_status.js).
 futureRoutesList.forEach((data, index) => {
     const key = `future_${index}`;
     routes[key] = {
         id: key, file: data.file,
         name: data.name || data.file.split('/').pop().replace('.gpx', ''),
-        color: '#FF8C00', future: true,
+        status: 'idle', color: STATUS_COLOR.idle, future: false,
         overrideAscent: null, overrideDescent: null, overrideTime: null, overrideMinEle: null,
         date: null, description: data.description || null, instagramUrl: null,
         photos: data.photos || [], videos: []
@@ -450,13 +472,12 @@ let _dashAnimFrame  = null;    // animation frame for continuous flow after draw
 let _selectedRouteId = null;   // route whose pulsing dot is currently hidden
 let _activeFilterType = 'all'; // current Все/Отчёты/Планы/Мои filter
 
-// Базовые фильтры линий обзора — по виду маршрута (авторский, план, свой).
-// Фильтр вкладки к ним добавляется, а не подменяет их: линия своего цвета
-// остаётся своего цвета в любой вкладке.
+// Базовые фильтры линий обзора — по **статусу**: у каждого статуса свой цвет
+// линии. Фильтр вкладки к ним добавляется, а не подменяет их.
 const _BASE_LINE_FILTER = {
-    completed: ['all', ['==', ['get', 'future'], false], ['!=', ['get', 'mine'], true]],
-    planned:   ['==', ['get', 'future'], true],
-    mine:      ['==', ['get', 'mine'], true]
+    done:    ['==', ['get', 'status'], 'done'],
+    planned: ['==', ['get', 'status'], 'planned'],
+    idle:    ['==', ['get', 'status'], 'idle']
 };
 
 /**
@@ -464,15 +485,17 @@ const _BASE_LINE_FILTER = {
  *
  *   Все · Авторские · Планы · Мои · Пройденные
  *
- * «Авторские» — маршруты каталога сайта (бывшие «Отчёты»). «Планы» — авторские
- * планы вместе с личными планируемыми. «Мои» — всё, что пользователь сохранил.
- * «Пройденные» — то, что он **сам** отметил пройденным, и свои маршруты, и
- * авторские: личный статус лежит в свойстве `pstatus` (route_status.js).
+ * «Авторские» — все маршруты каталога сайта: и пройденные, и те, что в
+ * запасе, и анонсы. «Планы» — то, куда собираются идти: авторские анонсы
+ * (их 1–2) и личные планируемые. «Мои» — всё, что пользователь сохранил.
+ * «Пройденные» — то, что он **сам** отметил пройденным: личный статус лежит
+ * в свойстве `pstatus` (route_status.js), и он не то же самое, что `status`
+ * — статус авторского маршрута в каталоге общий на всех.
  */
 function _tabFilter() {
     const t = _activeFilterType;
-    if (t === 'author')  return ['all', ['==', ['get', 'author'], true], ['!=', ['get', 'future'], true]];
-    if (t === 'planned') return ['any', ['==', ['get', 'future'], true], ['==', ['get', 'pstatus'], 'planned']];
+    if (t === 'author')  return ['==', ['get', 'author'], true];
+    if (t === 'planned') return ['==', ['get', 'status'], 'planned'];
     if (t === 'mine')    return ['==', ['get', 'mine'], true];
     if (t === 'done')    return ['==', ['get', 'pstatus'], 'done'];
     return null;
@@ -507,13 +530,66 @@ function _applyMarkerFilter() {
  */
 function _routeProps(routeInfo) {
     const personal = window.RouteStatus ? RouteStatus.personalStatusOf(routeInfo) : null;
+    const author = !routeInfo.mine && !routeInfo.shared;
+    const status = routeInfo.status || (routeInfo.mine ? 'idle' : 'done');
+    // Авторский анонс — единственная метка, которая обязана бросаться в глаза:
+    // на этот маршрут скоро идёт группа. Поэтому у неё своя иконка и подпись
+    const featured = author && status === 'planned';
     return {
         id:      routeInfo.id,
-        future:  !!routeInfo.future,
+        status,
+        future:  _isPlanned(status),
         mine:    !!routeInfo.mine,
-        author:  !routeInfo.mine && !routeInfo.shared,
+        author,
+        featured,
+        label:   featured ? _plannedLabel(routeInfo) : '',
         pstatus: personal || ''
     };
+}
+
+/**
+ * Значок над названием в карточке маршрута.
+ *
+ * ⚠️ Отдельной функцией, а не строкой внутри отрисовки карточки: статус
+ * меняют кнопкой в той же карточке, и значок обязан меняться сразу. Пока это
+ * было частью `_onArrive`, новый статус появлялся только после переоткрытия
+ * (фидбэк 2026-09-21).
+ */
+window.refreshPanelBadge = function(routeInfo) {
+    const badge = document.getElementById('panel-status-badge');
+    if (!badge) return;
+    const info = routeInfo || currentViewedRoute;
+    if (!info) { badge.innerHTML = ''; badge.className = 'hidden'; return; }
+
+    // Личная отметка важнее статуса каталога: она отвечает на «а я тут был?»
+    const personal = window.RouteStatus ? RouteStatus.personalStatusOf(info) : null;
+    const st = info.status || (info.mine ? 'idle' : 'done');
+    let text, color;
+    if (info.shared) {
+        text = 'Поделились'; color = STATUS_COLOR.idle;
+    } else if (personal === 'done') {
+        text = info.mine ? 'Пройден' : 'Пройден вами'; color = STATUS_COLOR.done;
+    } else if (personal === 'planned') {
+        text = info.mine ? 'Планируется' : 'В ваших планах'; color = STATUS_COLOR.planned;
+    } else if (st === 'planned') {
+        text = 'Скоро идём'; color = STATUS_COLOR.planned;
+    } else if (st === 'idle') {
+        text = info.mine ? 'Мой маршрут' : 'В запасе'; color = STATUS_COLOR.idle;
+    } else {
+        text = 'Пройден'; color = STATUS_COLOR.done;
+    }
+    badge.className = 'panel-badge';
+    badge.style.cssText = `--pb:${color}`;
+    badge.textContent = text;
+    badge.classList.remove('hidden');
+};
+
+/** Подпись под меткой анонса: «Идём 12 октября» или просто «Скоро идём». */
+function _plannedLabel(routeInfo) {
+    if (!routeInfo.date) return 'Скоро идём';
+    const d = new Date(String(routeInfo.date).length <= 10 ? routeInfo.date + 'T12:00:00' : routeInfo.date);
+    if (isNaN(d)) return 'Скоро идём';
+    return 'Идём ' + d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
 window.refreshRouteProps = function() {
@@ -540,7 +616,7 @@ let _kmAnimFrame = null;
 window.recomputeAuthorKm = function() {
     let km = 0;
     Object.values(routes).forEach(r => {
-        if (r.mine || r.shared || r.future) return;
+        if (r.mine || r.shared || r.status !== 'done') return;
         const d = parsedRouteDataCache[r.id];
         if (d) km += d.distance;
     });
@@ -615,10 +691,21 @@ function pulseDue(image, periodMs) {
 }
 
 /**
- * Пульсирующая точка маршрута. Три цвета — по типу: пройденный, план и свой
- * (фиолетовый, как `customUI` в приложении).
+ * Пульсирующая метка маршрута.
+ *
+ * Цвет — это **статус** (красный пройден, оранжевый планируется, фиолетовый
+ * в запасе), а `shape` — **чей маршрут**: `disc` у авторских, `ring` у своих.
+ * Разделять форме, а не цвету, приходится потому, что цвет уже занят
+ * статусом, а знать «моё или из каталога» всё равно надо.
+ *
+ * ⚠️ У кольца середина **прозрачная**, а обводка двойная — белая снаружи и
+ * тёмная внутри. Тёмное ядро на тёмном лесу спутника просто исчезает: в
+ * приложении такие метки уже приходилось откатывать (hikingmap/CLAUDE.md,
+ * «Ярусы карты»). Прозрачная середина показывает сам снимок, а форму держат
+ * две обводки — они читаются и на скале, и на зелени.
  */
-function makePulsingDot(rgb, fill, periodMs) {
+function makePulsingDot(rgb, fill, periodMs, shape) {
+    const ring = shape === 'ring';
     return {
         width: size, height: size, data: new Uint8Array(size * size * 4),
         onAdd() {
@@ -631,27 +718,102 @@ function makePulsingDot(rgb, fill, periodMs) {
             const now = performance.now();
             const t = (now % periodMs) / periodMs;
             const r = (size / 2) * 0.25;
-            const or = (size / 2) * 0.75 * t + r;
+            const base = ring ? r * 1.45 + 4 : r;
+            const or = (size / 2 - base) * t + base;
             const ctx = this.context;
             ctx.clearRect(0, 0, size, size);
-            const g = ctx.createRadialGradient(size/2,size/2,r, size/2,size/2,or);
+            const g = ctx.createRadialGradient(size/2,size/2,base, size/2,size/2,or);
             g.addColorStop(0, `rgba(${rgb},${0.7*(1-t)})`);
             g.addColorStop(1, `rgba(${rgb},0)`);
             ctx.beginPath(); ctx.arc(size/2,size/2,or,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
-            ctx.beginPath(); ctx.arc(size/2,size/2,r,0,Math.PI*2);
-            ctx.shadowColor=`rgba(${rgb},0.9)`; ctx.shadowBlur=15;
-            ctx.fillStyle=fill; ctx.fill(); ctx.shadowBlur=0;
-            ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.lineWidth=2.5; ctx.stroke();
+            if (ring) {
+                // ⚠️ Кольцо шире диска (×1.45): при равном радиусе отверстие
+                // выходило в несколько пикселей, и на карте кольцо было не
+                // отличить от диска — а вся его работа в том, чтобы отличаться
+                const R = r * 1.45;
+                ctx.beginPath(); ctx.arc(size/2,size/2,R,0,Math.PI*2);
+                ctx.strokeStyle='rgba(10,10,10,.8)'; ctx.lineWidth=7.5; ctx.stroke();
+                ctx.beginPath(); ctx.arc(size/2,size/2,R,0,Math.PI*2);
+                ctx.shadowColor=`rgba(${rgb},0.9)`; ctx.shadowBlur=12;
+                ctx.strokeStyle=fill; ctx.lineWidth=4.6; ctx.stroke(); ctx.shadowBlur=0;
+                // Две тонкие белые обводки, по краям цветной: держат форму и
+                // на тёмном лесу, и на скале
+                [R + 3.1, R - 3.1].forEach(rr => {
+                    ctx.beginPath(); ctx.arc(size/2,size/2,rr,0,Math.PI*2);
+                    ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=1.3; ctx.stroke();
+                });
+            } else {
+                ctx.beginPath(); ctx.arc(size/2,size/2,r,0,Math.PI*2);
+                ctx.shadowColor=`rgba(${rgb},0.9)`; ctx.shadowBlur=15;
+                ctx.fillStyle=fill; ctx.fill(); ctx.shadowBlur=0;
+                ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.lineWidth=2.5; ctx.stroke();
+            }
             this.data = ctx.getImageData(0,0,size,size).data;
             return true;
         }
     };
 }
 
-const MINE_COLOR = '#7A5EA6';
-const pulsingDot       = makePulsingDot('255,77,77',   '#ff4d4d', 2000);
-const futurePulsingDot = makePulsingDot('255,200,0',   '#FFD700', 2400);
-const minePulsingDot   = makePulsingDot('150,120,200', MINE_COLOR, 2200);
+/**
+ * Метка авторского анонса — маршрута, на который скоро идёт группа. Таких на
+ * карте один-два, и они должны находиться первыми: ядро крупнее, вокруг
+ * **два** расходящихся кольца в противофазе и вращающаяся штриховая рамка.
+ * Обычная пульсация рядом с десятками других меток не выделяется ничем.
+ */
+function makeFeaturedDot(rgb, fill, periodMs) {
+    return {
+        width: size, height: size, data: new Uint8Array(size * size * 4),
+        onAdd() {
+            const c = document.createElement('canvas');
+            c.width = this.width; c.height = this.height;
+            this.context = c.getContext('2d', { willReadFrequently: true });
+        },
+        render() {
+            if (!pulseDue(this, 60)) return false;
+            const ctx = this.context;
+            const half = size / 2;
+            const t = (performance.now() % periodMs) / periodMs;
+            const r = half * 0.3;
+            ctx.clearRect(0, 0, size, size);
+            // Два кольца в противофазе: одно уходит, второе только пошло
+            [t, (t + 0.5) % 1].forEach(ph => {
+                const rr = r + (half - r - 2) * ph;
+                ctx.beginPath(); ctx.arc(half, half, rr, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(${rgb},${0.55 * (1 - ph)})`;
+                ctx.lineWidth = 2.4 * (1 - ph) + 0.6;
+                ctx.stroke();
+            });
+            const g = ctx.createRadialGradient(half, half, r, half, half, half);
+            g.addColorStop(0, `rgba(${rgb},0.35)`);
+            g.addColorStop(1, `rgba(${rgb},0)`);
+            ctx.beginPath(); ctx.arc(half, half, half, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+            // Штриховая рамка, медленно вращается: «готовимся»
+            ctx.save();
+            ctx.translate(half, half); ctx.rotate(t * Math.PI * 2);
+            ctx.beginPath(); ctx.arc(0, 0, r + 6, 0, Math.PI * 2);
+            ctx.setLineDash([4, 5]); ctx.strokeStyle = `rgba(${rgb},0.8)`; ctx.lineWidth = 1.8;
+            ctx.stroke(); ctx.restore();
+            ctx.beginPath(); ctx.arc(half, half, r, 0, Math.PI * 2);
+            ctx.shadowColor = `rgba(${rgb},1)`; ctx.shadowBlur = 18;
+            ctx.fillStyle = fill; ctx.fill(); ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 2.5; ctx.stroke();
+            this.data = ctx.getImageData(0, 0, size, size).data;
+            return true;
+        }
+    };
+}
+
+const MINE_COLOR = STATUS_COLOR.idle;
+// Диск — авторский маршрут, кольцо — свой; цвет у обоих по статусу
+const ROUTE_ICONS = {
+    'route-disc-done':    makePulsingDot('255,77,77',   STATUS_COLOR.done,    2000, 'disc'),
+    'route-disc-planned': makePulsingDot('255,140,0',   STATUS_COLOR.planned, 2400, 'disc'),
+    'route-disc-idle':    makePulsingDot('150,120,200', STATUS_COLOR.idle,    2200, 'disc'),
+    'route-ring-done':    makePulsingDot('255,77,77',   STATUS_COLOR.done,    2000, 'ring'),
+    'route-ring-planned': makePulsingDot('255,140,0',   STATUS_COLOR.planned, 2400, 'ring'),
+    'route-ring-idle':    makePulsingDot('150,120,200', STATUS_COLOR.idle,    2200, 'ring'),
+    'route-featured':     makeFeaturedDot('255,140,0',  STATUS_COLOR.planned, 1800)
+};
 
 // ── Map init ───────────────────────────────────────────────────────────────────
 let map;
@@ -718,31 +880,31 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
             }
         });
 
-        map.addImage('pulsing-dot', pulsingDot, { pixelRatio: 1.5 });
-        map.addImage('future-pulsing-dot', futurePulsingDot, { pixelRatio: 1.5 });
-        map.addImage('mine-pulsing-dot', minePulsingDot, { pixelRatio: 1.5 });
+        Object.keys(ROUTE_ICONS).forEach(id => map.addImage(id, ROUTE_ICONS[id], { pixelRatio: 1.5 }));
 
         // ── Overview lines (toggleable background, added below markers) ──
         // Initialise with whatever routes have already finished loading (race-safe)
         map.addSource('overview-lines', { type: 'geojson', data: { type: 'FeatureCollection', features: _overviewFeatures } });
         // Под подписями — см. drapeBeforeId
+        // Линия — по статусу, как и метка. Своя от авторской здесь не
+        // отличается: разделять их линиям нечем, а цвет занят статусом
         map.addLayer({
-            id: 'overview-lines-completed', type: 'line', source: 'overview-lines',
-            filter: _BASE_LINE_FILTER.completed,
+            id: 'overview-lines-done', type: 'line', source: 'overview-lines',
+            filter: _BASE_LINE_FILTER.done,
             layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
-            paint: { 'line-color': '#ff4d4d', 'line-width': 3, 'line-opacity': 0.85 }
+            paint: { 'line-color': STATUS_COLOR.done, 'line-width': 3, 'line-opacity': 0.85 }
+        }, drapeBeforeId());
+        map.addLayer({
+            id: 'overview-lines-idle', type: 'line', source: 'overview-lines',
+            filter: _BASE_LINE_FILTER.idle,
+            layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+            paint: { 'line-color': STATUS_COLOR.idle, 'line-width': 3, 'line-opacity': 0.85 }
         }, drapeBeforeId());
         map.addLayer({
             id: 'overview-lines-planned', type: 'line', source: 'overview-lines',
             filter: _BASE_LINE_FILTER.planned,
             layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
-            paint: { 'line-color': '#FF8C00', 'line-width': 3, 'line-opacity': 0.85, 'line-dasharray': [2, 2.5] }
-        }, drapeBeforeId());
-        map.addLayer({
-            id: 'overview-lines-mine', type: 'line', source: 'overview-lines',
-            filter: _BASE_LINE_FILTER.mine,
-            layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
-            paint: { 'line-color': MINE_COLOR, 'line-width': 3, 'line-opacity': 0.85 }
+            paint: { 'line-color': STATUS_COLOR.planned, 'line-width': 3, 'line-opacity': 0.9, 'line-dasharray': [2, 2.5] }
         }, drapeBeforeId());
 
         map.addSource('route-markers', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
@@ -750,11 +912,26 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
         map.addLayer({
             id: 'route-markers-layer', type: 'symbol', source: 'route-markers',
             layout: {
+                // Анонс — своя иконка; остальным: цвет по статусу, форма по
+                // тому, авторский маршрут или свой
                 'icon-image': ['case',
-                    ['==', ['get', 'mine'], true],   'mine-pulsing-dot',
-                    ['==', ['get', 'future'], true], 'future-pulsing-dot',
-                    'pulsing-dot'],
-                'icon-pitch-alignment': 'map', 'icon-allow-overlap': true
+                    ['==', ['get', 'featured'], true], 'route-featured',
+                    ['concat', 'route-',
+                        ['case', ['==', ['get', 'author'], true], 'disc', 'ring'],
+                        '-', ['get', 'status']]],
+                'icon-size': ['case', ['==', ['get', 'featured'], true], 1.18, 1],
+                'icon-pitch-alignment': 'map', 'icon-allow-overlap': true,
+                // Подпись только у анонса: «Идём 12 октября». Остальным она
+                // не нужна — названия читаются в каталоге и в карточке
+                'text-field': ['case', ['==', ['get', 'featured'], true], ['get', 'label'], ''],
+                'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+                'text-size': 11, 'text-offset': [0, 1.6], 'text-anchor': 'top',
+                'text-allow-overlap': true, 'text-optional': true,
+                'text-letter-spacing': 0.06
+            },
+            paint: {
+                'text-color': '#FFD9A8',
+                'text-halo-color': 'rgba(10,8,4,.9)', 'text-halo-width': 1.6
             }
         });
 
@@ -962,25 +1139,7 @@ function triggerRouteSelection(routeId) {
 
         // ── Fill panel ────────────────────────────────────────
         // Status badge
-        // Значок над названием. Личная отметка («прошёл», «планирую») важнее
-        // вида маршрута: она и отвечает на вопрос «а я тут был?»
-        const badge = document.getElementById('panel-status-badge');
-        const personal = window.RouteStatus ? RouteStatus.badgeOf(routeInfo) : null;
-        let mark = null;
-        if (routeInfo.shared)   mark = { text: 'Поделились', color: '#7A5EA6', fg: '#C4B0E8' };
-        else if (personal)      mark = { text: personal.icon + ' ' + (personal.short === 'Пройден' ? 'Пройден вами' : 'В ваших планах'),
-                                         color: personal.color, fg: personal.color };
-        else if (routeInfo.future) mark = { text: 'План', color: '#FF8C00', fg: '#FFB347' };
-        else if (routeInfo.mine)   mark = { text: 'Мой', color: '#7A5EA6', fg: '#C4B0E8' };
-        if (mark) {
-            badge.className = 'inline-flex items-center gap-1.5 mb-2 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider';
-            badge.style.cssText = `background:${mark.color}33;border:1px solid ${mark.color}99;color:${mark.fg};`;
-            badge.textContent = mark.text;
-            badge.classList.remove('hidden');
-        } else {
-            badge.innerHTML = '';
-            badge.className = 'hidden';
-        }
+        refreshPanelBadge(routeInfo);
 
         // Name
         document.getElementById('panel-name').textContent = routeInfo.name;
@@ -1653,13 +1812,14 @@ function _applyMenuFilter() {
         if (el) el.classList.toggle('hidden', !on);
     };
     // «Мои» и «Пройденные» списка каталога не касаются: личные маршруты живут
-    // отдельным блоком (его показывает account.js)
-    const completed = _activeFilterType !== 'planned';
-    const planned   = _activeFilterType !== 'author';
-    show('mobile-tours-completed',  completed);
-    show('mobile-tours-planned',    planned);
-    show('desktop-tours-completed', completed);
-    show('desktop-tours-planned',   planned);
+    // отдельным блоком (его показывает account.js). «Планы» оставляют от
+    // каталога только анонсы, остальные вкладки показывают всё авторское
+    const rest = _activeFilterType !== 'planned';
+    ['mobile', 'desktop'].forEach(p => {
+        show(`${p}-tours-planned`, true);
+        show(`${p}-tours-done`, rest);
+        show(`${p}-tours-idle`, rest);
+    });
 }
 
 /** Активная вкладка каталога — нужна тем, кто её переприменяет. */
@@ -1681,7 +1841,8 @@ window.setFilter = function(type) {
     document.querySelectorAll('.carousel-card').forEach(card => {
         const route = routes[card.dataset.routeId];
         if (!route) return;
-        const show = type === 'all' || (type === 'author' && !route.future) || (type === 'planned' && route.future);
+        const show = type === 'all' || type === 'author' ||
+                     (type === 'planned' && route.status === 'planned');
         card.style.display = show ? '' : 'none';
     });
     _carouselHW = 0; // invalidate cached scrollWidth after card visibility changes
@@ -1989,6 +2150,10 @@ async function loadRouteData(routeInfo) {
 window.registerUserRoute = function(routeInfo, routeData) {
     window.unregisterUserRoute(routeInfo.id, true);
     routes[routeInfo.id] = routeInfo;
+    // ⚠️ Объект маршрута здесь **заменяется** новым. Открытая карточка держит
+    // ссылку на прежний, и без этой строки после смены статуса она читала бы
+    // старые `status` и `color` — значок над названием оставался бы прежним
+    if (currentViewedRoute && currentViewedRoute.id === routeInfo.id) currentViewedRoute = routeInfo;
     parsedRouteDataCache[routeInfo.id] = routeData;
     // Без высот вершины нет — метка в середине трека, как в приложении
     const c = routeData.coordinates;
@@ -2161,12 +2326,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // ⚠️ Пересчитывается, а не считается один раз: статус авторского маршрута
     // правит админ через `catalog_status`, и переопределения приезжают из базы
     // уже после того, как каталог отрисован (route_status.js)
+    const authorRoutes = st => Object.values(routes).filter(r => !r.mine && !r.shared && r.status === st);
     const splitRoutes = () => ({
-        completed: Object.values(routes).filter(r => !r.future && !r.mine),
-        future:    Object.values(routes).filter(r => r.future && !r.mine)
+        planned: authorRoutes('planned'),   // анонсы — всегда первыми
+        done:    authorRoutes('done'),
+        idle:    authorRoutes('idle')
     });
-    const completedRoutes = splitRoutes().completed;
-    const futureRoutes    = splitRoutes().future;
 
     // Геометрия берётся из routes_geom.json; GPX читается только если маршрута
     // в индексе нет (тогда — пачками, чтобы не забить сеть)
@@ -2192,11 +2357,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ── Menu helpers
+    // Значок в списке — тот же язык, что на карте: цвет по статусу, а флажок
+    // остался только у анонса («скоро идём»)
+    const MENU_ICON = {
+        planned: 'M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9',
+        done:    'M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z',
+        idle:    'M5 8h14M5 12h14M5 16h9'
+    };
     function menuBtn(route, isMobile) {
-        const color = route.future ? '#FF8C00' : '#ff4d4d';
-        const icon = route.future
-            ? `<svg style="width:14px;height:14px;flex-shrink:0" fill="none" stroke="${color}" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/></svg>`
-            : `<svg style="width:14px;height:14px;flex-shrink:0" fill="none" stroke="${color}" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`;
+        const st = route.status || 'done';
+        const color = STATUS_COLOR[st] || STATUS_COLOR.done;
+        const extra = st === 'done'
+            ? `<path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>` : '';
+        const icon = `<svg style="width:14px;height:14px;flex-shrink:0" fill="none" stroke="${color}" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${MENU_ICON[st] || MENU_ICON.done}"/>${extra}</svg>`;
         const onclick = isMobile
             ? `document.getElementById('mobile-info').classList.add('hidden');flyToRoute('${route.id}')`
             : `flyToRoute('${route.id}')`;
@@ -2211,25 +2384,28 @@ document.addEventListener('DOMContentLoaded', () => {
             : `<div class="px-5 py-1.5 text-[9px] text-zinc-500 uppercase tracking-widest">${label}</div>`;
     }
 
-    // Списки в меню. Разделами, чтобы фильтр над ними («Авторские», «Планы»)
-    // список тоже фильтровал: под кнопкой «Планы» авторские отчёты не нужны.
-    // Собирается функцией — статус маршрута может поменяться (см. splitRoutes).
+    /**
+     * Списки в меню — тремя разделами, и «Скоро идём» **первым**: на этот
+     * маршрут собирается группа, и он не должен искаться в общем списке.
+     * Собирается функцией: статус правит админ, и переопределения приезжают
+     * уже после первой отрисовки (см. splitRoutes).
+     */
     window.refreshCatalogMenus = function() {
-        const { completed, future } = splitRoutes();
+        const g = splitRoutes();
+        const section = (id, label, list, isMobile) => list.length
+            ? `<div id="${id}">${sectionHeader(label, isMobile)}` +
+              list.map(r => menuBtn(r, isMobile)).join('') + `</div>` : `<div id="${id}"></div>`;
         if (desktopList) {
             desktopList.innerHTML =
-                `<div id="desktop-tours-completed">${sectionHeader('Авторские', false)}` +
-                    completed.map(r => menuBtn(r, false)).join('') +
-                    `<div class="mx-4 my-1 border-t border-white/10"></div></div>` +
-                `<div id="desktop-tours-planned">${sectionHeader('Планируется', false)}` +
-                    future.map(r => menuBtn(r, false)).join('') + `</div>`;
+                section('desktop-tours-planned', 'Скоро идём', g.planned, false) +
+                section('desktop-tours-done',    'Авторские',  g.done,    false) +
+                section('desktop-tours-idle',    'В запасе',   g.idle,    false);
         }
         if (mobileList) {
             mobileList.innerHTML =
-                `<div id="mobile-tours-completed">${sectionHeader('Авторские', true)}` +
-                    completed.map(r => menuBtn(r, true)).join('') + `</div>` +
-                `<div id="mobile-tours-planned">${sectionHeader('Планируется', true)}` +
-                    future.map(r => menuBtn(r, true)).join('') + `</div>`;
+                section('mobile-tours-planned', 'Скоро идём', g.planned, true) +
+                section('mobile-tours-done',    'Авторские',  g.done,    true) +
+                section('mobile-tours-idle',    'В запасе',   g.idle,    true);
         }
         _applyMenuFilter();
     };
@@ -2237,7 +2413,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Carousel
     if (marqueeTrack) {
-        [...completedRoutes, ...futureRoutes].forEach(route => {
+        // Анонсы — в начале ленты: карусель листают слева направо
+        const g0 = splitRoutes();
+        [...g0.planned, ...g0.done, ...g0.idle].forEach(route => {
             const cover = route.photos && route.photos.length > 0
                 ? route.photos[Math.floor(Math.random() * route.photos.length)] : null;
             const card = document.createElement('div');
@@ -2259,11 +2437,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     probe.src = small;
                 }
             }
-            else { card.style.background = route.future ? 'linear-gradient(140deg,#1a1500,#2d2000,#1a1000)' : 'linear-gradient(140deg,#1c1c2e,#2a1a3e,#111122)'; }
+            else {
+                const bg = { planned: 'linear-gradient(140deg,#1a1500,#2d2000,#1a1000)',
+                             idle:    'linear-gradient(140deg,#17142a,#241a3a,#111122)',
+                             done:    'linear-gradient(140deg,#1c1c2e,#2a1a3e,#111122)' };
+                card.style.background = bg[route.status] || bg.done;
+            }
 
-            const futureBadge = route.future ? `<div style="position:absolute;top:7px;right:7px;background:rgba(255,140,0,.88);border-radius:5px;padding:2px 7px;display:flex;align-items:center;gap:3px;"><svg style="width:8px;height:8px" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/></svg><span style="color:#fff;font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Plan</span></div>` : '';
-            const tc = route.future ? '#FFD700' : '#ff4d4d';
-            card.innerHTML = `<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.88),rgba(0,0,0,.2) 55%,transparent)"></div>${futureBadge}<div style="position:absolute;bottom:0;left:0;right:0;padding:10px 12px;"><div style="color:#fff;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px rgba(0,0,0,.8)">${route.name}</div><div style="display:flex;align-items:center;gap:4px;margin-top:4px;"><svg style="width:10px;height:10px;flex-shrink:0" fill="none" stroke="${tc}" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span style="color:#e4e4e7;font-size:10px;font-weight:500;">${route.overrideTime || '—'}</span></div></div>`;
+            // Метка статуса на карточке: у анонса «скоро», у запаса — тише
+            const BADGE = { planned: 'Скоро', idle: 'В запасе' };
+            const bLabel = BADGE[route.status];
+            const bColor = STATUS_COLOR[route.status] || STATUS_COLOR.done;
+            const statusBadge = bLabel
+                ? `<div class="cc-badge${route.status === 'planned' ? ' cc-badge-live' : ''}" style="--cc:${bColor}">${bLabel}</div>` : '';
+            const tc = STATUS_COLOR[route.status] || STATUS_COLOR.done;
+            card.innerHTML = `<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.88),rgba(0,0,0,.2) 55%,transparent)"></div>${statusBadge}<div style="position:absolute;bottom:0;left:0;right:0;padding:10px 12px;"><div style="color:#fff;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px rgba(0,0,0,.8)">${route.name}</div><div style="display:flex;align-items:center;gap:4px;margin-top:4px;"><svg style="width:10px;height:10px;flex-shrink:0" fill="none" stroke="${tc}" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span style="color:#e4e4e7;font-size:10px;font-weight:500;">${route.overrideTime || '—'}</span></div></div>`;
 
             carouselCards.push(card);
             marqueeTrack.appendChild(card);

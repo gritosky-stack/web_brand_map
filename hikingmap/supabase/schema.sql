@@ -190,11 +190,21 @@ grant execute on function public.is_admin() to anon, authenticated;
 -- ─────────────── Статус авторского маршрута каталога ───────────────────
 create table if not exists public.catalog_status (
     route_key  text primary key,               -- 'route_3', 'future_5'
-    status     text not null check (status in ('done', 'planned')),
+    status     text not null,
     date       date,                           -- когда пройден / когда планируется
     updated_at timestamptz not null default now(),
     updated_by uuid default auth.uid()
 );
+
+-- Статусов три, и они же цвета метки на карте:
+--   done    красный     пройден
+--   planned оранжевый   скоро идём: на маршрут собирается группа (таких 1–2)
+--   idle    фиолетовый  в запасе — задел, куда пока не идут
+-- Отдельным alter, а не в create: таблица могла быть создана до появления
+-- статуса `idle`, и тогда `create table if not exists` констрейнт не обновит.
+alter table public.catalog_status drop constraint if exists catalog_status_status_check;
+alter table public.catalog_status add constraint catalog_status_status_check
+    check (status in ('done', 'planned', 'idle'));
 
 alter table public.catalog_status enable row level security;
 

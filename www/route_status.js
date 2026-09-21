@@ -32,21 +32,57 @@
 (function () {
     'use strict';
 
-    const DONE_COLOR = '#ff4d4d';   // авторский пройденный — как в каталоге
-    const PLAN_COLOR = '#FF8C00';   // план
+    // Цвета берём из script.js: три статуса — три цвета, одни и те же на
+    // карте, в каталоге и здесь
+    const C = () => (window.STATUS_COLOR || { done: '#ff4d4d', planned: '#FF8C00', idle: '#7A5EA6' });
 
-    /** Личный статус: подпись, значок, цвет. `mine` — просто «сохранён». */
-    const STATUS = {
-        mine:    { label: 'В «Моих»',  icon: '📁', color: '#7A5EA6', short: 'Мой' },
-        planned: { label: 'Планирую',  icon: '🗓', color: '#FF8C00', short: 'План' },
-        done:    { label: 'Пройден',   icon: '✅', color: '#4ADE80', short: 'Пройден' }
+    // Значки — тонкие контурные SVG в стиле остальной панели. Эмодзи здесь
+    // были и выглядели несерьёзно (фидбэк 2026-09-21): у них свой рисунок,
+    // свой цвет и свой размер, и рядом с контурными иконками карточки они
+    // читаются как чужие.
+    const ICON = {
+        idle:    'M4 7h16M4 12h16M4 17h10',
+        planned: 'M8 3v3m8-3v3M4 9h16M5 6h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1z',
+        done:    'M5 13l4 4L19 7',
+        flag:    'M5 21V4m0 0h9l1 2h5l-2.5 4.5L20 15h-6l-1-2H5'
     };
+
+    const svg = (d, size = 13) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+
+    /**
+     * Статусы. `mine` и `idle` — одно и то же состояние («в запасе»), просто
+     * у своего маршрута в базе оно называется `mine`, а у каталожного `idle`.
+     */
+    const STATUS = {
+        mine:    { label: 'В запасе',   short: 'В запасе', icon: ICON.idle,    key: 'idle' },
+        idle:    { label: 'В запасе',   short: 'В запасе', icon: ICON.idle,    key: 'idle' },
+        planned: { label: 'Планирую',   short: 'План',     icon: ICON.planned, key: 'planned' },
+        done:    { label: 'Пройден',    short: 'Пройден',  icon: ICON.done,    key: 'done' }
+    };
+    Object.keys(STATUS).forEach(k => {
+        Object.defineProperty(STATUS[k], 'color', { get() { return C()[STATUS[k].key]; } });
+    });
 
     const catalog = new Map();      // route_key → строка catalog_status
     const marks   = new Map();      // route_key → строка route_marks
     let admin = false;
     let marksLoaded = false;
     let busy = false;               // идёт запись — кнопки заблокированы
+
+    /**
+     * ⚠️ Занятость **не** перерисовывает блок. Пока запись шла с
+     * `renderPanel`, разметка подменялась сразу после нажатия, и подвижная
+     * пилюля сегмента не успевала никуда переехать: браузер анимирует
+     * элемент, а не его копию. Здесь мы только гасим кнопки на месте.
+     */
+    function setBusy(v) {
+        busy = v;
+        const el = document.getElementById('panel-status-actions');
+        if (!el) return;
+        el.classList.toggle('rs-busy', v);
+        el.querySelectorAll('button').forEach(b => { b.disabled = v; });
+    }
 
     const esc = s => String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -156,21 +192,22 @@
         catalog.forEach((row, key) => {
             const r = all[key];
             if (!r || r.mine || r.shared) return;
-            const future = row.status === 'planned';
-            if (!!r.future !== future) {
-                r.future = future;
-                r.color = future ? PLAN_COLOR : DONE_COLOR;
+            if (r.status !== row.status) {
+                r.status = row.status;
+                r.future = row.status === 'planned';
+                r.color = C()[row.status] || C().done;
                 changed = true;
             }
             if (row.date && r.date !== row.date) { r.date = row.date; changed = true; }
         });
         if (!changed) return;
-        // Поменялся вид маршрута: разделы меню, свойства меток, счётчик и
-        // видимость карточек карусели считаются по нему
+        // Поменялся статус маршрута: разделы меню, свойства меток, счётчик
+        // авторских километров и видимость карточек карусели — всё по нему
         if (window.refreshCatalogMenus) refreshCatalogMenus();
         if (window.refreshRouteProps)   refreshRouteProps();
         if (window.recomputeAuthorKm)   recomputeAuthorKm();
         if (window.setFilter && window.activeFilter) setFilter(activeFilter());
+        if (window.refreshPanelBadge)   refreshPanelBadge(viewed());
         renderPanel(viewed());
     }
 
@@ -178,7 +215,7 @@
     async function setCatalogStatus(routeKey, status, date) {
         const c = client();
         if (!c) return;
-        busy = true; renderPanel(viewed());
+        setBusy(true);
         try {
             const row = { route_key: routeKey, status, date: date || null,
                           updated_at: new Date().toISOString() };
@@ -186,14 +223,15 @@
             if (error) throw error;
             catalog.set(routeKey, row);
             applyCatalog();
-            // applyCatalog перерисует только при смене вида — подпись «изменено»
-            // должна появиться и когда статус тот же, а дата другая
-            toast(status === 'planned' ? 'Маршрут переведён в планы' : 'Маршрут отмечен пройденным');
+            flash(status);
+            toast(status === 'planned' ? 'Анонс: маршрут показан как «скоро идём»'
+                : status === 'done'    ? 'Маршрут отмечен пройденным'
+                                       : 'Маршрут убран в запас');
         } catch (e) {
             console.warn('[status] авторский статус:', e);
             toast('Не удалось поменять статус. Это может только автор каталога');
         } finally {
-            busy = false; renderPanel(viewed());
+            setBusy(false);
         }
     }
 
@@ -221,9 +259,9 @@
      */
     async function setMark(routeInfo, status, dates) {
         const c = client();
-        if (!c || !signedIn()) { if (window.Account) Account.openModal(); return; }
+        if (!c || !signedIn()) { if (window.Account) Account.openModal(); return false; }
         const key = keyOf(routeInfo);
-        busy = true; renderPanel(routeInfo);
+        setBusy(true);
         try {
             if (!status) {
                 const { error } = await c.from('route_marks').delete().eq('route_key', key);
@@ -246,11 +284,13 @@
                 marks.set(key, data || row);
             }
             afterChange();
+            return true;
         } catch (e) {
             console.warn('[status] отметка:', e);
             toast('Не удалось сохранить отметку');
+            return false;
         } finally {
-            busy = false; renderPanel(routeInfo);
+            setBusy(false);
         }
     }
 
@@ -283,18 +323,54 @@
         if (window.refreshRouteProps) refreshRouteProps();
         refreshKm();
         if (window.MyRoutes && MyRoutes.refreshStrip) MyRoutes.refreshStrip();
+        // ⚠️ Значок над названием — тоже: статус меняют кнопкой в этой же
+        // карточке, и ждать переоткрытия человек не должен
+        if (window.refreshPanelBadge) refreshPanelBadge(viewed());
         renderPanel(viewed());
     }
 
     // ── Блок статуса в карточке маршрута ────────────────────────────────────
 
-    function pill(status, active, disabled) {
-        const s = STATUS[status];
-        const style = active
-            ? `background:${s.color}26;border-color:${s.color}99;color:#fff`
-            : '';
-        return `<button class="rs-pill${active ? ' active' : ''}" data-status="${status}"
-                    style="${style}" ${disabled ? 'disabled' : ''}>${s.icon} ${s.label}</button>`;
+    /**
+     * Вспышка цветом статуса по всей карточке маршрута.
+     *
+     * Смена статуса — это решение, и оно должно ощущаться: карточка на
+     * секунду заливается снизу цветом нового статуса и возвращается в
+     * исходный вид. `mix-blend-mode: screen` по тёмной панели даёт свечение,
+     * а не плашку поверх текста, — отсюда и то, что это не «вырвиглаз».
+     *
+     * Элемент вешается на `#route-panel-group` (он `position: fixed`), а не
+     * внутрь `#route-panel`: тот прокручивается, и заливка уехала бы вместе
+     * с содержимым.
+     */
+    function flash(status) {
+        const host = document.getElementById('route-panel-group');
+        if (!host) return;
+        const prev = host.querySelector('.rs-flash');
+        if (prev) prev.remove();
+        const el = document.createElement('div');
+        el.className = 'rs-flash';
+        el.style.setProperty('--fc', (C()[STATUS[status] ? STATUS[status].key : status]) || C().done);
+        el.addEventListener('animationend', () => el.remove());
+        host.appendChild(el);
+    }
+
+    /**
+     * Сегментированный переключатель: подвижная «пилюля» под активным
+     * вариантом. Позиция задаётся `--seg-i`, цвет — `--seg-color`, и оба
+     * переезжают анимацией CSS, а не перерисовкой.
+     */
+    function segment(items, active, attr, disabled) {
+        const i = Math.max(0, items.findIndex(it => it.value === active));
+        const color = (items[i] && items[i].color) || C().idle;
+        const btns = items.map(it => `
+            <button class="rs-seg-btn${it.value === active ? ' active' : ''}"
+                    ${attr}="${it.value}" ${disabled ? 'disabled' : ''}>
+                ${svg(it.icon)}<span>${esc(it.label)}</span>
+            </button>`).join('');
+        return `<div class="rs-seg" style="--seg-n:${items.length};--seg-i:${i};--seg-color:${color}">
+                    <span class="rs-seg-thumb" aria-hidden="true"></span>${btns}
+                </div>`;
     }
 
     function box() { return document.getElementById('panel-status-actions'); }
@@ -304,39 +380,35 @@
         if (!el) return;
         if (!routeInfo || routeInfo.shared) { el.classList.add('hidden'); el.innerHTML = ''; return; }
 
-        const own  = !!routeInfo.mine;
-        const mine = own ? (window.MyRoutes && MyRoutes.statusOf(routeInfo.cloudId)) || 'mine' : null;
+        const own = !!routeInfo.mine;
         const personal = personalStatusOf(routeInfo);
+        const current = own ? ((window.MyRoutes && MyRoutes.statusOf(routeInfo.cloudId)) || 'mine')
+                            : (personal || 'idle');
         const when = personalDateOf(routeInfo);
-
         el.classList.remove('hidden');
 
         if (!signedIn()) {
             // Гостю — приглашение, а не молчание: отметка и есть повод войти
             el.innerHTML = `
                 <div class="rs-head">Статус</div>
-                <button class="tw-btn tw-btn-ghost" id="rs-signin">✅ Отметить пройденным</button>
-                <p class="tw-note mt-2">Войдите, чтобы вести свои пройденные и планируемые маршруты —
+                <button class="rs-cta" id="rs-signin">${svg(ICON.done, 15)}<span>Отметить пройденным</span></button>
+                <p class="rs-note">Войдите, чтобы вести свои пройденные и планируемые маршруты —
                    тот же аккаунт, что в приложении.</p>`;
             el.querySelector('#rs-signin').onclick = () => Account.openModal();
             return;
         }
 
-        const rows = [];
-        if (own) {
-            rows.push(`<div class="rs-head">Мой маршрут · статус</div>
-                <div class="rs-pills">
-                    ${pill('mine', mine === 'mine', busy)}
-                    ${pill('planned', mine === 'planned', busy)}
-                    ${pill('done', mine === 'done', busy)}
-                </div>`);
-        } else {
-            rows.push(`<div class="rs-head">Я и этот маршрут</div>
-                <div class="rs-pills">
-                    ${pill('planned', personal === 'planned', busy)}
-                    ${pill('done', personal === 'done', busy)}
-                </div>`);
-        }
+        // У своего маршрута переключатель ставит его статус, у авторского —
+        // личную отметку: сам маршрут пользователю не принадлежит
+        const items = [
+            { value: own ? 'mine' : 'idle', label: own ? 'В «Моих»' : 'Не ходил', icon: ICON.idle,    color: C().idle },
+            { value: 'planned',             label: 'Планирую',                    icon: ICON.planned, color: C().planned },
+            { value: 'done',                label: 'Пройден',                     icon: ICON.done,    color: C().done }
+        ];
+        const rows = [
+            `<div class="rs-head">${own ? 'Мой маршрут' : 'Я и этот маршрут'}</div>`,
+            segment(items, current, 'data-status', busy)
+        ];
 
         if (personal && when) {
             const label = personal === 'done' ? 'Пройден' : 'Планируется на';
@@ -349,56 +421,71 @@
         }
 
         if (personal === 'done') {
-            rows.push(`<p class="tw-note mt-2">${distanceOf(routeInfo).toFixed(1)} км зачтены
-                в ваш счётчик пройденного.</p>`);
+            rows.push(`<div class="rs-tally">${svg(ICON.done, 12)}
+                <span>${distanceOf(routeInfo).toFixed(1)} км в вашем счётчике пройденного</span></div>`);
         }
 
-        // Авторский статус — только автору каталога
+        // Авторский статус каталога — только автору
         if (admin && !own) {
-            const isPlan = !!routeInfo.future;
-            rows.push(`
-                <div class="rs-admin">
-                    <div class="rs-head">Авторский статус · виден всем</div>
-                    <div class="rs-pills">
-                        <button class="rs-pill${!isPlan ? ' active' : ''}" data-cat="done"
-                            style="${!isPlan ? `background:${DONE_COLOR}26;border-color:${DONE_COLOR}99;color:#fff` : ''}"
-                            ${busy ? 'disabled' : ''}>🏔 Пройден</button>
-                        <button class="rs-pill${isPlan ? ' active' : ''}" data-cat="planned"
-                            style="${isPlan ? `background:${PLAN_COLOR}26;border-color:${PLAN_COLOR}99;color:#fff` : ''}"
-                            ${busy ? 'disabled' : ''}>🗓 Планируется</button>
-                    </div>
-                    <p class="tw-note mt-2">Меняет маршрут в каталоге для всех: цвет метки,
-                       раздел меню и вкладку.</p>
+            rows.push(`<div class="rs-admin">
+                    <div class="rs-head">Авторский статус <em>виден всем</em></div>
+                    ${segment([
+                        { value: 'done',    label: 'Пройден',    icon: ICON.done,    color: C().done },
+                        { value: 'planned', label: 'Скоро идём', icon: ICON.flag,    color: C().planned },
+                        { value: 'idle',    label: 'В запасе',   icon: ICON.idle,    color: C().idle }
+                    ], routeInfo.status || 'done', 'data-cat', busy)}
+                    <p class="rs-note">Меняет маршрут в каталоге для всех: цвет метки, раздел
+                       меню и вкладку. «Скоро идём» выводит его наверх и выделяет на карте.</p>
                 </div>`);
         }
 
         el.innerHTML = rows.join('');
 
-        el.querySelectorAll('.rs-pill[data-status]').forEach(b => {
-            b.onclick = () => onPillClick(routeInfo, b.dataset.status, own);
+        // Пилюля переезжает **сразу**, не дожидаясь ответа базы: иначе
+        // между нажатием и ответом кнопка выглядит не нажатой
+        const moveThumb = b => {
+            const seg = b.closest('.rs-seg');
+            if (!seg) return;
+            const btns = [...seg.querySelectorAll('.rs-seg-btn')];
+            seg.style.setProperty('--seg-i', btns.indexOf(b));
+            const v = b.dataset.status || b.dataset.cat;
+            seg.style.setProperty('--seg-color', C()[STATUS[v] ? STATUS[v].key : v] || C().idle);
+            btns.forEach(x => x.classList.toggle('active', x === b));
+            const thumb = seg.querySelector('.rs-seg-thumb');
+            if (thumb) { thumb.classList.remove('rs-pop'); void thumb.offsetWidth; thumb.classList.add('rs-pop'); }
+        };
+        el.querySelectorAll('.rs-seg-btn[data-status]').forEach(b => {
+            b.onclick = () => { moveThumb(b); onPick(routeInfo, b.dataset.status, own); };
         });
-        el.querySelectorAll('.rs-pill[data-cat]').forEach(b => {
-            b.onclick = () => setCatalogStatus(routeInfo.id, b.dataset.cat,
-                                              (routeInfo.date || '').slice(0, 10) || null);
+        el.querySelectorAll('.rs-seg-btn[data-cat]').forEach(b => {
+            b.onclick = () => {
+                if (b.dataset.cat === (routeInfo.status || 'done')) return;
+                moveThumb(b);
+                setCatalogStatus(routeInfo.id, b.dataset.cat, (routeInfo.date || '').slice(0, 10) || null);
+            };
         });
         const edit = el.querySelector('#rs-edit');
-        if (edit) edit.onclick = () => onPillClick(routeInfo, personal, own, true);
+        if (edit) edit.onclick = () => onPick(routeInfo, personal, own, true);
     }
 
     /**
-     * Нажали на статус. Тот же статус второй раз — снимаем (у своего маршрута
-     * возвращаем в «Мои», у каталожного убираем отметку). Новый статус с датой
-     * спрашиваем модалкой: у плана — когда идём, у пройденного — когда прошли.
+     * Выбрали статус. Тот же второй раз — ничего (сегмент показывает
+     * состояние, а не действие; снять отметку можно, выбрав «Не ходил»).
+     * Новый статус с датой спрашиваем окном: у плана — когда идём, у
+     * пройденного — когда прошли.
      */
-    async function onPillClick(routeInfo, status, own, forceAsk) {
-        if (busy) return;
-        const current = own ? (window.MyRoutes && MyRoutes.statusOf(routeInfo.cloudId)) || 'mine'
-                            : personalStatusOf(routeInfo);
-        if (!forceAsk && status === current) {
-            if (own) { await applyOwn(routeInfo, 'mine', {}); } else { await setMark(routeInfo, null); }
+    async function onPick(routeInfo, status, own, forceAsk) {
+        if (busy || !status) return;
+        const current = own ? ((window.MyRoutes && MyRoutes.statusOf(routeInfo.cloudId)) || 'mine')
+                            : (personalStatusOf(routeInfo) || 'idle');
+        if (status === current && !forceAsk) return;
+
+        // «В запасе» даты не требует: это отсутствие планов
+        if (status === 'mine' || status === 'idle') {
+            const ok = own ? await applyOwn(routeInfo, 'mine', {}) : await setMark(routeInfo, null);
+            if (ok) flash('idle');
             return;
         }
-        if (status === 'mine') { await applyOwn(routeInfo, 'mine', {}); return; }
 
         const start = startOf(routeInfo);
         const res = await askStatus({
@@ -407,17 +494,18 @@
             when: personalDateOf(routeInfo)
         });
         if (!res) return;
-        if (own) await applyOwn(routeInfo, res.status, res);
-        else     await setMark(routeInfo, res.status, res);
+        const ok = own ? await applyOwn(routeInfo, res.status, res)
+                       : await setMark(routeInfo, res.status, res);
+        if (ok) flash(res.status);
     }
 
     async function applyOwn(routeInfo, status, dates) {
-        if (!(window.MyRoutes && MyRoutes.setStatus)) return;
-        busy = true; renderPanel(routeInfo);
+        if (!(window.MyRoutes && MyRoutes.setStatus)) return false;
+        setBusy(true);
         try {
-            await MyRoutes.setStatus(routeInfo.cloudId, status, dates);
+            return await MyRoutes.setStatus(routeInfo.cloudId, status, dates);
         } finally {
-            busy = false;
+            setBusy(false);
             afterChange();
         }
     }
@@ -474,15 +562,16 @@
     }
 
     function optionRow(status, title, hint) {
-        const s = STATUS[status];
+        const d = STATUS[status];
         const on = modalState.status === status;
         return `<button class="rs-opt${on ? ' active' : ''}" data-pick="${status}"
-                    style="${on ? `border-color:${s.color}99;background:${s.color}1f` : ''}">
-                    <span class="rs-opt-icon">${s.icon}</span>
+                    style="--oc:${d.color}">
+                    <span class="rs-opt-icon">${svg(d.icon, 16)}</span>
                     <span class="rs-opt-body">
                         <span class="rs-opt-title">${title}</span>
                         <span class="rs-opt-hint">${hint}</span>
                     </span>
+                    <span class="rs-opt-tick">${svg(ICON.done, 14)}</span>
                 </button>`;
     }
 

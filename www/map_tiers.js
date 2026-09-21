@@ -36,9 +36,11 @@
         { id: 'pss-trails-glow',          prop: 'line-opacity',   idle: 0,    open: 0    },
         { id: 'pss-trails-line',          prop: 'line-opacity',   idle: 0.85, open: 0.38 },
         { id: 'osm-trails',               prop: 'line-opacity',   idle: 0.9,  open: 0.32 },
-        { id: 'overview-lines-completed', prop: 'line-opacity',   idle: 0.85, open: 0.32 },
-        { id: 'overview-lines-planned',   prop: 'line-opacity',   idle: 0.85, open: 0.32 },
-        { id: 'overview-lines-mine',      prop: 'line-opacity',   idle: 0.85, open: 0.32 },
+        // Линии обзора — по статусу маршрута (`STATUS_COLOR` в script.js).
+        // Анонс приглушается слабее: на него и смотрят
+        { id: 'overview-lines-done',      prop: 'line-opacity',   idle: 0.85, open: 0.32 },
+        { id: 'overview-lines-idle',      prop: 'line-opacity',   idle: 0.85, open: 0.32 },
+        { id: 'overview-lines-planned',   prop: 'line-opacity',   idle: 0.9,  open: 0.42 },
         // Железная дорога включена по умолчанию, поэтому спорит с маршрутом
         // чаще прочих; станции (символьный слой) не трогаем — это подписи
         { id: 'railway-line',             prop: 'line-opacity',   idle: 1,    open: 0.35 },

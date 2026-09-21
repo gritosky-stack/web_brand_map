@@ -30,7 +30,20 @@
     const SUPABASE_URL      = SUPA.URL;
     const SUPABASE_ANON_KEY = SUPA.ANON_KEY;
     const SDK               = 'libs/supabase.js';   // ~220 КБ — грузим после карты
+    // Фиолетовый — это статус «в запасе», а не «мой»: цвет метки и линии
+    // задаёт статус, а свой маршрут от авторского отличает форма метки
+    // (кольцо против диска, см. `makePulsingDot` в script.js)
     const MINE_COLOR        = '#7A5EA6';
+
+    /** Статус строки `routes` → визуальный статус карты. */
+    function visualStatus(row) {
+        const st = row && row.status;
+        return st === 'planned' || st === 'done' ? st : 'idle';
+    }
+
+    function statusColor(st) {
+        return (window.STATUS_COLOR && STATUS_COLOR[st]) || MINE_COLOR;
+    }
     const ID_PREFIX         = 'my_';
     // Чужой маршрут, открытый по ссылке (`#shared_<id>`)
     const SHARED_PREFIX     = 'shared_';
@@ -173,10 +186,11 @@
         // Свой же маршрут, открытый по своей ссылке, — одна метка, а не две
         if (routes[SHARED_PREFIX + row.id]) unregisterUserRoute(SHARED_PREFIX + row.id);
         const recorded = parseDate(p.date) || parseDate(row.recorded_at);
+        const vis = visualStatus(row);
         registerUserRoute({
             id: routeIdOf(row.id), cloudId: row.id, file: null,
-            name: p.name || row.name || 'Маршрут', color: MINE_COLOR,
-            future: false, mine: true,
+            name: p.name || row.name || 'Маршрут', color: statusColor(vis),
+            status: vis, future: vis === 'planned', mine: true,
             overrideAscent: null, overrideDescent: null, overrideTime: null, overrideMinEle: null,
             date: recorded ? recorded.toISOString() : null,
             description: null, instagramUrl: null, photos: [], videos: []
@@ -297,13 +311,15 @@
      */
     async function setStatus(cloudId, status, dates) {
         const row = rows.get(cloudId);
-        if (!row) return;
+        if (!row) return false;
         const p = Object.assign({}, row.payload, { updatedAt: new Date().toISOString() });
         try {
             await saveRow(p, Object.assign({ status }, dates || {}));
+            return true;
         } catch (e) {
             console.warn('[account] статус маршрута:', e);
             toast('Не удалось поменять статус');
+            return false;
         }
     }
 
@@ -471,7 +487,7 @@
             const id = SHARED_PREFIX + cloudId;
             registerUserRoute({
                 id, cloudId, file: null, name: row.payload.name || row.name || 'Маршрут', color: MINE_COLOR,
-                future: false, mine: true, shared: true, payload: row.payload,
+                status: 'idle', future: false, mine: true, shared: true, payload: row.payload,
                 overrideAscent: null, overrideDescent: null, overrideTime: null, overrideMinEle: null,
                 date: (parseDate(row.payload.date) || new Date()).toISOString(),
                 description: null, instagramUrl: null, photos: [], videos: []
@@ -779,7 +795,7 @@
     }
 
     /** Миниатюра трека для карточки — чтобы маршруты различались без фото. */
-    function miniLine(p) {
+    function miniLine(p, status) {
         const lats = p.waypointLats || [], lons = p.waypointLons || [];
         if (lats.length < 2) return '';
         const step = Math.max(1, Math.floor(lats.length / 80));
@@ -793,14 +809,14 @@
         const w = maxX - minX || 1e-6, h = maxY - minY || 1e-6, s = Math.min(100 / w, 60 / h);
         const ox = (100 - w * s) / 2, oy = (60 - h * s) / 2;
         const d = pts.map(([x, y]) => `${(ox + (x - minX) * s).toFixed(1)},${(oy + (y - minY) * s).toFixed(1)}`).join(' ');
-        return `<svg class="my-card-line" viewBox="-4 -4 108 68" preserveAspectRatio="xMidYMid meet"><polyline points="${d}" fill="none" stroke="${MINE_COLOR}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
+        return `<svg class="my-card-line" viewBox="-4 -4 108 68" preserveAspectRatio="xMidYMid meet"><polyline points="${d}" fill="none" stroke="${statusColor(status || 'idle')}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
     }
 
     /** Значок статуса на карточке — только у планов и пройденных. */
     function statusBadge(status) {
-        const s = window.RouteStatus && RouteStatus.STATUS[status];
-        if (!s || status === 'mine') return '';
-        return `<span class="my-card-badge" style="background:${s.color}d9">${s.icon} ${esc(s.short)}</span>`;
+        const d = window.RouteStatus && RouteStatus.STATUS[status];
+        if (!d || status === 'mine' || status === 'idle') return '';
+        return `<span class="my-card-badge" style="--cc:${d.color}">${esc(d.short)}</span>`;
     }
 
     function renderStrip() {
@@ -818,7 +834,7 @@
             .filter(r => r._ok && (!done || r.status === 'done'))
             .map(r => `
             <button class="my-card" onclick="flyToRoute('${routeIdOf(esc(r.id))}')" title="${esc(r.payload.name)}">
-                ${miniLine(r.payload)}
+                ${miniLine(r.payload, visualStatus(r))}
                 ${statusBadge(r.status || 'mine')}
                 <div class="my-card-body">
                     <div class="my-card-name">${esc(r.payload.name || r.name)}</div>
@@ -868,10 +884,10 @@
             </button>`;
         let list = sortedRows()
             .filter(r => r._ok && (!done || r.status === 'done'))
-            .map(r => row(routeIdOf(r.id), r.payload.name || r.name, r.distance_km || 0, MINE_COLOR)).join('');
+            .map(r => row(routeIdOf(r.id), r.payload.name || r.name, r.distance_km || 0, statusColor(visualStatus(r)))).join('');
         if (done && window.RouteStatus) {
             list += RouteStatus.markedCards('done')
-                .map(m => row(m.routeId, m.name, m.km, '#ff4d4d')).join('');
+                .map(m => row(m.routeId, m.name, m.km, statusColor('done'))).join('');
         }
         const add = done ? '' :
             `<button class="tw-btn tw-btn-ghost mt-4 normal-case tracking-normal" onclick="RouteBuilder.start()">${PEN_ICON}Нарисовать маршрут</button>
