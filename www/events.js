@@ -489,6 +489,10 @@
             (mine.length ? `<optgroup label="Мои">${mine.map(opt).join('')}</optgroup>` : '');
     }
 
+    /**
+     * ⚠️ Поля даты стоят **в столбик**, а не в ряд: «дд.мм.гггг, чч:мм»
+     * вместе с кнопкой календаря в половину окна не влезает и обрезается.
+     */
     function renderEdit() {
         const box = document.getElementById('events-modal-inner');
         if (!box) return;
@@ -497,8 +501,6 @@
             <label class="rs-field"><span>Название</span>
                 <input class="review-input" id="ef-title" maxlength="120" value="${esc(d.title || '')}"
                        placeholder="Например: Ластра — Дивчибаре"></label>
-            <!-- ⚠️ В столбик, а не в ряд: `dd.mm.yyyy, hh:mm` вместе с кнопкой
-                 календаря в половину окна не влезает и обрезается -->
             <label class="rs-field mt-4"><span>Сбор — дата и время</span>
                 <input class="review-input" type="datetime-local" id="ef-start"
                        value="${esc(toLocalInput(d.starts_at))}"></label>
