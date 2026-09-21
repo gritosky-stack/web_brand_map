@@ -1208,22 +1208,8 @@ function triggerRouteSelection(routeId) {
         RouteProfile.show(routeInfo, routeData, routeInfo.id);
         if (window.RouteWeather) RouteWeather.show(routeInfo, routeData);
 
-        // Instagram. ⚠️ У маршрута, который пользователь отметил пройденным
-        // и наполнил своими фото и заметкой, авторских рилсов быть не должно:
-        // это уже его отчёт о походе, а не наш (фидбэк 2026-09-21)
-        const igWrap = document.getElementById('panel-instagram-wrapper');
-        const igLink = document.getElementById('panel-instagram-link');
-        const personalized = window.RouteStatus && RouteStatus.isPersonalized(routeInfo);
-        if (routeInfo.instagramUrl && !personalized) {
-            igLink.href = routeInfo.instagramUrl;
-            igWrap.classList.remove('hidden');
-        } else {
-            igWrap.classList.add('hidden');
-        }
-
-        // Photos
-        renderPhotosInPanel(routeInfo);
-        renderPhotoMapMarkers(routeInfo);
+        // Фото, их метки на карте и кнопка авторских рилсов
+        refreshPanelReport(routeInfo);
 
         // Difficulty bar
         const _diff = calcDifficulty(
@@ -1316,6 +1302,38 @@ function showPanelPhoto(idx) {
         t.style.opacity = active ? '1' : '0.45';
     });
 }
+
+/**
+ * Всё в карточке, что зависит от личного отчёта: фотографии, их метки на
+ * карте и кнопка авторских рилсов.
+ *
+ * ⚠️ Отдельной функцией и зовётся после **любой** правки отчёта
+ * (`RouteStatus.afterChange`). Пока это лежало внутри отрисовки карточки,
+ * добавленные фото и поставленные руками точки появлялись только после
+ * перезагрузки страницы (фидбэк 2026-09-21).
+ *
+ * ⚠️ У маршрута, который пользователь отметил пройденным и наполнил своими
+ * фото и заметкой, авторских рилсов быть не должно: это уже его отчёт о
+ * походе, а не наш.
+ */
+window.refreshPanelReport = function(routeInfo) {
+    const info = routeInfo || currentViewedRoute;
+    if (!info || !currentViewedRoute || currentViewedRoute.id !== info.id) return;
+
+    const igWrap = document.getElementById('panel-instagram-wrapper');
+    const igLink = document.getElementById('panel-instagram-link');
+    const personalized = window.RouteStatus && RouteStatus.isPersonalized(info);
+    if (igWrap && igLink) {
+        if (info.instagramUrl && !personalized) {
+            igLink.href = info.instagramUrl;
+            igWrap.classList.remove('hidden');
+        } else {
+            igWrap.classList.add('hidden');
+        }
+    }
+    renderPhotosInPanel(info);
+    renderPhotoMapMarkers(info);
+};
 
 function renderPhotosInPanel(routeInfo) {
     const routeData = parsedRouteDataCache[routeInfo.id];

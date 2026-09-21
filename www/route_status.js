@@ -428,13 +428,21 @@
     }
 
     /** Что перерисовать после любой смены статуса. */
+    /**
+     * Всё, что надо перерисовать после смены статуса или правки отчёта.
+     *
+     * ⚠️ Список полный нарочно. Человек меняет статус и добавляет фото не
+     * выходя из карточки, и любое изменение обязано быть видно сразу:
+     * перезагрузка страницы — не часть сценария (фидбэк 2026-09-21).
+     */
     function afterChange() {
         if (window.refreshRouteProps) refreshRouteProps();
         refreshKm();
         if (window.MyRoutes && MyRoutes.refreshStrip) MyRoutes.refreshStrip();
-        // ⚠️ Значок над названием — тоже: статус меняют кнопкой в этой же
-        // карточке, и ждать переоткрытия человек не должен
+        // Значок над названием: статус меняют кнопкой в этой же карточке
         if (window.refreshPanelBadge) refreshPanelBadge(viewed());
+        // Фото, их метки на карте и кнопка авторских рилсов
+        if (window.refreshPanelReport) refreshPanelReport(viewed());
         renderPanel(viewed());
     }
 
