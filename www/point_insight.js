@@ -717,7 +717,9 @@
         document.addEventListener('keydown', e => { if (e.key === 'Escape' && point) clear(); });
     }
 
-    root.PointInsight = { show, clear, searchCoordinates, parse };
+    // `nearestSettlement` отдаём наружу: события берут им название точки
+    // сбора, и второй копии разбора подписей тайлов не надо
+    root.PointInsight = { show, clear, searchCoordinates, parse, nearestSettlement };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();

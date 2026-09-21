@@ -467,7 +467,7 @@
         .rs-place svg { flex-shrink: 0; }
 
         /* ── «Где сделано фото» (photo_place.js) ───────────────── */
-        #photo-place-bar {
+        #photo-place-bar, #event-pick-bar {
             position: fixed; left: 0; right: 0; bottom: 0; z-index: 95;
             display: none; flex-direction: column; gap: 10px;
             padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
@@ -475,7 +475,7 @@
             border-top: 1px solid rgba(255,255,255,.1);
             box-shadow: 0 -20px 50px rgba(0,0,0,.6);
         }
-        #photo-place-bar.open { display: flex; }
+        #photo-place-bar.open, #event-pick-bar.open { display: flex; }
         /* Во время расстановки лишнее с экрана убираем: каталог, лента и
            карточка маршрута перекрывали бы как раз ту часть тропы, куда
            ставят точку */
@@ -508,8 +508,10 @@
         .pp-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .pp-hint { color: rgba(255,255,255,.4); font-size: 11px; }
         @media (min-width: 768px) {
-            #photo-place-bar { left: auto; right: 24px; bottom: 24px; width: 460px; border-radius: 18px;
-                               border: 1px solid rgba(255,255,255,.1); }
+            #photo-place-bar, #event-pick-bar {
+                left: auto; right: 24px; bottom: 24px; width: 460px; border-radius: 18px;
+                border: 1px solid rgba(255,255,255,.1);
+            }
         }
 
         /* ── События: походы, чат, сборы (events.js) ───────────── */
@@ -562,6 +564,11 @@
            улетала в угол ближайшего позиционированного родителя */
         .ev-card .ev-role { position: absolute; top: 12px; right: 12px; }
 
+        .ef-meetrow { display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+        .ef-meetat {
+            color: rgba(255,255,255,.45); font-size: 11px;
+            display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums;
+        }
         .ev-when {
             display: flex; align-items: center; gap: 9px; color: #fff; font-size: 14px; font-weight: 600;
         }

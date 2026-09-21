@@ -68,13 +68,38 @@
         return location.origin + location.pathname + HASH + id;
     }
 
-    function fmtWhen(v) {
-        if (!v) return 'дата не назначена';
-        const d = new Date(v);
-        if (isNaN(d)) return 'дата не назначена';
-        const day = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
-        const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        return `${day}, ${time}`;
+    const dayOf  = d => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+    const timeOf = d => d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+    /**
+     * «4 октября, 07:10 → 18:30» или, если поход с ночёвкой, «4 октября,
+     * 07:10 → 5 октября, 16:00». Поход — это отрезок времени от сбора до
+     * возвращения, а не одна отметка (фидбэк 2026-09-21).
+     */
+    function fmtWhen(a, b) {
+        const s = a ? new Date(a) : null;
+        if (!s || isNaN(s)) return 'дата не назначена';
+        const e = b ? new Date(b) : null;
+        if (!e || isNaN(e)) return `${dayOf(s)}, ${timeOf(s)}`;
+        const sameDay = s.toDateString() === e.toDateString();
+        return sameDay ? `${dayOf(s)}, ${timeOf(s)} → ${timeOf(e)}`
+                       : `${dayOf(s)}, ${timeOf(s)} → ${dayOf(e)}, ${timeOf(e)}`;
+    }
+
+    /**
+     * Сколько похода по часам — чтобы подсказать окончание, а не заставлять
+     * считать. Те же 4.5 км/ч и 4.3 м набора в минуту, что в `HikingTime`
+     * (`time_planner.js`), плюс час на привалы.
+     */
+    function estimateHours(routeKey) {
+        if (!routeKey || typeof routes === 'undefined' || !routes[routeKey]) return null;
+        const r = routes[routeKey];
+        const m = /(\d+)\s*h(?:\s*(\d+)\s*m)?/i.exec(r.overrideTime || '');
+        if (m) return +m[1] + (m[2] ? +m[2] / 60 : 0);
+        const d = (typeof parsedRouteDataCache !== 'undefined') && parsedRouteDataCache[routeKey];
+        if (!d || !d.distance) return null;
+        const asc = r.overrideAscent != null ? r.overrideAscent : (d.ascent || 0);
+        return d.distance / 4.5 + asc / 258 + 1;
     }
 
     /** Для `datetime-local`: он не понимает ни `Z`, ни смещения. */
@@ -264,7 +289,7 @@
             <button class="ev-card" data-ev="${esc(e.id)}">
                 <div class="ev-card-t">${esc(e.title)}</div>
                 <div class="ev-card-m">
-                    <span>${svg(ICON.cal, 11)}${esc(fmtWhen(e.starts_at))}</span>
+                    <span>${svg(ICON.cal, 11)}${esc(fmtWhen(e.starts_at, e.ends_at))}</span>
                     ${e.route_name ? `<span>${svg(ICON.route, 11)}${esc(e.route_name)}${
                         e.route_km ? ` · ${Number(e.route_km).toFixed(1)} км` : ''}</span>` : ''}
                     <span>${svg(ICON.users, 11)}${e.members} ${plural(e.members, 'участник', 'участника', 'участников')}</span>
@@ -321,7 +346,7 @@
         const body = [];
 
         if (entry.tab === 'info') {
-            body.push(`<div class="ev-when">${svg(ICON.cal, 13)}<span>${esc(fmtWhen(e.starts_at))}</span></div>`);
+            body.push(`<div class="ev-when">${svg(ICON.cal, 13)}<span>${esc(fmtWhen(e.starts_at, e.ends_at))}</span></div>`);
             if (e.route_key) {
                 body.push(`<button class="ev-route" id="ev-route">
                     ${svg(ICON.route, 15)}
@@ -330,7 +355,12 @@
                     <span class="ev-route-go">на карте</span>
                 </button>`);
             }
-            if (e.meeting) body.push(`<div class="ev-line">${svg(ICON.pin, 13)}<span>${esc(e.meeting)}</span></div>`);
+            if (e.meeting || e.meet_lat != null) {
+                body.push(`<div class="ev-line">${svg(ICON.pin, 13)}
+                    <span>Сбор: ${esc(e.meeting || 'точка на карте')}</span>
+                    ${e.meet_lat != null ? `<button class="pf-link" id="ev-meet-show">на карте</button>` : ''}
+                </div>`);
+            }
             if (e.description) body.push(`<p class="ev-desc">${esc(e.description)}</p>`);
 
             body.push(`<div class="pf-sec"><div class="pf-sec-h">Кто идёт <em>${e.members.length}</em></div>
@@ -467,13 +497,28 @@
             <label class="rs-field"><span>Название</span>
                 <input class="review-input" id="ef-title" maxlength="120" value="${esc(d.title || '')}"
                        placeholder="Например: Ластра — Дивчибаре"></label>
-            <label class="rs-field mt-4"><span>Когда выходим</span>
-                <input class="review-input" type="datetime-local" id="ef-when" value="${esc(toLocalInput(d.starts_at))}"></label>
+            <!-- ⚠️ В столбик, а не в ряд: `dd.mm.yyyy, hh:mm` вместе с кнопкой
+                 календаря в половину окна не влезает и обрезается -->
+            <label class="rs-field mt-4"><span>Сбор — дата и время</span>
+                <input class="review-input" type="datetime-local" id="ef-start"
+                       value="${esc(toLocalInput(d.starts_at))}"></label>
+            <label class="rs-field mt-3"><span>Возвращение — дата и время</span>
+                <input class="review-input" type="datetime-local" id="ef-end"
+                       value="${esc(toLocalInput(d.ends_at))}"></label>
+            <div class="tw-note" id="ef-hint">${d.route_key && estimateHours(d.route_key)
+                ? `По маршруту это примерно ${estimateHours(d.route_key).toFixed(1)} ч с привалами`
+                : 'Окончание подскажем по маршруту, как выберете его и время сбора'}</div>
             <label class="rs-field mt-4"><span>Маршрут</span>
                 <select class="review-input" id="ef-route">${routeOptions(d.route_key)}</select></label>
-            <label class="rs-field mt-4"><span>Где и во сколько сбор</span>
+            <label class="rs-field mt-4"><span>Где сбор</span>
                 <input class="review-input" id="ef-meeting" maxlength="200" value="${esc(d.meeting || '')}"
-                       placeholder="Например: ЖД станция Ластра, 7:10, поезд из Белграда 6:05"></label>
+                       placeholder="Например: ЖД станция Ластра"></label>
+            <div class="ef-meetrow">
+                <button class="pf-btn pf-btn-ghost" id="ef-pick">${svg(ICON.pin, 14)}${
+                    d.meet_lat != null ? 'Изменить точку на карте' : 'Указать точку на карте'}</button>
+                ${d.meet_lat != null ? `<span class="ef-meetat">${d.meet_lat.toFixed(4)}, ${d.meet_lon.toFixed(4)}
+                    <button class="pf-link" id="ef-unpick">убрать</button></span>` : ''}
+            </div>
             <label class="rs-field mt-4"><span>Описание</span>
                 <textarea class="review-input" id="ef-desc" maxlength="2000" rows="4" style="resize:none;display:block"
                     placeholder="Что взять, какой темп, чего ждать от погоды">${esc(d.description || '')}</textarea></label>
@@ -491,58 +536,193 @@
         wire(box);
     }
 
+    /**
+     * Форма → черновик. ⚠️ Зовётся **перед любой** перерисовкой и перед
+     * сохранением: разметка собирается через `innerHTML`, и набранное иначе
+     * пропадает вместе с полями — при неудачной записи форма оказывалась
+     * пустой (фидбэк 2026-09-21).
+     */
     function readDraft(box) {
         const val = id => { const el = box.querySelector(id); return el ? el.value.trim() : ''; };
         const routeKey = val('#ef-route');
         const r = routeKey && typeof routes !== 'undefined' ? routes[routeKey] : null;
         const geo = r && typeof parsedRouteDataCache !== 'undefined' ? parsedRouteDataCache[r.id] : null;
-        const when = val('#ef-when');
-        return {
+        const start = val('#ef-start'), end = val('#ef-end');
+        draft = Object.assign({}, draft, {
             title: val('#ef-title').slice(0, 120),
-            starts_at: when ? new Date(when).toISOString() : null,
+            starts_at: start ? new Date(start).toISOString() : null,
+            ends_at: end ? new Date(end).toISOString() : null,
             meeting: val('#ef-meeting') || null,
             description: val('#ef-desc') || null,
             visibility: val('#ef-vis') || 'link',
             route_key: routeKey || null,
             route_name: r ? r.name : null,
             route_km: geo && geo.distance ? Number(geo.distance) : null
+        });
+        return draft;
+    }
+
+    /** Поля, которые едут в таблицу (без служебного `id` черновика). */
+    function eventFields(d) {
+        return {
+            title: d.title, starts_at: d.starts_at, ends_at: d.ends_at,
+            meeting: d.meeting, description: d.description, visibility: d.visibility,
+            route_key: d.route_key, route_name: d.route_name, route_km: d.route_km,
+            meet_lat: d.meet_lat != null ? d.meet_lat : null,
+            meet_lon: d.meet_lon != null ? d.meet_lon : null
         };
     }
 
     // ── Действия ────────────────────────────────────────────────────────────
+
+    function newId() {
+        return (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+            : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 3 | 8)).toString(16);
+            });
+    }
 
     async function saveEvent(box) {
         const c = client();
         if (!c || !signedIn()) { Account.openModal(); return; }
         const d = readDraft(box);
         if (!d.title) { toast('Придумайте название похода'); return; }
+        if (d.ends_at && d.starts_at && new Date(d.ends_at) <= new Date(d.starts_at)) {
+            toast('Возвращение должно быть позже сбора'); return;
+        }
         busy = true; render();
         try {
-            if (draft && draft.id) {
+            if (d.id) {
                 const { error } = await c.from('events')
-                    .update(Object.assign({ updated_at: new Date().toISOString() }, d))
-                    .eq('id', draft.id);
+                    .update(Object.assign({ updated_at: new Date().toISOString() }, eventFields(d)))
+                    .eq('id', d.id);
                 if (error) throw error;
-                busy = false;
+                const id = d.id;
+                busy = false; draft = null;
                 stack.pop();
-                await openEvent(draft.id, true);
+                await openEvent(id, true);
                 await loadList(true);
                 toast('Поход обновлён');
                 return;
             }
-            const { data, error } = await c.from('events')
-                .insert(Object.assign({ owner: uid() }, d)).select().single();
+            // ⚠️ id придумываем сами и **не** просим строку назад: политика
+            // на select проверяет её в той же команде, а участником владелец
+            // становится триггером — уже после. `insert ... returning` из-за
+            // этого возвращал пустоту, и создание похода выглядело ошибкой,
+            // хотя запись проходила (фидбэк 2026-09-21).
+            const id = newId();
+            const { error } = await c.from('events')
+                .insert(Object.assign({ id, owner: uid() }, eventFields(d)));
             if (error) throw error;
-            busy = false;
+            busy = false; draft = null;
             stack.pop();
             await loadList(true);
-            await openEvent(data.id);
+            await openEvent(id);
             toast('Поход собран — поделитесь ссылкой');
         } catch (e) {
             console.warn('[events] сохранение:', e);
-            toast('Не удалось сохранить поход');
+            toast('Не удалось сохранить: ' + (e && e.message ? e.message : 'ошибка базы'));
         } finally {
             busy = false;
+            render();
+        }
+    }
+
+    // ── Точка сбора на карте ────────────────────────────────────────────────
+
+    /**
+     * Название точки — ближайшая подпись на карте: сначала станция (до
+     * 700 м), потом населённый пункт. Станция важнее: на неё и приезжают,
+     * а деревня рядом может называться иначе.
+     */
+    function nearestLabel(at) {
+        const m = window.map;
+        let best = null;
+        if (m && m.getSource('railways-src')) {
+            let feats = [];
+            try { feats = m.querySourceFeatures('railways-src'); } catch (e) {}
+            for (const f of feats) {
+                const p = f.properties || {};
+                if (p.kind !== 'station' || !f.geometry || f.geometry.type !== 'Point') continue;
+                const name = p.name_ru || p.name;
+                if (!name) continue;
+                const d = metersBetween(at, f.geometry.coordinates);
+                if (d <= 700 && (!best || d < best.meters)) best = { name, meters: d, station: true };
+            }
+        }
+        if (best) return best;
+        const s = (window.PointInsight && PointInsight.nearestSettlement)
+            ? PointInsight.nearestSettlement(at) : null;
+        return (s && s.meters <= 6000) ? s : null;
+    }
+
+    function metersBetween(a, b) {
+        const R = 6371000, rad = Math.PI / 180;
+        const dLat = (b[1] - a[1]) * rad, dLon = (b[0] - a[0]) * rad;
+        const h = Math.sin(dLat / 2) ** 2 +
+                  Math.cos(a[1] * rad) * Math.cos(b[1] * rad) * Math.sin(dLon / 2) ** 2;
+        return 2 * R * Math.asin(Math.sqrt(h));
+    }
+
+    let pickHandler = null;
+
+    /**
+     * Указать точку сбора пальцем. Окно на это время **прячется**: карта под
+     * ним, и сквозь оверлей по ней не щёлкнуть. Черновик формы при этом
+     * остаётся в `draft`, поэтому после выбора возвращаемся в ту же форму со
+     * всем набранным.
+     */
+    function pickMeeting(box) {
+        readDraft(box);
+        const el = host();
+        if (el) el.classList.remove('open');
+        document.body.classList.add('tw-photo-place');
+
+        let bar = document.getElementById('event-pick-bar');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'event-pick-bar';
+            document.body.appendChild(bar);
+        }
+        const paint = at => {
+            const label = at ? nearestLabel(at) : null;
+            bar.innerHTML = `
+                <div class="pp-head">
+                    <div class="pp-title">${at
+                        ? `Точка сбора: ${esc((label && label.name) || 'без названия')}`
+                        : 'Нажмите на карте место сбора'}</div>
+                    <button class="pp-x" id="epk-x" aria-label="Отмена">✕</button>
+                </div>
+                <div class="pp-actions">
+                    <button class="pf-btn pf-btn-accent" id="epk-ok" ${at ? '' : 'disabled'}>Это здесь</button>
+                    <span class="pp-hint">${at
+                        ? (label ? `ближайшее название — ${esc(label.name)}${
+                            label.meters ? `, ${Math.round(label.meters)} м` : ''}` : 'названия рядом нет')
+                        : 'название подставим по ближайшей подписи на карте'}</span>
+                </div>`;
+            bar.classList.add('open');
+            bar.querySelector('#epk-x').onclick = () => finish(false);
+            bar.querySelector('#epk-ok').onclick = () => finish(true, at, label);
+        };
+
+        let at = null;
+        paint(null);
+
+        pickHandler = e => { at = [e.lngLat.lng, e.lngLat.lat]; paint(at); };
+        map.on('click', pickHandler);
+
+        function finish(ok, point, label) {
+            if (pickHandler) { map.off('click', pickHandler); pickHandler = null; }
+            bar.classList.remove('open');
+            document.body.classList.remove('tw-photo-place');
+            if (ok && point) {
+                draft.meet_lon = point[0];
+                draft.meet_lat = point[1];
+                // Название не затираем, если человек написал своё
+                if (!draft.meeting && label && label.name) draft.meeting = label.name;
+            }
+            show();
             render();
         }
     }
@@ -594,6 +774,38 @@
         on('#ev-new', () => { draft = {}; push({ kind: 'edit' }); });
         on('#ef-cancel', () => { draft = null; back(); });
         on('#ef-save', () => saveEvent(box));
+        on('#ef-pick', () => pickMeeting(box));
+        on('#ef-unpick', () => {
+            readDraft(box);
+            draft.meet_lat = null; draft.meet_lon = null;
+            render();
+        });
+        on('#ev-meet-show', () => {
+            if (window.PointInsight && t.data.meet_lat != null) {
+                close();
+                PointInsight.show(t.data.meet_lat, t.data.meet_lon, 'Сбор: ' + (t.data.meeting || 'точка'), true);
+            }
+        });
+
+        // Окончание подсказываем по маршруту: считать самому незачем
+        const startEl = box.querySelector('#ef-start');
+        const endEl = box.querySelector('#ef-end');
+        const routeEl = box.querySelector('#ef-route');
+        const hint = box.querySelector('#ef-hint');
+        const suggest = () => {
+            if (!startEl || !endEl || !startEl.value) return;
+            const h = estimateHours(routeEl && routeEl.value);
+            if (hint) {
+                hint.textContent = h
+                    ? `По маршруту это примерно ${h.toFixed(1)} ч с привалами`
+                    : 'Окончание подскажем по маршруту, как выберете его и время сбора';
+            }
+            if (!h || endEl.value) return;
+            const end = new Date(new Date(startEl.value).getTime() + Math.round(h * 4) / 4 * 3600000);
+            endEl.value = toLocalInput(end.toISOString());
+        };
+        if (startEl) startEl.onchange = suggest;
+        if (routeEl) routeEl.onchange = suggest;
 
         box.querySelectorAll('[data-ev]').forEach(b => {
             b.onclick = () => openEvent(b.dataset.ev);
@@ -621,6 +833,7 @@
             draft = Object.assign({}, t.data, { id: t.id });
             push({ kind: 'edit' });
         });
+        on('#ev-back', back);
 
         // Отмена похода — в два нажатия, без системного confirm()
         const del = box.querySelector('#ev-delete');

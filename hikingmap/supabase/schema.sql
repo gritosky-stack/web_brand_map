@@ -916,7 +916,8 @@ begin
     return jsonb_build_object(
         'state', 'ok',
         'id', e.id, 'title', e.title, 'description', e.description,
-        'starts_at', e.starts_at, 'meeting', e.meeting,
+        'starts_at', e.starts_at, 'ends_at', e.ends_at, 'meeting', e.meeting,
+        'meet_lat', e.meet_lat, 'meet_lon', e.meet_lon,
         'route_key', e.route_key, 'route_name', e.route_name, 'route_km', e.route_km,
         'visibility', e.visibility, 'owner', e.owner,
         'my_role', mine,
@@ -950,7 +951,7 @@ as $$
     select coalesce(jsonb_agg(x order by x -> 'starts_at' nulls last), '[]'::jsonb)
       from (
         select jsonb_build_object(
-                   'id', e.id, 'title', e.title, 'starts_at', e.starts_at,
+                   'id', e.id, 'title', e.title, 'starts_at', e.starts_at, 'ends_at', e.ends_at,
                    'route_name', e.route_name, 'route_km', e.route_km,
                    'my_role', m.role,
                    'members', (select count(*) from public.event_members k where k.event_id = e.id)
@@ -1001,3 +1002,18 @@ $$;
 
 revoke all on function public.event_feed(uuid, bigint) from public, anon;
 grant execute on function public.event_feed(uuid, bigint) to authenticated;
+
+-- ─────────── Правки событий: окончание, точка сбора, чтение владельцем ──
+alter table public.events add column if not exists ends_at  timestamptz;
+alter table public.events add column if not exists meet_lat double precision;
+alter table public.events add column if not exists meet_lon double precision;
+
+-- ⚠️ Владелец читает событие **по колонке owner**, а не только как участник.
+-- Участником он становится триггером `on_event_created`, то есть уже после
+-- вставки, — а `insert ... returning` проверяет строку политикой на select
+-- в той же команде. Из-за этого создание похода честно записывало строку и
+-- возвращало ошибку: «Не удалось сохранить поход» на пустом месте.
+drop policy if exists "events: участники читают" on public.events;
+create policy "events: участники читают"
+    on public.events for select
+    using (auth.uid() = owner or public.is_event_member(id));
