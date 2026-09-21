@@ -65,6 +65,13 @@
 
     const top = () => stack[stack.length - 1] || null;
 
+    /** Пришли из окна аккаунта — «назад» в корне вернёт туда. */
+    let fromAccount = false;
+    /** Ушли смотреть что-то на карте — по этому рисуется «к походу». */
+    let returnTo = null;
+
+    const canBack = () => stack.length > 1 || fromAccount;
+
     function eventLink(id) {
         return location.origin + location.pathname + HASH + id;
     }
@@ -230,25 +237,70 @@
 
     function push(entry) { stack.push(entry); show(); render(); }
 
-    function back() {
-        stopPoll();
-        if (stack.length > 1) { stack.pop(); render(); const t = top();
-            if (t && t.kind === 'event') { messages = []; lastId = 0; openEvent(t.id, true); } }
-        else close();
+    /**
+     * Уйти из похода на карту и оставить дорогу назад.
+     *
+     * ⚠️ Раньше окно просто закрывалось, и вернуться в поход можно было
+     * только через профиль заново: посмотрел привязанный маршрут — и
+     * походный интерфейс пропал (фидбэк 2026-09-21). Теперь поверх карты
+     * висит кнопка «К походу», и она же — единственный способ вернуться,
+     * потому что закрывают маршрут и карточку точки чужие кнопки, за
+     * которыми нам не уследить.
+     */
+    function leaveToMap(id, fn) {
+        returnTo = id;
+        close(true);
+        fn();
+        paintReturn();
     }
 
-    function close() {
+    function paintReturn() {
+        let el = document.getElementById('event-return');
+        if (!returnTo) { if (el) el.remove(); return; }
+        if (!el) {
+            el = document.createElement('button');
+            el.id = 'event-return';
+            document.body.appendChild(el);
+        }
+        el.innerHTML = svg(ICON.back, 14) + '<span>К походу</span>';
+        el.onclick = () => {
+            const id = returnTo;
+            returnTo = null;
+            paintReturn();
+            fromAccount = false;
+            stack = [{ kind: 'list' }];
+            openEvent(id);
+        };
+    }
+
+    function back() {
+        stopPoll();
+        if (stack.length > 1) {
+            stack.pop();
+            render();
+            const t = top();
+            if (t && t.kind === 'event') { messages = []; lastId = 0; openEvent(t.id, true); }
+            return;
+        }
+        if (fromAccount) { close(); if (window.Account) Account.openModal(); return; }
+        close();
+    }
+
+    function close(keepReturn) {
         stopPoll();
         const el = host();
         if (el) el.classList.remove('open');
         stack = [];
+        fromAccount = false;
         messages = []; lastId = 0; draft = null;
+        if (!keepReturn) { returnTo = null; paintReturn(); }
         if (location.hash.startsWith(HASH)) {
             history.replaceState(null, '', location.pathname + location.search);
         }
     }
 
     function open() {
+        fromAccount = true;
         stack = [{ kind: 'list' }];
         show();
         render();
@@ -256,6 +308,7 @@
     }
 
     async function openEvent(id, replace) {
+        if (returnTo === id) { returnTo = null; paintReturn(); }
         // ⚠️ Одно и то же событие могут попросить открыть дважды: `init` по
         // хешу и `onAccount` после входа. Второй раз — только показать, что
         // уже открыто, иначе в стеке два экрана и два опроса чата
@@ -296,7 +349,7 @@
 
     function head(title, extra) {
         return `<div class="ev-head">
-            ${stack.length > 1 ? `<button class="pf-x" id="ev-back" aria-label="Назад">${svg(ICON.back, 16)}</button>` : '<span></span>'}
+            ${canBack() ? `<button class="pf-x" id="ev-back" aria-label="Назад">${svg(ICON.back, 16)}</button>` : '<span></span>'}
             <div class="ev-head-t">${esc(title)}</div>
             ${extra || ''}
             <button class="pf-x" id="ev-close" aria-label="Закрыть">${svg(ICON.close, 16)}</button>
@@ -876,8 +929,16 @@
         });
         on('#ev-meet-show', () => {
             if (window.PointInsight && t.data.meet_lat != null) {
-                close();
-                PointInsight.show(t.data.meet_lat, t.data.meet_lon, 'Сбор: ' + (t.data.meeting || 'точка'), true);
+                leaveToMap(t.id, () => {
+                    PointInsight.show(t.data.meet_lat, t.data.meet_lon,
+                                      'Сбор: ' + (t.data.meeting || 'точка'), true);
+                    // ⚠️ Карточку открытого маршрута сворачиваем **после**
+                    // `show`: он внутри зовёт `stopCinematic`, а тот
+                    // разворачивает карточку обратно (возврат после облёта).
+                    // Свернув до — получаешь карточку точки поверх карточки
+                    // маршрута, ровно то, что и было (фидбэк 2026-09-21).
+                    if (window.collapseRoutePanel) collapseRoutePanel();
+                });
             }
         });
 
@@ -947,8 +1008,9 @@
 
         on('#ev-route', () => {
             const key = t.data.route_key;
-            if (key && typeof routes !== 'undefined' && routes[key]) { close(); triggerRouteSelection(key); }
-            else toast('Этот маршрут сейчас не на карте');
+            if (key && typeof routes !== 'undefined' && routes[key]) {
+                leaveToMap(t.id, () => triggerRouteSelection(key));
+            } else toast('Этот маршрут сейчас не на карте');
         });
         on('#ev-copy', async () => {
             try {
@@ -1017,6 +1079,7 @@
         if (!location.hash.startsWith(HASH)) return false;
         const id = location.hash.slice(HASH.length);
         if (!id) return false;
+        fromAccount = false;        // пришли по ссылке, а не из своего окна
         stack = [{ kind: 'list' }];
         openEvent(id);
         return true;

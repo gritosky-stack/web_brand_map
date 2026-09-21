@@ -228,8 +228,24 @@
         .rs-opt-hint { color: rgba(255,255,255,.42); font-size: 11px; }
         .rs-opt-tick { color: var(--oc); opacity: 0; transform: scale(.6); transition: opacity .2s, transform .25s cubic-bezier(.3,1.5,.5,1); }
         .rs-opt.active .rs-opt-tick { opacity: 1; transform: scale(1); }
-        .rs-fields { display: flex; gap: 10px; margin-top: 16px; }
-        .rs-field { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        /* ⚠️ `min-width: 0` и `width: 100%` обязательны обоим. У полей
+           `date`, `time` и `datetime-local` есть **своя** минимальная
+           ширина под формат и кнопку календаря, и flex её уважает: на
+           телефоне пара «дата + время» уезжала за правый край окна, а
+           одиночная дата обрезалась (фидбэк 2026-09-21). */
+        .rs-fields { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+        .rs-field { flex: 1 1 130px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .rs-field input, .rs-field select, .rs-field textarea {
+            width: 100%; min-width: 0; box-sizing: border-box;
+        }
+        .rs-field input[type="date"], .rs-field input[type="time"],
+        .rs-field input[type="datetime-local"] { -webkit-appearance: none; appearance: none; }
+        /* На телефоне пара «дата + время» встаёт в столбик: Safari рисует
+           дату как «21. 9. 2026.» и в половину узкого окна она не читается */
+        @media (max-width: 430px) {
+            .rs-fields { flex-direction: column; gap: 12px; }
+            .rs-field { flex: 1 1 auto; }
+        }
         .rs-field > span {
             color: rgba(255,255,255,.45); font-size: 9px;
             text-transform: uppercase; letter-spacing: .14em;
@@ -656,6 +672,30 @@
         }
         .ev-del:hover { color: #f87171; background: rgba(239,68,68,.12); }
 
+        /* «К походу» — дорога назад, когда из события ушли смотреть карту */
+        #event-return {
+            position: fixed; z-index: 96; left: 50%; transform: translateX(-50%);
+            top: calc(84px + env(safe-area-inset-top));
+            display: flex; align-items: center; gap: 8px;
+            padding: 9px 15px; border-radius: 999px; cursor: pointer;
+            color: #fff; font-size: 12.5px; font-weight: 600;
+            background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0)), #7A5EA6;
+            border: 1px solid rgba(255,255,255,.2);
+            box-shadow: 0 10px 30px -8px rgba(0,0,0,.8), 0 0 0 1px rgba(122,94,166,.4);
+            animation: pbIn .3s ease-out;
+        }
+        #event-return:hover { filter: brightness(1.08); }
+        body.tw-immersive #event-return, body.tw-drawing #event-return { display: none; }
+
+        /* Подтверждение выхода из аккаунта */
+        .tw-signout {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            padding: 12px 14px; border-radius: 12px;
+            background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+        }
+        .tw-signout > span { flex: 1 1 100%; color: #fff; font-size: 13px; font-weight: 600; }
+        .tw-signout .tw-btn { width: auto; flex: 1; }
+
         /* Метка статуса на карточке карусели */
         .cc-badge {
             position: absolute; top: 7px; right: 7px; z-index: 2;
@@ -909,6 +949,11 @@
             outline: none; transition: border-color .2s; font-family: inherit;
         }
         .review-input:focus { border-color: rgba(255,255,255,.3); }
+        /* Поля выбора даты и времени не должны раздвигать окно: у них своя
+           минимальная ширина, а окно на телефоне — во всю его ширину */
+        input[type="date"], input[type="time"], input[type="datetime-local"] {
+            max-width: 100%; min-width: 0; box-sizing: border-box;
+        }
         .review-input::placeholder { color: rgba(255,255,255,.2); }
 
         /* ── Профиль и «Мои» маршруты (account.js) ─────────────────── */

@@ -62,6 +62,9 @@
     let hashHandled = false;
     // Удаление аккаунта: idle | confirm | working
     let deleteStep = 'idle';
+    // Выход — с подтверждением: случайное нажатие уводит из аккаунта, и
+    // обратно приходится идти через Google
+    let signOutArmed = false;
     const SUPPORT_EMAIL = 'gritosky@gmail.com';
 
     // ── Утилиты ─────────────────────────────────────────────────────────────
@@ -604,6 +607,7 @@
     }
 
     async function signOut() {
+        signOutArmed = false;
         if (!client) return;
         state = 'working'; render();
         try { await client.auth.signOut(); } catch (e) { console.warn('[account] выход:', e); }
@@ -679,18 +683,30 @@
         return false;
     }
 
+    /**
+     * Куда человек шёл до поездки к Google.
+     *
+     * ⚠️ `replaceState` возвращает хеш в адрес, но события `hashchange`
+     * при этом **нет**, и модули сами ничего не открывают. Пока это
+     * касалось только маршрутов, обрабатывалось здесь же; с профилями и
+     * походами пришедший по ссылке после входа видел пустую карту и должен
+     * был нажимать ссылку заново — так терялась половина добавлений в
+     * друзья (фидбэк 2026-09-21). Поэтому после восстановления хеша мы
+     * прямо просим профили и походы его открыть.
+     */
     function restoreReturnHash() {
         let hash = null;
         try { hash = sessionStorage.getItem(RETURN_HASH_KEY); sessionStorage.removeItem(RETURN_HASH_KEY); } catch (e) {}
-        if (hash && !location.hash) {
-            history.replaceState(null, '', location.pathname + location.search + hash);
-            const id = hash.slice(1);
-            if (routes[id] && parsedRouteDataCache[id]) {
-                const go = () => triggerRouteSelection(id);
-                if (map.getLayer('route-markers-layer')) go(); else map.once('load', go);
-            } else if (id.startsWith(SHARED_PREFIX)) {
-                openShared();       // вошли со страницы маршрута по ссылке
-            }
+        if (!hash || location.hash) return;
+        history.replaceState(null, '', location.pathname + location.search + hash);
+        if (window.Profile && Profile.openFromHash && Profile.openFromHash()) return;
+        if (window.Events && Events.openFromHash && Events.openFromHash()) return;
+        const id = hash.slice(1);
+        if (routes[id] && parsedRouteDataCache[id]) {
+            const go = () => triggerRouteSelection(id);
+            if (map.getLayer('route-markers-layer')) go(); else map.once('load', go);
+        } else if (id.startsWith(SHARED_PREFIX)) {
+            openShared();       // вошли со страницы маршрута по ссылке
         }
     }
 
@@ -790,7 +806,13 @@
                     ${doneLine() ? `<button class="tw-btn tw-btn-ghost" onclick="Account.showDone()">Показать пройденные</button>` : ''}
                     <button class="tw-btn tw-btn-ghost" onclick="RouteBuilder.start()">${PEN_ICON}Нарисовать маршрут</button>
                     <button class="tw-btn tw-btn-ghost" onclick="Account.pickGPX()">${UPLOAD_ICON}Загрузить GPX</button>
-                    <button class="tw-btn tw-btn-ghost" onclick="Account.signOut()">Выйти</button>
+                    ${signOutArmed
+                        ? `<div class="tw-signout">
+                               <span>Выйти из аккаунта?</span>
+                               <button class="tw-btn tw-btn-ghost" onclick="Account.cancelSignOut()">Остаться</button>
+                               <button class="tw-btn tw-btn-danger" onclick="Account.signOut()">Выйти</button>
+                           </div>`
+                        : `<button class="tw-btn tw-btn-ghost" onclick="Account.askSignOut()">Выйти</button>`}
                 </div>
                 <p class="tw-note mt-4">Это тот же профиль, что в приложении TOTSKII Wild: маршруты, записанные
                    или нарисованные в телефоне, появляются здесь, а загруженные здесь — в приложении.</p>
@@ -1099,6 +1121,7 @@
     function closeModal() {
         document.getElementById('account-modal').classList.remove('open');
         errorMsg = null;
+        signOutArmed = false;
         if (deleteStep === 'confirm') deleteStep = 'idle';
     }
 
@@ -1211,6 +1234,8 @@
         askDelete() { deleteStep = 'confirm'; errorMsg = null; renderModal(); },
         cancelDelete() { deleteStep = 'idle'; errorMsg = null; renderModal(); },
         confirmDelete: deleteAccount,
+        askSignOut() { signOutArmed = true; renderModal(); },
+        cancelSignOut() { signOutArmed = false; renderModal(); },
         /** loading | signedOut | working | signedIn | unavailable */
         status() { return state === 'signedIn' && !user ? 'signedOut' : state; },
         /** Почта вошедшего — по ней premium.js открывает закрытые функции */

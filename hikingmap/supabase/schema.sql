@@ -426,6 +426,7 @@ security definer set search_path = ''
 as $$
 declare
     p           public.profiles;
+    h           text := lower(trim(handle));
     me          uuid := auth.uid();
     friend      boolean;
     rel         text;
@@ -433,8 +434,14 @@ declare
     out_json    jsonb;
     can         boolean;
 begin
-    select * into p from public.profiles pf
-     where pf.username = lower(trim(handle));
+    -- ⚠️ Принимаем и ник, и uuid. Пока принимался только ник, профиль
+    -- человека, который ещё не выбрал ник, открыть было нечем — в списке
+    -- друзей он висел безымянной строкой (фидбэк 2026-09-21).
+    if h ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+        select * into p from public.profiles pf where pf.id = h::uuid;
+    else
+        select * into p from public.profiles pf where pf.username = h;
+    end if;
 
     if p.id is null then
         return jsonb_build_object('state', 'not_found');
@@ -549,16 +556,19 @@ begin
     -- Друзья
     can := (rel = 'self') or (p.show_friends = 'public') or (p.show_friends = 'friends' and friend);
     if can then
+        -- ⚠️ `id` в списке обязателен, а ник может быть ещё не выбран:
+        -- профиль такого друга открывается по id, и прятать его из списка
+        -- (как было, `pr.username is not null`) нельзя — он висел там
+        -- безымянной строкой, которая никуда не ведёт.
         out_json := out_json || jsonb_build_object('friends', coalesce((
             select jsonb_agg(jsonb_build_object(
-                       'username', pr.username, 'display_name', pr.display_name,
-                       'avatar_url', pr.avatar_url))
+                       'id', pr.id, 'username', pr.username,
+                       'display_name', pr.display_name, 'avatar_url', pr.avatar_url))
               from public.friendships f
               join public.profiles pr
                 on pr.id = case when f.requester = p.id then f.addressee else f.requester end
              where f.status = 'accepted'
                and (f.requester = p.id or f.addressee = p.id)
-               and pr.username is not null
         ), '[]'::jsonb));
     end if;
 

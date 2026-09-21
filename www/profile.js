@@ -135,16 +135,38 @@
      */
     async function backfillMeta() {
         if (!me) return;
+        const c = client();
         const m = (window.Account && Account.meta && Account.meta()) || {};
         const patch = {};
         if (!me.display_name && m.name) patch.display_name = m.name;
         if (!me.avatar_url && m.avatar) patch.avatar_url = m.avatar;
+
+        // ⚠️ Ник выдаём сразу, не дожидаясь, пока человек зайдёт в
+        // настройки: без ника профилем нельзя поделиться и его нельзя
+        // открыть из списка друзей — только что зарегистрировавшийся
+        // оказывался невидимым для собственных друзей (фидбэк 2026-09-21).
+        // Занятые варианты обходим приписыванием цифр.
+        if (!me.username) {
+            const base = suggestNick();
+            for (let i = 0; i < 6; i++) {
+                const tryNick = (i ? base.slice(0, 17) + i : base).slice(0, 20);
+                try {
+                    const { data } = await c.rpc('username_available', { handle: tryNick });
+                    if (data === false) continue;
+                } catch (e) { break; }
+                patch.username = tryNick;
+                break;
+            }
+        }
         if (!Object.keys(patch).length) return;
         try {
-            const c = client();
             const { data } = await c.from('profiles').update(patch).eq('id', uid()).select().single();
             if (data) me = data;
-        } catch (e) { /* не критично: профиль просто без фото */ }
+        } catch (e) {
+            // Ник могли занять между проверкой и записью — не беда, человек
+            // выберет свой в настройках
+            console.warn('[profile] дозаполнение:', e);
+        }
     }
 
     /** Ник нужен, чтобы профилем можно было поделиться. Предложим из имени. */
@@ -316,6 +338,14 @@
     let stack = [];
     const top = () => stack[stack.length - 1] || null;
 
+    /**
+     * Откуда пришли на самый первый экран. Профиль, настройки и друзья
+     * открываются из окна аккаунта, и «назад» в корне должно возвращать
+     * туда: иначе из друзей и настроек выйти можно было только крестиком —
+     * то есть закрыв всё и начав заново (фидбэк 2026-09-21).
+     */
+    let fromAccount = false;
+
     function push(entry) {
         stack.push(entry);
         show();
@@ -323,9 +353,13 @@
     }
 
     function back() {
-        if (stack.length > 1) { stack.pop(); render(); }
-        else close();
+        if (stack.length > 1) { stack.pop(); render(); return; }
+        if (fromAccount) { close(); if (window.Account) Account.openModal(); return; }
+        close();
     }
+
+    /** Есть ли куда вернуться — по этому рисуется стрелочка в шапке. */
+    const canBack = () => stack.length > 1 || fromAccount;
 
     function host() { return document.getElementById('profile-modal'); }
 
@@ -353,6 +387,7 @@
         const el = host();
         if (el) el.classList.remove('open');
         stack = [];
+        fromAccount = false;
         // Ссылка на профиль в адресной строке больше не нужна: иначе
         // перезагрузка снова открыла бы чужой профиль
         if (location.hash.startsWith(HASH)) {
@@ -361,7 +396,9 @@
     }
 
     function open(which) {
+        fromAccount = true;
         if (which === 'public') {
+            // Ника ещё нет — открывать нечего, сразу в настройки
             if (!me || !me.username) { stack = [{ kind: 'settings' }]; show(); render(); return; }
             stack = [];
             openUser(me.username);
@@ -433,7 +470,7 @@
      */
     function hero(opts) {
         const nav = `<div class="pf-nav">
-            ${stack.length > 1 ? `<button class="pf-x" id="pf-back" aria-label="Назад">${svg(ICON.back, 16)}</button>` : '<span></span>'}
+            ${canBack() ? `<button class="pf-x" id="pf-back" aria-label="Назад">${svg(ICON.back, 16)}</button>` : '<span></span>'}
             ${opts.title ? `<div class="pf-nav-t">${esc(opts.title)}</div>` : '<span></span>'}
             <button class="pf-x" id="pf-close" aria-label="Закрыть">${svg(ICON.close, 16)}</button>
         </div>`;
@@ -621,7 +658,7 @@
         if (p.friends) {
             body.push(section('Друзья', p.friends.length, p.friends.length
                 ? `<div class="pf-people">${p.friends.map(f => `
-                    <button class="pf-person" data-nick="${esc(f.username)}">
+                    <button class="pf-person" data-nick="${esc(f.username || f.id || '')}">
                         ${avatar(f.avatar_url, f.display_name)}
                         <span>${esc((f.display_name || f.username || '').split(' ')[0])}</span>
                     </button>`).join('')}</div>`
@@ -696,7 +733,7 @@
         if (!box) return;
         const person = (f, extra) => `
             <div class="pf-fitem">
-                <button class="pf-fmain" ${f.username ? `data-nick="${esc(f.username)}"` : 'disabled'}>
+                <button class="pf-fmain" data-nick="${esc(f.username || f.id || '')}">
                     ${avatar(f.avatar_url, f.display_name)}
                     <span class="pf-fname">${esc(f.display_name || (f.username ? '@' + f.username : 'Без имени'))}</span>
                     ${f.username ? `<span class="pf-fnick">@${esc(f.username)}</span>` : ''}
@@ -871,6 +908,8 @@
     /** `#u/<ник>` — ссылка на чужой профиль, входа не требует. */
     function openFromHash() {
         if (!location.hash.startsWith(HASH)) return false;
+        fromAccount = false;        // пришли по ссылке, а не из своего окна
+        stack = [];
         openUser(location.hash.slice(HASH.length));
         return true;
     }

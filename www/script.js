@@ -1869,6 +1869,18 @@ function _applyMenuFilter() {
     });
 }
 
+/**
+ * Свернуть карточку открытого маршрута.
+ *
+ * Нужна тем, кто показывает что-то своё на карте поверх открытого маршрута
+ * (точку сбора похода, например): карточка занимает треть экрана, и её
+ * содержимое к этому моменту уже не при чём.
+ */
+window.collapseRoutePanel = function() {
+    const g = document.getElementById('route-panel-group');
+    if (g && g.classList.contains('sidebar-open')) g.classList.add('panel-collapsed');
+};
+
 /** Активная вкладка каталога — нужна тем, кто её переприменяет. */
 window.activeFilter = function() { return _activeFilterType; };
 
