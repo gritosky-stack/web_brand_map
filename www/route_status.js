@@ -45,7 +45,8 @@
         planned: 'M8 3v3m8-3v3M4 9h16M5 6h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1z',
         done:    'M5 13l4 4L19 7',
         flag:    'M5 21V4m0 0h9l1 2h5l-2.5 4.5L20 15h-6l-1-2H5',
-        camera:  'M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1zm8 9a4 4 0 100-8 4 4 0 000 8z'
+        camera:  'M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1zm8 9a4 4 0 100-8 4 4 0 000 8z',
+        pin:     'M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11zm0-8.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z'
     };
 
     const svg = (d, size = 13) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"
@@ -93,6 +94,11 @@
     /** Сегодня по Белграду: там и маршруты, и прогноз погоды считает эту зону. */
     function todayISO() {
         return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Belgrade' }).format(new Date());
+    }
+
+    function plural(n, one, few, many) {
+        return n % 10 === 1 && n % 100 !== 11 ? one
+            : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? few : many;
     }
 
     function fmtDate(v) {
@@ -317,25 +323,84 @@
      * (`renderPhotosInPanel` в script.js). `null` — своих нет, остаются
      * авторские.
      */
+    /**
+     * Строка, где лежит отчёт пользователя: у своего маршрута это сама
+     * запись в `routes`, у каталожного — отметка `route_marks`. Дальше обе
+     * обрабатываются одинаково: колонки `photos` и `note` у них те же.
+     */
+    function reportRow(routeInfo) {
+        if (!routeInfo || routeInfo.shared) return null;
+        if (routeInfo.mine) {
+            return (window.MyRoutes && MyRoutes.rowOf && MyRoutes.rowOf(routeInfo.cloudId)) || null;
+        }
+        return marks.get(keyOf(routeInfo)) || null;
+    }
+
+    function photosOf(routeInfo) {
+        const r = reportRow(routeInfo);
+        return (r && Array.isArray(r.photos) && r.photos.length) ? r.photos : null;
+    }
+
     function photosFor(routeInfo) {
-        if (!routeInfo || routeInfo.mine) return null;
-        const m = marks.get(keyOf(routeInfo));
-        const ph = m && Array.isArray(m.photos) ? m.photos : null;
-        if (!ph || !ph.length || !window.UserPhotos) return null;
-        return ph.map(x => ({ src: UserPhotos.urlOf(x.p), coords: x.c || null, own: true }));
+        const ph = photosOf(routeInfo);
+        if (!ph || !window.UserPhotos) return null;
+        return ph.map((x, i) => ({ src: UserPhotos.urlOf(x.p), coords: x.c || null, own: true, idx: i }));
     }
 
     /** Есть ли у пользователя свой отчёт: тогда авторские рилсы прячем. */
     function isPersonalized(routeInfo) {
         if (!routeInfo || routeInfo.mine) return false;
-        const m = marks.get(keyOf(routeInfo));
-        return !!(m && ((m.photos && m.photos.length) || (m.note && m.note.trim())));
+        const r = reportRow(routeInfo);
+        return !!(r && ((r.photos && r.photos.length) || (r.note && r.note.trim())));
     }
 
     function noteOf(routeInfo) {
-        if (!routeInfo || routeInfo.mine) return null;
-        const m = marks.get(keyOf(routeInfo));
-        return (m && m.note && m.note.trim()) ? m.note.trim() : null;
+        const r = reportRow(routeInfo);
+        return (r && r.note && r.note.trim()) ? r.note.trim() : null;
+    }
+
+    /**
+     * Окно «Фото и заметка» — без статуса и даты. Нужно своим маршрутам:
+     * отчёт к ним прикладывают независимо от того, пройден маршрут или нет.
+     */
+    async function editReport(routeInfo) {
+        const own = !!routeInfo.mine;
+        const res = await askStatus({
+            status: 'done', report: true, name: routeInfo.name,
+            routeKey: own ? ('my_' + routeInfo.cloudId) : keyOf(routeInfo),
+            mark: reportRow(routeInfo)
+        });
+        if (!res) return false;
+        setBusy(true);
+        try {
+            const ok = own
+                ? await MyRoutes.saveReport(routeInfo.cloudId, res)
+                : await setMark(routeInfo, 'done', res);
+            if (ok) afterChange();
+            return ok;
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    /** Фото без места на карте — их можно расставить руками (photo_place.js). */
+    function unplacedCount(routeInfo) {
+        const ph = photosOf(routeInfo);
+        return ph ? ph.filter(x => !x.c).length : 0;
+    }
+
+    /** Координаты фото, поставленные руками. */
+    async function setPhotoCoords(routeInfo, index, coords) {
+        const ph = photosOf(routeInfo);
+        if (!ph || !ph[index]) return false;
+        const next = ph.map((x, i) => i === index ? { p: x.p, c: coords } : x);
+        const own = !!routeInfo.mine;
+        const ok = own
+            ? await MyRoutes.saveReport(routeInfo.cloudId, { photos: next, note: noteOf(routeInfo) })
+            : await setMark(routeInfo, 'done', { doneAt: (reportRow(routeInfo) || {}).done_at || null,
+                                                note: noteOf(routeInfo), photos: next });
+        if (ok) afterChange();
+        return ok;
     }
 
     /** Карточки для лент «Планы» и «Пройденные» — отмеченные маршруты каталога. */
@@ -467,16 +532,25 @@
         if (personal === 'done') {
             rows.push(`<div class="rs-tally">${svg(ICON.done, 12)}
                 <span>${distanceOf(routeInfo).toFixed(1)} км в вашем счётчике пройденного</span></div>`);
+        }
+
+        // Отчёт: у своего маршрута всегда (фото к нему прикладывают
+        // независимо от статуса), у каталожного — когда он пройден
+        if (own || personal === 'done') {
             const note = noteOf(routeInfo);
-            const mark = marks.get(keyOf(routeInfo));
-            const nPh = (mark && mark.photos && mark.photos.length) || 0;
+            const ph = photosOf(routeInfo);
+            const nPh = ph ? ph.length : 0;
+            const unplaced = unplacedCount(routeInfo);
             if (note || nPh) {
                 rows.push(`<div class="rs-report">
                     <div class="rs-report-h">Мой отчёт${nPh ? ` · ${nPh} фото` : ''}
                         <button class="rs-link" id="rs-report-edit">изменить</button></div>
                     ${note ? `<p class="rs-report-t">${esc(note)}</p>` : ''}
+                    ${unplaced ? `<button class="rs-place" id="rs-place">${svg(ICON.pin, 13)}
+                        <span>${unplaced} ${plural(unplaced, 'фото без места', 'фото без места', 'фото без места')}
+                        на карте — указать</span></button>` : ''}
                 </div>`);
-            } else if (!own) {
+            } else {
                 rows.push(`<button class="rs-cta rs-cta-sm" id="rs-report-edit">
                     ${svg(ICON.camera, 14)}<span>Добавить свои фото и заметку</span></button>`);
             }
@@ -545,7 +619,11 @@
         const edit = el.querySelector('#rs-edit');
         if (edit) edit.onclick = () => onPick(routeInfo, personal, own, true);
         const report = el.querySelector('#rs-report-edit');
-        if (report) report.onclick = () => onPick(routeInfo, 'done', own, true);
+        if (report) report.onclick = () => editReport(routeInfo);
+        const place = el.querySelector('#rs-place');
+        if (place) place.onclick = () => {
+            if (window.PhotoPlace) PhotoPlace.start(routeInfo);
+        };
     }
 
     /**
@@ -704,6 +782,29 @@
         const close = `<button class="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors" id="rs-x" aria-label="Закрыть">
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>`;
 
+        if (o.report) {
+            // Только фото и заметка: ни статуса, ни даты
+            inner.innerHTML = `
+                <div class="flex items-start justify-between mb-4">
+                    <div class="min-w-0 pr-3">
+                        <h3 class="text-white text-base font-semibold">Фото и заметка</h3>
+                        ${o.name ? `<div class="text-zinc-500 text-xs truncate mt-0.5">${esc(o.name)}</div>` : ''}
+                    </div>
+                    ${close}
+                </div>
+                ${photoField(st)}
+                <label class="rs-field mt-4"><span>Заметка</span>
+                    <textarea class="review-input" id="rs-note" maxlength="1000" rows="4"
+                        placeholder="Как прошло, что запомнилось"
+                        style="resize:none;display:block">${esc(st.note)}</textarea></label>
+                <div class="flex gap-2 mt-5">
+                    <button class="tw-btn tw-btn-ghost" id="rs-cancel">Отмена</button>
+                    <button class="tw-btn tw-btn-mine" id="rs-ok">Готово</button>
+                </div>`;
+            wireModal(inner, st);
+            return;
+        }
+
         const options = o.single ? '' : `
             <div class="rs-opts">
                 ${optionRow('mine', 'Просто сохранить в «Мои»', 'Пусть будет под рукой')}
@@ -754,7 +855,18 @@
         inner.querySelectorAll('.rs-opt').forEach(b => {
             b.onclick = () => { st.status = b.dataset.pick; renderModal(); };
         });
-        inner.querySelector('#rs-x').onclick = () => closeModal(null);
+        wireModal(inner, st);
+        const d = inner.querySelector('#rs-date');
+        if (d) d.onchange = () => { st.date = d.value || st.date; keepText(inner); renderModal(); };
+        const t = inner.querySelector('#rs-time');
+        if (t) t.onchange = () => { st.time = t.value || st.time; };
+        if (st.status === 'planned') showForecast();
+    }
+
+    /** Кнопки, которые есть в любом режиме окна: закрыть, фото, «Готово». */
+    function wireModal(inner, st) {
+        const x = inner.querySelector('#rs-x');
+        if (x) x.onclick = () => closeModal(null);
         inner.querySelector('#rs-cancel').onclick = () => closeModal(null);
         inner.querySelector('#rs-ok').onclick = () => submitModal(inner);
         const addBtn = inner.querySelector('#rs-ph-add');
@@ -777,11 +889,6 @@
         inner.querySelectorAll('[data-drop-file]').forEach(b => {
             b.onclick = () => { st.files.splice(+b.dataset.dropFile, 1); keepText(inner); renderModal(); };
         });
-        const d = inner.querySelector('#rs-date');
-        if (d) d.onchange = () => { st.date = d.value || st.date; renderModal(); };
-        const t = inner.querySelector('#rs-time');
-        if (t) t.onchange = () => { st.time = t.value || st.time; };
-        if (st.status === 'planned') showForecast();
     }
 
     function result(st, photos) {
@@ -830,6 +937,10 @@
                 return;
             }
             st.uploading = false;
+        }
+        if (st.opts.report) {
+            closeModal({ photos, note: st.note.trim() || null, removed: st.removed });
+            return;
         }
         closeModal(result(st, photos));
     }
@@ -906,7 +1017,7 @@
 
     window.RouteStatus = {
         STATUS, askStatus, renderPanel, personalStatusOf, personalDateOf,
-        photosFor, isPersonalized, noteOf,
+        photosFor, isPersonalized, noteOf, editReport, unplacedCount, setPhotoCoords,
         markedCards, onAccount, refreshKm, personalKm, applyCatalog,
         isAdmin() { return admin; },
         /** Подпись для значка в карточке: «План», «Пройден», «Мой». */

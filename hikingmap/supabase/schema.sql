@@ -677,3 +677,9 @@ drop policy if exists "route-photos: читают все" on storage.objects;
 create policy "route-photos: читают все"
     on storage.objects for select
     using (bucket_id = 'route-photos');
+
+-- Свои маршруты тоже держат фото и заметку — теми же колонками, что и
+-- отметки на каталожных. Приложение пишет строку upsert'ом без них, и
+-- значения сохраняются (как `shared` и `status` выше).
+alter table public.routes add column if not exists photos jsonb not null default '[]'::jsonb;
+alter table public.routes add column if not exists note   text;

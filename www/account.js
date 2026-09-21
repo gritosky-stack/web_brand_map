@@ -258,6 +258,10 @@
             row.planned_at = status.plannedAt || null;
             row.done_at    = status.doneAt || null;
         }
+        // Фото и заметка приходят только из окна отчёта; при других правках
+        // колонки не трогаем — иначе переименование стёрло бы отчёт
+        if (status && status.photos) row.photos = status.photos;
+        if (status && 'note' in status) row.note = status.note;
         const { data, error } = await client.from('routes').upsert(row).select().single();
         if (error) throw error;
         const saved = data || row;
@@ -323,6 +327,31 @@
         }
     }
 
+    /**
+     * Фото и заметка к своему маршруту. Статус при этом не меняем: отчёт
+     * можно приложить к любому своему маршруту, а не только к пройденному.
+     */
+    async function saveReport(cloudId, data) {
+        const row = rows.get(cloudId);
+        if (!row) return false;
+        const p = Object.assign({}, row.payload, { updatedAt: new Date().toISOString() });
+        try {
+            await saveRow(p, { status: row.status || 'mine',
+                               plannedAt: row.planned_at || null,
+                               doneAt: row.done_at || null,
+                               photos: data.photos || [],
+                               note: data.note || null });
+            if (data.removed && data.removed.length && window.UserPhotos) {
+                UserPhotos.remove(data.removed);
+            }
+            return true;
+        } catch (e) {
+            console.warn('[account] отчёт:', e);
+            toast('Не удалось сохранить фото и заметку');
+            return false;
+        }
+    }
+
     function statusOf(cloudId) {
         const row = rows.get(cloudId);
         return (row && row.status) || 'mine';
@@ -368,9 +397,13 @@
     }
 
     async function deleteRoute(cloudId) {
+        const row = rows.get(cloudId);
         try {
             const { error } = await client.from('routes').delete().eq('id', cloudId);
             if (error) throw error;
+            if (row && row.photos && row.photos.length && window.UserPhotos) {
+                UserPhotos.remove(row.photos);
+            }
             rows.delete(cloudId);
             unregisterUserRoute(routeIdOf(cloudId));
             if (window.RouteStatus) RouteStatus.refreshKm();
@@ -1195,7 +1228,7 @@
         onFilterChange(type) { filter = type; renderStrip(); renderMobileList(); },
         renderPanelActions, saveDrawn, toast,
         // Личный статус своего маршрута (route_status.js рисует интерфейс)
-        setStatus, statusOf, doneKm,
+        setStatus, statusOf, doneKm, saveReport,
         rowOf(cloudId) { return rows.get(cloudId) || null; },
         refreshStrip() { renderStrip(); renderMobileList(); renderModal(); }
     };

@@ -950,6 +950,9 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
 
         map.on('click', 'route-hitboxes-layer', (e) => {
             if (!e.features.length) return;
+            // Пока расставляют фото, клик по карте ставит точку — открывать
+            // этим же нажатием другой маршрут нельзя (photo_place.js)
+            if (window.PhotoPlace && PhotoPlace.isActive()) return;
             triggerRouteSelection(e.features[0].properties.id);
         });
 
@@ -1559,10 +1562,13 @@ function _imgFallback(orig) {
 // ── Photo map markers ──────────────────────────────────────────────────────────
 function renderPhotoMapMarkers(routeInfo) {
     const routeData = parsedRouteDataCache[routeInfo.id];
+    // Свои фото — как и в карточке — заменяют авторские. Координаты у них
+    // либо из EXIF, либо поставлены руками (photo_place.js)
+    const own = window.RouteStatus ? RouteStatus.photosFor(routeInfo) : null;
     // Фото без GPS в EXIF пропускаем: Point с coordinates:null — невалидный GeoJSON,
     // на нём падает разбор всего источника, и тогда на карте не видно НИ ОДНОГО
     // маркера (кроме активного — он в отдельном источнике photo-active-source).
-    const features = ((routeData && routeData.photoGeoms) || [])
+    const features = (own || (routeData && routeData.photoGeoms) || [])
         .map((p, i) => ({ p, i }))
         .filter(({ p }) => Array.isArray(p.coords) && isFinite(p.coords[0]) && isFinite(p.coords[1]))
         .map(({ p, i }) => ({
