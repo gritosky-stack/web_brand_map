@@ -1838,15 +1838,42 @@ window.setFilter = function(type) {
     document.body.classList.toggle('filter-strip', type === 'mine' || type === 'done');
     if (window.MyRoutes) MyRoutes.onFilterChange(type);
 
+    let visible = 0;
     document.querySelectorAll('.carousel-card').forEach(card => {
         const route = routes[card.dataset.routeId];
         if (!route) return;
         const show = type === 'all' || type === 'author' ||
                      (type === 'planned' && route.status === 'planned');
         card.style.display = show ? '' : 'none';
+        if (show) visible++;
     });
+    _applyCatalogEmpty(type, visible);
     _carouselHW = 0; // invalidate cached scrollWidth after card visibility changes
 };
+
+/**
+ * Пустая вкладка обязана объяснять себя.
+ *
+ * ⚠️ «Планы» пусты, пока не назначен ни один анонс, — и это нормальное
+ * состояние, а не поломка. Но выглядит оно ровно как «маршруты пропали»:
+ * девять бывших «планов» переехали в запас, и человек, открыв привычную
+ * вкладку, увидел пустоту (фидбэк 2026-09-21).
+ */
+function _applyCatalogEmpty(type, visible) {
+    const box = document.getElementById('catalog-empty');
+    if (!box) return;
+    const admin = window.RouteStatus && RouteStatus.isAdmin && RouteStatus.isAdmin();
+    let text = '';
+    if (!visible && type === 'planned') {
+        text = admin
+            ? 'Анонсов пока нет. Откройте маршрут, поставьте авторский статус «Скоро идём» — он появится здесь и выделится на карте.'
+            : 'Анонсов пока нет. Пройденные и отложенные маршруты — во вкладке «Авторские».';
+    } else if (!visible && type === 'author') {
+        text = 'Маршруты каталога ещё загружаются…';
+    }
+    box.textContent = text;
+    box.classList.toggle('hidden', !text);
+}
 
 // ── GPX helpers ───────────────────────────────────────────────────────────────
 function haversineDistance(c1, c2) {
@@ -2392,9 +2419,12 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     window.refreshCatalogMenus = function() {
         const g = splitRoutes();
-        const section = (id, label, list, isMobile) => list.length
-            ? `<div id="${id}">${sectionHeader(label, isMobile)}` +
-              list.map(r => menuBtn(r, isMobile)).join('') + `</div>` : `<div id="${id}"></div>`;
+        const empty = isMobile => isMobile
+            ? '<div class="text-[11px] text-zinc-500 normal-case tracking-normal pl-1 pb-1">Анонса пока нет</div>'
+            : '<div class="px-5 pb-2 text-[11px] text-zinc-500 normal-case tracking-normal">Анонса пока нет</div>';
+        const section = (id, label, list, isMobile) =>
+            `<div id="${id}">${sectionHeader(label, isMobile)}` +
+            (list.length ? list.map(r => menuBtn(r, isMobile)).join('') : empty(isMobile)) + `</div>`;
         if (desktopList) {
             desktopList.innerHTML =
                 section('desktop-tours-planned', 'Скоро идём', g.planned, false) +

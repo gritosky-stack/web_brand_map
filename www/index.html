@@ -67,6 +67,21 @@
         }
         #route-carousel-outer { contain: layout style; }
 
+        /* Пустая вкладка каталога: плашка на месте карусели */
+        #catalog-empty {
+            position: fixed; left: 0; right: 0; bottom: 24px; z-index: 40;
+            margin: 0 auto; max-width: 560px; padding: 14px 18px;
+            border-radius: 14px; text-align: center;
+            background: rgba(15,15,17,.88); border: 1px solid rgba(255,255,255,.1);
+            color: rgba(255,255,255,.7); font-size: 12.5px; line-height: 1.5;
+            backdrop-filter: blur(8px); pointer-events: none;
+        }
+        #catalog-empty.hidden { display: none; }
+        body.route-open #catalog-empty,
+        body.tw-immersive #catalog-empty,
+        body.tw-drawing #catalog-empty { display: none !important; }
+        @media (max-width: 767px) { #catalog-empty { display: none !important; } }
+
         /* ── Filter tab buttons ───────────────────────────────── */
         .filter-tab-btn {
             padding: 3px 10px;
@@ -1217,6 +1232,9 @@
              здесь, чтобы её увидели до того, как построят на этом план -->
         <p class="layer-note">Данные OpenStreetMap, на местности не проверены. Родник может пересохнуть</p>
     </div>
+
+    <!-- Пустая вкладка каталога объясняет себя (script.js) -->
+    <div id="catalog-empty" class="hidden"></div>
 
     <!-- Lines legend pill -->
     <div id="lines-legend">
