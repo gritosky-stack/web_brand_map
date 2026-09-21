@@ -7,7 +7,7 @@
  *   - Mapbox: стиль, спрайты и шрифты — Network-first; **тайлы не трогаем**
  */
 
-const SHELL_VERSION = 'v26';
+const SHELL_VERSION = 'v27';
 const SHELL_CACHE   = `shell-${SHELL_VERSION}`;
 const GPX_CACHE     = 'gpx-v1';
 const PHOTO_CACHE   = 'photos-v1';
@@ -22,6 +22,7 @@ const SHELL_ASSETS = [
   '/supa.js',
   '/account.js',
   '/route_status.js',
+  '/profile.js',
   '/route_builder.js',
   '/mvt.js',
   '/map_points.js',
@@ -48,6 +49,7 @@ const SHELL_ASSETS = [
   '/libs/mapbox-gl.css',
   '/libs/tailwind.js',
   '/libs/supabase.js',
+  '/libs/qrcode.js',
 ];
 
 // ── Install: кэшируем app shell ──────────────────────────────────

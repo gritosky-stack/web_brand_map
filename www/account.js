@@ -703,9 +703,13 @@
         const signedIn = state === 'signedIn' && user;
         // Вкладка «Пройденные» и прочее личное — только вошедшим (CSS)
         document.body.classList.toggle('tw-signed', !!signedIn);
+        // Заявки в друзья — точкой на кнопке профиля: иначе о них узнаёшь,
+        // только заглянув в профиль
+        const reqs = (window.Profile && Profile.requestCount()) || 0;
+        const dot = reqs ? `<b class="tw-pill">${reqs}</b>` : '';
         document.querySelectorAll('.account-btn-nav').forEach(el => {
             el.innerHTML = signedIn
-                ? `${avatarHTML(false)}<span class="normal-case tracking-normal max-w-[120px] truncate">${esc(accountName().split(' ')[0])}</span>`
+                ? `${avatarHTML(false)}<span class="normal-case tracking-normal max-w-[120px] truncate">${esc(accountName().split(' ')[0])}</span>${dot}`
                 : 'Войти';
         });
         document.querySelectorAll('.account-btn-row').forEach(el => {
@@ -743,8 +747,12 @@
                     <div class="text-white text-sm mt-1">${esc(doneLine())}</div>
                 </div>` : ''}
                 <div class="flex flex-col gap-2">
-                    <button class="tw-btn tw-btn-mine" onclick="Account.showMine()">Показать «Мои» на карте</button>
-                    ${doneLine() ? `<button class="tw-btn tw-btn-ghost" onclick="Account.showDone()">✅ Показать пройденные</button>` : ''}
+                    <button class="tw-btn tw-btn-mine" onclick="Profile.open('public')">Мой профиль</button>
+                    <button class="tw-btn tw-btn-ghost" onclick="Profile.open('settings')">Настройки профиля и приватность</button>
+                    <button class="tw-btn tw-btn-ghost" onclick="Profile.open('friends')">Друзья${
+                        window.Profile && Profile.requestCount() ? ` <b class="tw-pill">${Profile.requestCount()}</b>` : ''}</button>
+                    <button class="tw-btn tw-btn-ghost" onclick="Account.showMine()">Показать «Мои» на карте</button>
+                    ${doneLine() ? `<button class="tw-btn tw-btn-ghost" onclick="Account.showDone()">Показать пройденные</button>` : ''}
                     <button class="tw-btn tw-btn-ghost" onclick="RouteBuilder.start()">${PEN_ICON}Нарисовать маршрут</button>
                     <button class="tw-btn tw-btn-ghost" onclick="Account.pickGPX()">${UPLOAD_ICON}Загрузить GPX</button>
                     <button class="tw-btn tw-btn-ghost" onclick="Account.signOut()">Выйти</button>
@@ -912,6 +920,7 @@
         // Статусы (route_status.js) грузят отметки и права админа, как только
         // появилась сессия, и сбрасывают их на выходе
         if (window.RouteStatus) RouteStatus.onAccount();
+        if (window.Profile) Profile.onAccount();
         document.dispatchEvent(new CustomEvent('tw-account', { detail: { state } }));
     }
 
@@ -1171,6 +1180,13 @@
         /** Почта вошедшего — по ней premium.js открывает закрытые функции */
         email() { return user && user.email ? user.email.toLowerCase() : null; },
         showDone() { closeModal(); setFilter('done'); },
+        /** Профили просят перерисовать кнопки, когда приехали заявки */
+        refreshButtons() { renderButtons(); renderModal(); },
+        /** Имя и аватар из Google — их profile.js кладёт в строку профиля */
+        meta() {
+            const m = (user && user.user_metadata) || {};
+            return { name: accountName(), avatar: m.avatar_url || m.picture || null };
+        },
         /** Клиент Supabase — им пользуются статусы и социальная часть */
         client() { return client; },
         userId() { return user ? user.id : null; }
