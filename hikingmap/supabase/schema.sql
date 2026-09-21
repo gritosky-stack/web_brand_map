@@ -143,3 +143,132 @@ $$;
 
 revoke all on function public.get_shared_route(text) from public;
 grant execute on function public.get_shared_route(text) to anon, authenticated;
+
+-- ═══════════════════ Статусы маршрутов и права (сайт) ══════════════════
+-- Социальная часть сайта, этап 1. Три сущности:
+--
+--   1. `admins` + `is_admin()` — кто правит каталог. Раньше «владелец сайта»
+--      был списком адресов в `www/premium.js`, то есть в бандле страницы;
+--      статус маршрута правит база, и решать, кому это можно, обязана тоже она.
+--   2. `catalog_status` — статус **авторского** маршрута каталога (пройден /
+--      планируется). Сами маршруты лежат файлами в `www/`, в базе их нет, —
+--      поэтому здесь только переопределение статуса по ключу (`route_3`).
+--      Читают все, включая гостей: от статуса зависит цвет метки на карте.
+--   3. Личные статусы. У своего маршрута — колонки в `routes`
+--      (`status/planned_at/done_at`), у чужого (каталог, ПСС) — строка в
+--      `route_marks`. Пройденные километры считаются по ним, у каждого свои.
+--
+-- ⚠️ Приложение пишет строку `routes` upsert'ом **без** новых колонок, и
+-- значения сохраняются — как и `shared` выше. Поэтому статус, поставленный на
+-- сайте, синхронизация из телефона не сбрасывает.
+
+create table if not exists public.admins (
+    email text primary key
+);
+insert into public.admins (email) values ('gritosky@gmail.com'), ('gritskij@gmail.com')
+    on conflict (email) do nothing;
+
+-- Список админов наружу не отдаём вовсе: RLS включён, политик на select нет,
+-- а проверка идёт функцией с правами владельца.
+alter table public.admins enable row level security;
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer set search_path = ''
+as $$
+    select exists (
+        select 1 from public.admins a
+        where a.email = lower(coalesce(auth.jwt() ->> 'email', ''))
+    )
+$$;
+
+revoke all on function public.is_admin() from public;
+grant execute on function public.is_admin() to anon, authenticated;
+
+-- ─────────────── Статус авторского маршрута каталога ───────────────────
+create table if not exists public.catalog_status (
+    route_key  text primary key,               -- 'route_3', 'future_5'
+    status     text not null check (status in ('done', 'planned')),
+    date       date,                           -- когда пройден / когда планируется
+    updated_at timestamptz not null default now(),
+    updated_by uuid default auth.uid()
+);
+
+alter table public.catalog_status enable row level security;
+
+drop policy if exists "catalog_status: читают все" on public.catalog_status;
+create policy "catalog_status: читают все"
+    on public.catalog_status for select
+    using (true);
+
+drop policy if exists "catalog_status: пишет админ" on public.catalog_status;
+create policy "catalog_status: пишет админ"
+    on public.catalog_status for insert
+    with check (public.is_admin());
+
+drop policy if exists "catalog_status: правит админ" on public.catalog_status;
+create policy "catalog_status: правит админ"
+    on public.catalog_status for update
+    using (public.is_admin())
+    with check (public.is_admin());
+
+drop policy if exists "catalog_status: удаляет админ" on public.catalog_status;
+create policy "catalog_status: удаляет админ"
+    on public.catalog_status for delete
+    using (public.is_admin());
+
+grant select on public.catalog_status to anon, authenticated;
+
+-- ─────────────── Личный статус своего маршрута ─────────────────────────
+alter table public.routes add column if not exists status      text not null default 'mine';
+alter table public.routes add column if not exists planned_at  timestamptz;
+alter table public.routes add column if not exists done_at     date;
+
+alter table public.routes drop constraint if exists routes_status_check;
+alter table public.routes add constraint routes_status_check
+    check (status in ('mine', 'planned', 'done'));
+
+create index if not exists routes_user_status_idx on public.routes (user_id, status);
+
+-- ─────────────── Личный статус чужого маршрута ─────────────────────────
+-- Каталожный или ПСС-маршрут принадлежит не пользователю, поменять у него
+-- ничего нельзя — личная отметка живёт отдельной строкой. `distance_km` и
+-- `name` копией: счётчик километров и список «Пройденные» собираются без
+-- обращения к файлам маршрутов.
+create table if not exists public.route_marks (
+    user_id     uuid not null references auth.users (id) on delete cascade
+                default auth.uid(),
+    route_key   text not null,                 -- 'route_3', 'future_5', 'pss_<slug>'
+    status      text not null check (status in ('planned', 'done')),
+    name        text,
+    distance_km double precision not null default 0,
+    planned_at  timestamptz,
+    done_at     date,
+    updated_at  timestamptz not null default now(),
+    primary key (user_id, route_key)
+);
+
+alter table public.route_marks enable row level security;
+
+drop policy if exists "route_marks: владелец читает" on public.route_marks;
+create policy "route_marks: владелец читает"
+    on public.route_marks for select
+    using (auth.uid() = user_id);
+
+drop policy if exists "route_marks: владелец пишет" on public.route_marks;
+create policy "route_marks: владелец пишет"
+    on public.route_marks for insert
+    with check (auth.uid() = user_id);
+
+drop policy if exists "route_marks: владелец правит" on public.route_marks;
+create policy "route_marks: владелец правит"
+    on public.route_marks for update
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+
+drop policy if exists "route_marks: владелец удаляет" on public.route_marks;
+create policy "route_marks: владелец удаляет"
+    on public.route_marks for delete
+    using (auth.uid() = user_id);

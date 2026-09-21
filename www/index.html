@@ -82,6 +82,65 @@
             background: rgba(255,255,255,.18);
             color: #fff;
         }
+        /* «Пройденные» — личная вкладка: гостю её показывать нечем */
+        .filter-tab-signed { display: none; }
+        body.tw-signed .filter-tab-signed { display: block; }
+
+        /* ── Статусы маршрута (route_status.js) ────────────────── */
+        .rs-head {
+            color: rgba(255,255,255,.45); font-size: 9px;
+            text-transform: uppercase; letter-spacing: .14em; margin-bottom: 10px;
+        }
+        .rs-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+        .rs-pill {
+            flex: 1 1 auto; padding: 8px 10px; border-radius: 10px; cursor: pointer;
+            background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+            color: #d4d4d8; font-size: 12px; font-weight: 600; white-space: nowrap;
+            transition: background .2s, border-color .2s, color .2s;
+        }
+        .rs-pill:hover:not(:disabled) { background: rgba(255,255,255,.12); }
+        .rs-pill:disabled { opacity: .5; cursor: default; }
+        .rs-when {
+            margin-top: 10px; color: rgba(255,255,255,.7); font-size: 12px;
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+        .rs-link {
+            color: #c4b0e8; font-size: 11px; text-decoration: underline;
+            text-underline-offset: 3px; cursor: pointer;
+        }
+        .rs-link:hover { color: #fff; }
+        .rs-admin {
+            margin-top: 16px; padding-top: 14px; border-top: 1px dashed rgba(255,255,255,.14);
+        }
+        /* Окно «какой статус» — вариантами в столбик, как в мобильных листах */
+        .rs-opts { display: flex; flex-direction: column; gap: 8px; }
+        .rs-opt {
+            display: flex; align-items: flex-start; gap: 12px; text-align: left;
+            padding: 12px 14px; border-radius: 14px; cursor: pointer;
+            background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+            transition: background .2s, border-color .2s;
+        }
+        .rs-opt:hover { background: rgba(255,255,255,.1); }
+        .rs-opt-icon { font-size: 18px; line-height: 1.2; }
+        .rs-opt-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .rs-opt-title { color: #fff; font-size: 13px; font-weight: 600; }
+        .rs-opt-hint { color: rgba(255,255,255,.45); font-size: 11px; }
+        .rs-fields { display: flex; gap: 10px; margin-top: 16px; }
+        .rs-field { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .rs-field > span {
+            color: rgba(255,255,255,.45); font-size: 9px;
+            text-transform: uppercase; letter-spacing: .14em;
+        }
+        .rs-field input { color-scheme: dark; }
+        .rs-wx {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            margin-top: 12px; padding: 10px 12px; border-radius: 12px;
+            background: rgba(255,255,255,.05); color: #e4e4e7; font-size: 12px;
+            min-height: 40px;
+        }
+        .rs-wx-icon { font-size: 16px; }
+        .rs-wx-dim { color: rgba(255,255,255,.45); }
+        .rs-wx-load { color: rgba(255,255,255,.45); }
 
         /* ── Route Sidebar ────────────────────────────────────── */
         #route-panel-group {
@@ -389,11 +448,16 @@
             display: none; gap: 8px; padding: 20px 16px; overflow-x: auto;
         }
         @media (min-width: 768px) {
-            body.filter-mine #my-routes-strip { display: flex; }
-            body.filter-mine #route-carousel-outer { display: none !important; }
+            body.filter-strip #my-routes-strip { display: flex; }
+            body.filter-strip #route-carousel-outer { display: none !important; }
         }
         body.route-open #my-routes-strip,
         body.tw-immersive #my-routes-strip { display: none !important; }
+        .my-card-badge {
+            position: absolute; top: 8px; right: 8px; z-index: 2;
+            padding: 2px 7px; border-radius: 999px; color: #0b0b0d;
+            font-size: 9px; font-weight: 800; letter-spacing: .04em; white-space: nowrap;
+        }
         .my-card {
             position: relative; flex-shrink: 0; width: 176px; height: 116px;
             border-radius: 16px; overflow: hidden; cursor: pointer; text-align: left;
@@ -1075,9 +1139,11 @@
                 <!-- Filter tabs -->
                 <div class="flex items-center gap-0.5 px-2">
                     <button onclick="setFilter('all')" id="filter-all" class="filter-tab-btn active">Все</button>
-                    <button onclick="setFilter('completed')" id="filter-completed" class="filter-tab-btn">Отчёты</button>
+                    <button onclick="setFilter('author')" id="filter-author" class="filter-tab-btn">Авторские</button>
                     <button onclick="setFilter('planned')" id="filter-planned" class="filter-tab-btn">Планы</button>
                     <button onclick="setFilter('mine')" id="filter-mine" class="filter-tab-btn">Мои</button>
+                    <!-- Личные пройденные: без входа их нет вовсе (account.js) -->
+                    <button onclick="setFilter('done')" id="filter-done" class="filter-tab-btn filter-tab-signed">Пройденные</button>
                 </div>
 
                 <div class="w-[1px] h-4 bg-white/20 mx-1"></div>
@@ -1146,7 +1212,7 @@
                 <svg class="w-3.5 h-3.5 text-red-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                 </svg>
-                <span class="text-zinc-400 text-[11px] uppercase tracking-widest font-light">Пройдено лично</span>
+                <span id="total-km-label" class="text-zinc-400 text-[11px] uppercase tracking-widest font-light">Пройдено командой</span>
                 <span id="total-km-value" class="text-white font-semibold text-sm tabular-nums">0</span>
                 <span class="text-zinc-400 text-[11px] font-light">км</span>
             </div>
@@ -1168,11 +1234,12 @@
         <button class="account-btn account-btn-row hidden" onclick="Account.openModal()"></button>
 
         <!-- Mobile Filter -->
-        <div class="flex gap-1.5 mb-4 pb-4 border-b border-white/10">
+        <div class="flex flex-wrap gap-1.5 mb-4 pb-4 border-b border-white/10">
             <button onclick="setFilter('all')" id="filter-all-mob" class="filter-tab-btn active flex-1 py-1.5">Все</button>
-            <button onclick="setFilter('completed')" id="filter-completed-mob" class="filter-tab-btn flex-1 py-1.5">Отчёты</button>
+            <button onclick="setFilter('author')" id="filter-author-mob" class="filter-tab-btn flex-1 py-1.5">Авторские</button>
             <button onclick="setFilter('planned')" id="filter-planned-mob" class="filter-tab-btn flex-1 py-1.5">Планы</button>
             <button onclick="setFilter('mine')" id="filter-mine-mob" class="filter-tab-btn flex-1 py-1.5">Мои</button>
+            <button onclick="setFilter('done')" id="filter-done-mob" class="filter-tab-btn filter-tab-signed flex-1 py-1.5">Пройденные</button>
         </div>
 
         <nav class="flex flex-col mb-4 text-sm uppercase tracking-widest text-white font-semibold">
@@ -1209,7 +1276,7 @@
             <svg class="w-3.5 h-3.5 text-red-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
             </svg>
-            <span class="text-zinc-400 text-[11px] uppercase tracking-widest font-light">Пройдено лично</span>
+            <span id="total-km-label-mobile" class="text-zinc-400 text-[11px] uppercase tracking-widest font-light">Пройдено командой</span>
             <span id="total-km-value-mobile" class="text-white font-semibold text-sm tabular-nums">0</span>
             <span class="text-zinc-400 text-[11px] font-light">км</span>
         </div>
@@ -1385,6 +1452,9 @@
                         Смотреть Reels
                     </a>
                 </div>
+
+                <!-- Статус маршрута: личный и авторский (route_status.js) -->
+                <div id="panel-status-actions" class="hidden px-5 py-4 border-b border-zinc-800/60 shrink-0"></div>
 
                 <!-- Действия над своим маршрутом (account.js) -->
                 <div id="panel-my-actions" class="hidden p-5 shrink-0"></div>
@@ -1585,7 +1655,9 @@
     <script src="route_profile_ui.js"></script>
     <script src="pss_layer.js"></script>
     <script src="assistant.js"></script>
+    <script src="supa.js"></script>
     <script src="account.js"></script>
+    <script src="route_status.js"></script>
     <script src="mvt.js"></script>
     <script src="route_builder.js"></script>
     <script src="map_points.js"></script>

@@ -450,52 +450,127 @@ let _dashAnimFrame  = null;    // animation frame for continuous flow after draw
 let _selectedRouteId = null;   // route whose pulsing dot is currently hidden
 let _activeFilterType = 'all'; // current Все/Отчёты/Планы/Мои filter
 
+// Базовые фильтры линий обзора — по виду маршрута (авторский, план, свой).
+// Фильтр вкладки к ним добавляется, а не подменяет их: линия своего цвета
+// остаётся своего цвета в любой вкладке.
+const _BASE_LINE_FILTER = {
+    completed: ['all', ['==', ['get', 'future'], false], ['!=', ['get', 'mine'], true]],
+    planned:   ['==', ['get', 'future'], true],
+    mine:      ['==', ['get', 'mine'], true]
+};
+
+/**
+ * Что показывает вкладка каталога.
+ *
+ *   Все · Авторские · Планы · Мои · Пройденные
+ *
+ * «Авторские» — маршруты каталога сайта (бывшие «Отчёты»). «Планы» — авторские
+ * планы вместе с личными планируемыми. «Мои» — всё, что пользователь сохранил.
+ * «Пройденные» — то, что он **сам** отметил пройденным, и свои маршруты, и
+ * авторские: личный статус лежит в свойстве `pstatus` (route_status.js).
+ */
+function _tabFilter() {
+    const t = _activeFilterType;
+    if (t === 'author')  return ['all', ['==', ['get', 'author'], true], ['!=', ['get', 'future'], true]];
+    if (t === 'planned') return ['any', ['==', ['get', 'future'], true], ['==', ['get', 'pstatus'], 'planned']];
+    if (t === 'mine')    return ['==', ['get', 'mine'], true];
+    if (t === 'done')    return ['==', ['get', 'pstatus'], 'done'];
+    return null;
+}
+
 // Combined marker filter: applies type filter + always hides the selected route dot
 function _applyMarkerFilter() {
     if (!map || !map.getLayer('route-markers-layer')) return;
-    // Свои маршруты, как в приложении, видны в «Мои» и во «Все», но не в
-    // «Отчётах»: статуса «пройден/план» у них нет
-    const isMine = ['==', ['get', 'mine'], true];
-    let f = null;
-    if (_activeFilterType === 'completed') f = ['all', ['==', ['get', 'future'], false], ['!', isMine]];
-    else if (_activeFilterType === 'planned') f = ['==', ['get', 'future'], true];
-    else if (_activeFilterType === 'mine') f = isMine;
+    const f = _tabFilter();
+    let mf = f;
     if (_selectedRouteId) {
         const ex = ['!=', ['get', 'id'], _selectedRouteId];
-        f = f ? ['all', f, ex] : ex;
+        mf = f ? ['all', f, ex] : ex;
     }
-    map.setFilter('route-markers-layer', f);
-    map.setFilter('route-hitboxes-layer', f);
+    map.setFilter('route-markers-layer', mf);
+    map.setFilter('route-hitboxes-layer', mf);
 
     // Mirror filter to overview lines (only relevant when lines are visible)
-    if (map.getLayer('overview-lines-completed')) {
-        const t = _activeFilterType;
-        const vis = on => (_showLines && on) ? 'visible' : 'none';
-        map.setLayoutProperty('overview-lines-completed', 'visibility', vis(t === 'all' || t === 'completed'));
-        map.setLayoutProperty('overview-lines-planned',   'visibility', vis(t === 'all' || t === 'planned'));
-        if (map.getLayer('overview-lines-mine')) {
-            map.setLayoutProperty('overview-lines-mine',  'visibility', vis(t === 'all' || t === 'mine'));
-        }
-    }
+    Object.keys(_BASE_LINE_FILTER).forEach(kind => {
+        const id = 'overview-lines-' + kind;
+        if (!map.getLayer(id)) return;
+        const base = _BASE_LINE_FILTER[kind];
+        map.setFilter(id, f ? ['all', base, f] : base);
+        map.setLayoutProperty(id, 'visibility', _showLines ? 'visible' : 'none');
+    });
 }
 
+/**
+ * Свойства метки и линии обзора. Вкладки фильтруют карту по ним
+ * (`_tabFilter`), поэтому после смены личного статуса или статуса каталога
+ * их надо пересобрать и перезалить источники — `refreshRouteProps`.
+ */
+function _routeProps(routeInfo) {
+    const personal = window.RouteStatus ? RouteStatus.personalStatusOf(routeInfo) : null;
+    return {
+        id:      routeInfo.id,
+        future:  !!routeInfo.future,
+        mine:    !!routeInfo.mine,
+        author:  !routeInfo.mine && !routeInfo.shared,
+        pstatus: personal || ''
+    };
+}
+
+window.refreshRouteProps = function() {
+    [routeFeatures, _overviewFeatures].forEach(arr => arr.forEach(f => {
+        const r = routes[f.properties.id];
+        if (r) f.properties = _routeProps(r);
+    }));
+    _flushRouteSources();
+    _applyMarkerFilter();
+};
+
 // ── Total km counter ──────────────────────────────────────────────────────────
-let _totalKm = 0;
+// Пока не вошли — сколько прошла команда по авторским маршрутам каталога.
+// Вошли — счётчик становится **личным**: километры маршрутов, которые
+// пользователь сам отметил пройденными (`route_status.js` → `setPersonalKm`).
+// Подпись меняется вместе с числом, иначе «Пройдено лично: 0 км» у гостя.
+let _authorKm   = 0;
+let _personalKm = null;      // null — счётчик в режиме «команда»
+let _shownKm    = 0;
 let _kmAnimFrame = null;
 
-function addToKmCounter(km) {
-    const from = _totalKm;
-    _totalKm += km;
-    const to = _totalKm;
+/** Километры авторских маршрутов. Пересчёт целиком: статус маршрута может
+ *  поменяться уже после загрузки (`catalog_status`), и слагаемых станет меньше. */
+window.recomputeAuthorKm = function() {
+    let km = 0;
+    Object.values(routes).forEach(r => {
+        if (r.mine || r.shared || r.future) return;
+        const d = parsedRouteDataCache[r.id];
+        if (d) km += d.distance;
+    });
+    _authorKm = km;
+    _renderKmCounter();
+};
+
+/** Личные километры. `null` — вышли, счётчик возвращается к авторским. */
+window.setPersonalKm = function(km) {
+    _personalKm = (km == null) ? null : km;
+    _renderKmCounter();
+};
+
+function _renderKmCounter() {
+    const personal = _personalKm != null;
+    const to = personal ? _personalKm : _authorKm;
     const ids = [
-        { val: 'total-km-value', display: 'total-km-display' },
-        { val: 'total-km-value-mobile', display: 'total-km-display-mobile' }
+        { val: 'total-km-value', display: 'total-km-display', label: 'total-km-label' },
+        { val: 'total-km-value-mobile', display: 'total-km-display-mobile', label: 'total-km-label-mobile' }
     ];
-    ids.forEach(({ display }) => {
+    ids.forEach(({ display, label }) => {
         const el = document.getElementById(display);
-        if (el) el.style.opacity = '1';
+        // Ноль у гостя не показываем: маршруты ещё грузятся
+        if (el && (personal || to > 0)) el.style.opacity = '1';
+        const lab = document.getElementById(label);
+        if (lab) lab.textContent = personal ? 'Пройдено лично' : 'Пройдено командой';
     });
     if (_kmAnimFrame) cancelAnimationFrame(_kmAnimFrame);
+    const from = _shownKm;
+    _shownKm = to;
     const startTime = performance.now();
     const duration = 900;
     function tick(now) {
@@ -653,19 +728,19 @@ if (MAPBOX_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
         // Под подписями — см. drapeBeforeId
         map.addLayer({
             id: 'overview-lines-completed', type: 'line', source: 'overview-lines',
-            filter: ['all', ['==', ['get', 'future'], false], ['!=', ['get', 'mine'], true]],
+            filter: _BASE_LINE_FILTER.completed,
             layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
             paint: { 'line-color': '#ff4d4d', 'line-width': 3, 'line-opacity': 0.85 }
         }, drapeBeforeId());
         map.addLayer({
             id: 'overview-lines-planned', type: 'line', source: 'overview-lines',
-            filter: ['==', ['get', 'future'], true],
+            filter: _BASE_LINE_FILTER.planned,
             layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
             paint: { 'line-color': '#FF8C00', 'line-width': 3, 'line-opacity': 0.85, 'line-dasharray': [2, 2.5] }
         }, drapeBeforeId());
         map.addLayer({
             id: 'overview-lines-mine', type: 'line', source: 'overview-lines',
-            filter: ['==', ['get', 'mine'], true],
+            filter: _BASE_LINE_FILTER.mine,
             layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
             paint: { 'line-color': MINE_COLOR, 'line-width': 3, 'line-opacity': 0.85 }
         }, drapeBeforeId());
@@ -887,21 +962,20 @@ function triggerRouteSelection(routeId) {
 
         // ── Fill panel ────────────────────────────────────────
         // Status badge
+        // Значок над названием. Личная отметка («прошёл», «планирую») важнее
+        // вида маршрута: она и отвечает на вопрос «а я тут был?»
         const badge = document.getElementById('panel-status-badge');
-        if (routeInfo.future) {
+        const personal = window.RouteStatus ? RouteStatus.badgeOf(routeInfo) : null;
+        let mark = null;
+        if (routeInfo.shared)   mark = { text: 'Поделились', color: '#7A5EA6', fg: '#C4B0E8' };
+        else if (personal)      mark = { text: personal.icon + ' ' + (personal.short === 'Пройден' ? 'Пройден вами' : 'В ваших планах'),
+                                         color: personal.color, fg: personal.color };
+        else if (routeInfo.future) mark = { text: 'План', color: '#FF8C00', fg: '#FFB347' };
+        else if (routeInfo.mine)   mark = { text: 'Мой', color: '#7A5EA6', fg: '#C4B0E8' };
+        if (mark) {
             badge.className = 'inline-flex items-center gap-1.5 mb-2 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider';
-            badge.style.cssText = 'background:rgba(255,140,0,.2);border:1px solid rgba(255,140,0,.5);color:#FFB347;';
-            badge.textContent = 'ПЛАН';
-            badge.classList.remove('hidden');
-        } else if (routeInfo.shared) {
-            badge.className = 'inline-flex items-center gap-1.5 mb-2 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider';
-            badge.style.cssText = 'background:rgba(122,94,166,.25);border:1px solid rgba(122,94,166,.6);color:#C4B0E8;';
-            badge.textContent = 'ПОДЕЛИЛИСЬ';
-            badge.classList.remove('hidden');
-        } else if (routeInfo.mine) {
-            badge.className = 'inline-flex items-center gap-1.5 mb-2 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider';
-            badge.style.cssText = 'background:rgba(122,94,166,.25);border:1px solid rgba(122,94,166,.6);color:#C4B0E8;';
-            badge.textContent = 'МОЙ';
+            badge.style.cssText = `background:${mark.color}33;border:1px solid ${mark.color}99;color:${mark.fg};`;
+            badge.textContent = mark.text;
             badge.classList.remove('hidden');
         } else {
             badge.innerHTML = '';
@@ -1000,6 +1074,9 @@ function triggerRouteSelection(routeId) {
         // (переименовать, скачать, удалить) — см. account.js
         document.getElementById('tab-btn-reviews').style.display = routeInfo.mine ? 'none' : '';
         if (window.MyRoutes) MyRoutes.renderPanelActions(routeInfo);
+        // Статус маршрута: личный («прошёл», «планирую») и, у авторских,
+        // статус каталога для админа — route_status.js
+        if (window.RouteStatus) RouteStatus.renderPanel(routeInfo);
 
         // Rating bar — reset for new route; reviews load lazily when tab opened
         _reviewsRouteId = null;
@@ -1575,32 +1652,36 @@ function _applyMenuFilter() {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('hidden', !on);
     };
-    // «Мои» списка каталога не касаются: свои маршруты живут отдельным блоком
+    // «Мои» и «Пройденные» списка каталога не касаются: личные маршруты живут
+    // отдельным блоком (его показывает account.js)
     const completed = _activeFilterType !== 'planned';
-    const planned   = _activeFilterType !== 'completed';
+    const planned   = _activeFilterType !== 'author';
     show('mobile-tours-completed',  completed);
     show('mobile-tours-planned',    planned);
     show('desktop-tours-completed', completed);
     show('desktop-tours-planned',   planned);
 }
 
+/** Активная вкладка каталога — нужна тем, кто её переприменяет. */
+window.activeFilter = function() { return _activeFilterType; };
+
 window.setFilter = function(type) {
     _activeFilterType = type;
     _applyMenuFilter();
-    ['all', 'completed', 'planned', 'mine'].forEach(t => {
+    ['all', 'author', 'planned', 'mine', 'done'].forEach(t => {
         [document.getElementById(`filter-${t}`), document.getElementById(`filter-${t}-mob`)].forEach(el => {
             if (el) el.classList.toggle('active', t === type);
         });
     });
     _applyMarkerFilter();
-    // В «Мои» вместо карусели каталога — своя лента (account.js)
-    document.body.classList.toggle('filter-mine', type === 'mine');
+    // В «Мои» и «Пройденные» вместо карусели каталога — своя лента (account.js)
+    document.body.classList.toggle('filter-strip', type === 'mine' || type === 'done');
     if (window.MyRoutes) MyRoutes.onFilterChange(type);
 
     document.querySelectorAll('.carousel-card').forEach(card => {
         const route = routes[card.dataset.routeId];
         if (!route) return;
-        const show = type === 'all' || (type === 'completed' && !route.future) || (type === 'planned' && route.future);
+        const show = type === 'all' || (type === 'author' && !route.future) || (type === 'planned' && route.future);
         card.style.display = show ? '' : 'none';
     });
     _carouselHW = 0; // invalidate cached scrollWidth after card visibility changes
@@ -1882,16 +1963,16 @@ async function loadRouteData(routeInfo) {
         routeData._exifDone = false;
         parsedRouteDataCache[routeInfo.id] = routeData;
 
-        if (!routeInfo.future) addToKmCounter(routeData.distance);
+        window.recomputeAuthorKm();
 
         routeFeatures.push({
             type: 'Feature',
-            properties: { id: routeInfo.id, future: routeInfo.future || false },
+            properties: _routeProps(routeInfo),
             geometry: { type: 'Point', coordinates: routeData.peakCoords }
         });
         _overviewFeatures.push({
             type: 'Feature',
-            properties: { id: routeInfo.id, future: routeInfo.future || false },
+            properties: _routeProps(routeInfo),
             geometry: { type: 'LineString', coordinates: routeData.coordinates }
         });
         _flushRouteSources();
@@ -1909,12 +1990,11 @@ window.registerUserRoute = function(routeInfo, routeData) {
     window.unregisterUserRoute(routeInfo.id, true);
     routes[routeInfo.id] = routeInfo;
     parsedRouteDataCache[routeInfo.id] = routeData;
-    const props = { id: routeInfo.id, future: false, mine: true };
     // Без высот вершины нет — метка в середине трека, как в приложении
     const c = routeData.coordinates;
-    routeFeatures.push({ type: 'Feature', properties: props,
+    routeFeatures.push({ type: 'Feature', properties: _routeProps(routeInfo),
                          geometry: { type: 'Point', coordinates: routeData.peakCoords || c[Math.floor(c.length / 2)] } });
-    _overviewFeatures.push({ type: 'Feature', properties: props,
+    _overviewFeatures.push({ type: 'Feature', properties: _routeProps(routeInfo),
                              geometry: { type: 'LineString', coordinates: routeData.coordinates } });
     _flushRouteSources();
 };
@@ -2078,8 +2158,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const marqueeOuter = document.getElementById('route-carousel-outer');
     const carouselCards = [];
 
-    const completedRoutes = Object.values(routes).filter(r => !r.future);
-    const futureRoutes    = Object.values(routes).filter(r => r.future);
+    // ⚠️ Пересчитывается, а не считается один раз: статус авторского маршрута
+    // правит админ через `catalog_status`, и переопределения приезжают из базы
+    // уже после того, как каталог отрисован (route_status.js)
+    const splitRoutes = () => ({
+        completed: Object.values(routes).filter(r => !r.future && !r.mine),
+        future:    Object.values(routes).filter(r => r.future && !r.mine)
+    });
+    const completedRoutes = splitRoutes().completed;
+    const futureRoutes    = splitRoutes().future;
 
     // Геометрия берётся из routes_geom.json; GPX читается только если маршрута
     // в индексе нет (тогда — пачками, чтобы не забить сеть)
@@ -2124,25 +2211,29 @@ document.addEventListener('DOMContentLoaded', () => {
             : `<div class="px-5 py-1.5 text-[9px] text-zinc-500 uppercase tracking-widest">${label}</div>`;
     }
 
-    // Desktop dropdown — теми же разделами и под тем же фильтром, что и на телефоне
-    if (desktopList) {
-        desktopList.innerHTML =
-            `<div id="desktop-tours-completed">${sectionHeader('Пройденные', false)}` +
-                completedRoutes.map(r => menuBtn(r, false)).join('') +
-                `<div class="mx-4 my-1 border-t border-white/10"></div></div>` +
-            `<div id="desktop-tours-planned">${sectionHeader('Планируется', false)}` +
-                futureRoutes.map(r => menuBtn(r, false)).join('') + `</div>`;
-    }
-    // Mobile list. Разделами, чтобы фильтр над ним («Отчёты», «Планы») список
-    // тоже фильтровал: под кнопкой «Планы» пройденные маршруты не нужны
-    if (mobileList) {
-        mobileList.innerHTML =
-            `<div id="mobile-tours-completed">${sectionHeader('Пройденные', true)}` +
-                completedRoutes.map(r => menuBtn(r, true)).join('') + `</div>` +
-            `<div id="mobile-tours-planned">${sectionHeader('Планируется', true)}` +
-                futureRoutes.map(r => menuBtn(r, true)).join('') + `</div>`;
+    // Списки в меню. Разделами, чтобы фильтр над ними («Авторские», «Планы»)
+    // список тоже фильтровал: под кнопкой «Планы» авторские отчёты не нужны.
+    // Собирается функцией — статус маршрута может поменяться (см. splitRoutes).
+    window.refreshCatalogMenus = function() {
+        const { completed, future } = splitRoutes();
+        if (desktopList) {
+            desktopList.innerHTML =
+                `<div id="desktop-tours-completed">${sectionHeader('Авторские', false)}` +
+                    completed.map(r => menuBtn(r, false)).join('') +
+                    `<div class="mx-4 my-1 border-t border-white/10"></div></div>` +
+                `<div id="desktop-tours-planned">${sectionHeader('Планируется', false)}` +
+                    future.map(r => menuBtn(r, false)).join('') + `</div>`;
+        }
+        if (mobileList) {
+            mobileList.innerHTML =
+                `<div id="mobile-tours-completed">${sectionHeader('Авторские', true)}` +
+                    completed.map(r => menuBtn(r, true)).join('') + `</div>` +
+                `<div id="mobile-tours-planned">${sectionHeader('Планируется', true)}` +
+                    future.map(r => menuBtn(r, true)).join('') + `</div>`;
+        }
         _applyMenuFilter();
-    }
+    };
+    window.refreshCatalogMenus();
 
     // ── Carousel
     if (marqueeTrack) {

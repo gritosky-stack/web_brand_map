@@ -25,8 +25,10 @@
 
     // Anon-ключ публичный по замыслу — тот же, что уезжает в бандле
     // приложения. Данные одного пользователя от другого отделяет RLS.
-    const SUPABASE_URL      = 'https://fehspolrnlslzrvjieba.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlaHNwb2xybmxzbHpydmppZWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4Mjg2MjQsImV4cCI6MjEwMjQwNDYyNH0.rk2nNm22oBZ2wot3dM6oI5e6j-WVN0ArWBoSM3nWdW0';
+    // Лежит в supa.js: до входа и до загрузки SDK он нужен и статусам
+    // каталога (route_status.js).
+    const SUPABASE_URL      = SUPA.URL;
+    const SUPABASE_ANON_KEY = SUPA.ANON_KEY;
     const SDK               = 'libs/supabase.js';   // ~220 КБ — грузим после карты
     const MINE_COLOR        = '#7A5EA6';
     const ID_PREFIX         = 'my_';
@@ -210,6 +212,7 @@
                     if (!seen.has(id)) { rows.delete(id); unregisterUserRoute(routeIdOf(id)); }
                 }
                 lastLoad = Date.now();
+                if (window.RouteStatus) RouteStatus.refreshKm();
                 openFromHash();
             } catch (e) {
                 console.warn('[account] маршруты не загрузились:', e);
@@ -222,31 +225,59 @@
         return loadingRoutes;
     }
 
-    /** Запись маршрута: колонки для списка + `payload` целиком. */
-    async function saveRow(p) {
+    /**
+     * Запись маршрута: колонки для списка + `payload` целиком.
+     *
+     * `status` передаётся только когда его действительно меняют: приложение
+     * пишет строку без этой колонки, и upsert без неё сохраняет прежнее
+     * значение — так же, как `shared`. Передав `undefined`, мы бы его затёрли.
+     */
+    async function saveRow(p, status) {
         const row = {
             id: p.id, name: p.name, distance_km: p.distanceKm || 0,
             recorded_at: parseDate(p.date).toISOString(),
             updated_at: parseDate(p.updatedAt).toISOString(),
             payload: p
         };
+        if (status) {
+            row.status     = status.status || 'mine';
+            row.planned_at = status.plannedAt || null;
+            row.done_at    = status.doneAt || null;
+        }
         const { data, error } = await client.from('routes').upsert(row).select().single();
         if (error) throw error;
         const saved = data || row;
         rows.set(saved.id, saved);
         registerRow(saved);
+        if (window.RouteStatus) RouteStatus.refreshKm();
         render();
         return saved;
     }
 
+    /**
+     * Загрузка GPX. Трек разобран — и сразу спрашиваем, зачем он: просто в
+     * «Мои», в планы (с датой, временем и прогнозом) или в пройденные (с
+     * датой и зачётом километров). Это ровно тот момент, когда человек это
+     * знает; отдельным шагом «поменяйте статус потом» до этого не доходят.
+     *
+     * Отмена в окне — отмена загрузки: маршрут не сохраняется вовсе.
+     */
     async function importFiles(fileList) {
         if (!user) { openModal(); return; }
         let lastId = null;
         for (const f of fileList) {
             const p = payloadFromGPX(await f.text(), f.name.replace(/\.gpx$/i, ''));
             if (!p) { toast(`В «${f.name}» нет трека`); continue; }
+            let status = { status: 'mine' };
+            if (window.RouteStatus) {
+                status = await RouteStatus.askStatus({
+                    name: p.name, status: 'mine',
+                    lat: p.waypointLats[0], lon: p.waypointLons[0]
+                });
+                if (!status) continue;
+            }
             try {
-                await saveRow(p);
+                await saveRow(p, status);
                 lastId = p.id;
             } catch (e) {
                 console.warn('[account] загрузка GPX:', e);
@@ -254,6 +285,38 @@
             }
         }
         if (lastId) showSaved(lastId);
+    }
+
+    /**
+     * Личный статус своего маршрута. Пишем колонки `status/planned_at/done_at`,
+     * а `payload.updatedAt` и `updated_at` двигаем, как при любой правке на
+     * сайте: иначе на другом устройстве статус не обновится (загрузка
+     * пропускает строки с прежним `updated_at`), а приложение сочтёт свою
+     * копию свежее. Самого `payload` статус не касается — приложение о нём
+     * не знает и ничего не потеряет.
+     */
+    async function setStatus(cloudId, status, dates) {
+        const row = rows.get(cloudId);
+        if (!row) return;
+        const p = Object.assign({}, row.payload, { updatedAt: new Date().toISOString() });
+        try {
+            await saveRow(p, Object.assign({ status }, dates || {}));
+        } catch (e) {
+            console.warn('[account] статус маршрута:', e);
+            toast('Не удалось поменять статус');
+        }
+    }
+
+    function statusOf(cloudId) {
+        const row = rows.get(cloudId);
+        return (row && row.status) || 'mine';
+    }
+
+    /** Километры маршрутов, отмеченных пройденными, — в личный счётчик. */
+    function doneKm() {
+        let km = 0;
+        rows.forEach(r => { if (r.status === 'done') km += r.distance_km || 0; });
+        return km;
     }
 
     function showSaved(cloudId) {
@@ -294,6 +357,7 @@
             if (error) throw error;
             rows.delete(cloudId);
             unregisterUserRoute(routeIdOf(cloudId));
+            if (window.RouteStatus) RouteStatus.refreshKm();
             render();
         } catch (e) {
             console.warn('[account] удаление:', e);
@@ -599,6 +663,19 @@
         return `${n} ${word} · ${km.toFixed(1)} км`;
     }
 
+    /** Личные километры: свои пройденные плюс отмеченные авторские. */
+    function doneLine() {
+        if (!window.RouteStatus) return '';
+        const km = RouteStatus.personalKm();
+        const n = rows.size ? [...rows.values()].filter(r => r.status === 'done').length : 0;
+        const marked = RouteStatus.markedCards('done').length;
+        const total = n + marked;
+        if (!total) return '';
+        const word = total % 10 === 1 && total % 100 !== 11 ? 'маршрут'
+            : [2, 3, 4].includes(total % 10) && ![12, 13, 14].includes(total % 100) ? 'маршрута' : 'маршрутов';
+        return `${km.toFixed(1)} км · ${total} ${word}`;
+    }
+
     function fmtDate(v) {
         const d = parseDate(v);
         return d ? d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
@@ -608,6 +685,8 @@
         const show = state !== 'unavailable';
         document.querySelectorAll('.account-btn, .account-sep').forEach(el => el.classList.toggle('hidden', !show));
         const signedIn = state === 'signedIn' && user;
+        // Вкладка «Пройденные» и прочее личное — только вошедшим (CSS)
+        document.body.classList.toggle('tw-signed', !!signedIn);
         document.querySelectorAll('.account-btn-nav').forEach(el => {
             el.innerHTML = signedIn
                 ? `${avatarHTML(false)}<span class="normal-case tracking-normal max-w-[120px] truncate">${esc(accountName().split(' ')[0])}</span>`
@@ -643,8 +722,13 @@
                     <div class="text-[10px] uppercase tracking-widest" style="color:#c4b0e8">Мои маршруты</div>
                     <div class="text-white text-sm mt-1">${loadingRoutes && !rows.size ? 'Загружаю…' : esc(statsLine())}</div>
                 </div>
+                ${doneLine() ? `<div class="rounded-xl px-4 py-3 mb-4" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3)">
+                    <div class="text-[10px] uppercase tracking-widest" style="color:#86efac">Пройдено лично</div>
+                    <div class="text-white text-sm mt-1">${esc(doneLine())}</div>
+                </div>` : ''}
                 <div class="flex flex-col gap-2">
                     <button class="tw-btn tw-btn-mine" onclick="Account.showMine()">Показать «Мои» на карте</button>
+                    ${doneLine() ? `<button class="tw-btn tw-btn-ghost" onclick="Account.showDone()">✅ Показать пройденные</button>` : ''}
                     <button class="tw-btn tw-btn-ghost" onclick="RouteBuilder.start()">${PEN_ICON}Нарисовать маршрут</button>
                     <button class="tw-btn tw-btn-ghost" onclick="Account.pickGPX()">${UPLOAD_ICON}Загрузить GPX</button>
                     <button class="tw-btn tw-btn-ghost" onclick="Account.signOut()">Выйти</button>
@@ -712,6 +796,13 @@
         return `<svg class="my-card-line" viewBox="-4 -4 108 68" preserveAspectRatio="xMidYMid meet"><polyline points="${d}" fill="none" stroke="${MINE_COLOR}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
     }
 
+    /** Значок статуса на карточке — только у планов и пройденных. */
+    function statusBadge(status) {
+        const s = window.RouteStatus && RouteStatus.STATUS[status];
+        if (!s || status === 'mine') return '';
+        return `<span class="my-card-badge" style="background:${s.color}d9">${s.icon} ${esc(s.short)}</span>`;
+    }
+
     function renderStrip() {
         const strip = document.getElementById('my-routes-strip');
         if (!strip) return;
@@ -720,45 +811,75 @@
                 ${USER_ICON}<span>Войдите, чтобы видеть свои маршруты из приложения</span></button>`;
             return;
         }
-        const cards = sortedRows().filter(r => r._ok).map(r => `
+        // Вкладка «Пройденные» — личные пройденные: и свои маршруты, и
+        // авторские, отмеченные в карточке (`route_marks`)
+        const done = filter === 'done';
+        const cards = sortedRows()
+            .filter(r => r._ok && (!done || r.status === 'done'))
+            .map(r => `
             <button class="my-card" onclick="flyToRoute('${routeIdOf(esc(r.id))}')" title="${esc(r.payload.name)}">
                 ${miniLine(r.payload)}
+                ${statusBadge(r.status || 'mine')}
                 <div class="my-card-body">
                     <div class="my-card-name">${esc(r.payload.name || r.name)}</div>
                     <div class="my-card-meta">${(r.distance_km || 0).toFixed(1)} км · ${esc(fmtDate(r.recorded_at))}</div>
                 </div>
             </button>`).join('');
-        const empty = !cards && !loadingRoutes
-            ? `<div class="my-card my-card-add" style="cursor:default;border-style:solid">Здесь появятся маршруты, записанные или нарисованные в приложении</div>` : '';
-        strip.innerHTML = `<button class="my-card my-card-add" onclick="RouteBuilder.start()">${PEN_ICON}<span>Нарисовать</span></button>` +
-            `<button class="my-card my-card-add" onclick="Account.pickGPX()">${UPLOAD_ICON}<span>Загрузить GPX</span></button>${cards}${empty}`;
+        const marked = (done && window.RouteStatus ? RouteStatus.markedCards('done') : []).map(m => `
+            <button class="my-card" onclick="flyToRoute('${esc(m.routeId)}')" title="${esc(m.name)}">
+                ${statusBadge('done')}
+                <div class="my-card-body">
+                    <div class="my-card-name">${esc(m.name)}</div>
+                    <div class="my-card-meta">${m.km.toFixed(1)} км · ${esc(fmtDate(m.date))}</div>
+                </div>
+            </button>`).join('');
+        const add = done ? '' :
+            `<button class="my-card my-card-add" onclick="RouteBuilder.start()">${PEN_ICON}<span>Нарисовать</span></button>` +
+            `<button class="my-card my-card-add" onclick="Account.pickGPX()">${UPLOAD_ICON}<span>Загрузить GPX</span></button>`;
+        const empty = !cards && !marked && !loadingRoutes
+            ? `<div class="my-card my-card-add" style="cursor:default;border-style:solid">${done
+                ? 'Отметьте маршрут пройденным в его карточке — он появится здесь, а километры в счётчике'
+                : 'Здесь появятся маршруты, записанные или нарисованные в приложении'}</div>` : '';
+        strip.innerHTML = add + cards + marked + empty;
     }
 
     function renderMobileList() {
         const box = document.getElementById('mobile-my-routes');
         const all = document.getElementById('mobile-all-tours');
         if (!box) return;
-        const visible = filter === 'mine' || (filter === 'all' && rows.size > 0);
+        const done = filter === 'done';
+        const visible = filter === 'mine' || done || (filter === 'all' && rows.size > 0);
         box.classList.toggle('hidden', !visible);
-        if (all) all.classList.toggle('hidden', filter === 'mine');
+        if (all) all.classList.toggle('hidden', filter === 'mine' || done);
         if (!visible) return;
 
-        const head = `<div class="text-[10px] mb-3 tracking-widest border-b border-white/10 pb-2" style="color:#c4b0e8">Мои маршруты</div>`;
+        const head = `<div class="text-[10px] mb-3 tracking-widest border-b border-white/10 pb-2" style="color:#c4b0e8">${
+            done ? 'Пройдено лично' : 'Мои маршруты'}</div>`;
         if (state !== 'signedIn') {
             box.innerHTML = head + `<button class="tw-btn tw-btn-google" onclick="Account.signInWithGoogle()">${GOOGLE_G}Войти через Google</button>
                 <p class="tw-note normal-case tracking-normal font-normal mt-3">Тот же аккаунт, что в приложении.</p>`;
             return;
         }
-        const list = sortedRows().filter(r => r._ok).map(r => `
-            <button class="my-row" onclick="document.getElementById('mobile-info').classList.add('hidden');flyToRoute('${routeIdOf(esc(r.id))}')">
-                <span style="width:8px;height:8px;border-radius:50%;background:${MINE_COLOR};flex-shrink:0"></span>
-                <span class="truncate">${esc(r.payload.name || r.name)}</span>
-                <span class="my-row-meta">${(r.distance_km || 0).toFixed(1)} км</span>
-            </button>`).join('');
+        const row = (id, name, km, color) => `
+            <button class="my-row" onclick="document.getElementById('mobile-info').classList.add('hidden');flyToRoute('${esc(id)}')">
+                <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
+                <span class="truncate">${esc(name)}</span>
+                <span class="my-row-meta">${km.toFixed(1)} км</span>
+            </button>`;
+        let list = sortedRows()
+            .filter(r => r._ok && (!done || r.status === 'done'))
+            .map(r => row(routeIdOf(r.id), r.payload.name || r.name, r.distance_km || 0, MINE_COLOR)).join('');
+        if (done && window.RouteStatus) {
+            list += RouteStatus.markedCards('done')
+                .map(m => row(m.routeId, m.name, m.km, '#ff4d4d')).join('');
+        }
+        const add = done ? '' :
+            `<button class="tw-btn tw-btn-ghost mt-4 normal-case tracking-normal" onclick="RouteBuilder.start()">${PEN_ICON}Нарисовать маршрут</button>
+             <button class="tw-btn tw-btn-ghost mt-2 normal-case tracking-normal" onclick="Account.pickGPX()">${UPLOAD_ICON}Загрузить GPX</button>`;
         box.innerHTML = head + `<div class="flex flex-col gap-4 pl-2">${list ||
-            (loadingRoutes ? '' : '<p class="tw-note normal-case tracking-normal font-normal">Пока пусто: маршруты из приложения появятся здесь.</p>')}</div>
-            <button class="tw-btn tw-btn-ghost mt-4 normal-case tracking-normal" onclick="RouteBuilder.start()">${PEN_ICON}Нарисовать маршрут</button>
-            <button class="tw-btn tw-btn-ghost mt-2 normal-case tracking-normal" onclick="Account.pickGPX()">${UPLOAD_ICON}Загрузить GPX</button>`;
+            (loadingRoutes ? '' : `<p class="tw-note normal-case tracking-normal font-normal">${done
+                ? 'Отметьте маршрут пройденным в его карточке — он появится здесь.'
+                : 'Пока пусто: маршруты из приложения появятся здесь.'}</p>`)}</div>` + add;
     }
 
     function renderLegend() {
@@ -772,6 +893,9 @@
         const key = state + '|' + (user && user.email || '');
         if (key === lastAnnounced) return;
         lastAnnounced = key;
+        // Статусы (route_status.js) грузят отметки и права админа, как только
+        // появилась сессия, и сбрасывают их на выходе
+        if (window.RouteStatus) RouteStatus.onAccount();
         document.dispatchEvent(new CustomEvent('tw-account', { detail: { state } }));
     }
 
@@ -1029,11 +1153,19 @@
         /** loading | signedOut | working | signedIn | unavailable */
         status() { return state === 'signedIn' && !user ? 'signedOut' : state; },
         /** Почта вошедшего — по ней premium.js открывает закрытые функции */
-        email() { return user && user.email ? user.email.toLowerCase() : null; }
+        email() { return user && user.email ? user.email.toLowerCase() : null; },
+        showDone() { closeModal(); setFilter('done'); },
+        /** Клиент Supabase — им пользуются статусы и социальная часть */
+        client() { return client; },
+        userId() { return user ? user.id : null; }
     };
     window.MyRoutes = {
-        onFilterChange(type) { filter = type; renderMobileList(); },
-        renderPanelActions, saveDrawn, toast
+        onFilterChange(type) { filter = type; renderStrip(); renderMobileList(); },
+        renderPanelActions, saveDrawn, toast,
+        // Личный статус своего маршрута (route_status.js рисует интерфейс)
+        setStatus, statusOf, doneKm,
+        rowOf(cloudId) { return rows.get(cloudId) || null; },
+        refreshStrip() { renderStrip(); renderMobileList(); renderModal(); }
     };
 
     // Карта и каталог важнее: SDK и сессию поднимаем, когда страница встала

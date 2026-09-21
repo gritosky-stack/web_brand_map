@@ -182,5 +182,7 @@
         if (w) w.classList.add('hidden');
     }
 
-    window.RouteWeather = { show, hide };
+    // `describe` и `isoDay` отдаём наружу: та же таблица кодов WMO нужна
+    // модалке статуса (route_status.js), а второй копии этой таблицы не надо
+    window.RouteWeather = { show, hide, describe, isoDay };
 })();
