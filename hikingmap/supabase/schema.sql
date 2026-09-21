@@ -1,6 +1,12 @@
 -- Схема hikingmap для Supabase.
 -- Выполнить целиком в SQL Editor проекта. Идемпотентна: можно прогонять заново.
 --
+-- ⚠️ Но на **живой** базе лучше не прогонять целиком без нужды: файл идёт
+-- одной транзакцией, и пока она открыта, часть таблиц под локом. Любую новую
+-- правку кладите отдельным файлом в `patches/` и выполняйте только его —
+-- тогда живые сессии и запросы сайта вообще не задеваются. Этот файл нужен
+-- для чистой установки и для сверки «что должно быть в базе».
+--
 -- Главное здесь — RLS. Anon-ключ уезжает внутрь приложения и доступен всем,
 -- кто вскроет бандл; единственное, что отделяет данные одного пользователя
 -- от другого, — политики ниже. Без них база публична на запись.
@@ -88,10 +94,30 @@ begin
 end;
 $$;
 
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-    after insert on auth.users
-    for each row execute function public.handle_new_user();
+-- ⚠️⚠️ Триггер заводим **только если его нет**, а не через drop+create.
+--
+-- `drop trigger ... on auth.users` берёт на таблицу пользователей
+-- ACCESS EXCLUSIVE и держит его **до конца транзакции**, а SQL Editor
+-- прогоняет весь файл одной транзакцией. Пока лок держится, GoTrue не может
+-- прочитать `auth.users`: обновление токена у живых сессий падает, и
+-- supabase-js разлогинивает людей. Так на живой базе выкинуло двух вошедших
+-- (фидбэк 2026-09-21).
+--
+-- Менять поведение триггера это не мешает: он ссылается на функцию по имени,
+-- и `create or replace function` выше подменяет её тело без всякого лока.
+do $$
+begin
+    if not exists (
+        select 1 from pg_trigger t
+         where t.tgname = 'on_auth_user_created'
+           and t.tgrelid = 'auth.users'::regclass
+           and not t.tgisinternal
+    ) then
+        create trigger on_auth_user_created
+            after insert on auth.users
+            for each row execute function public.handle_new_user();
+    end if;
+end $$;
 
 -- ─────────────────────────── Удаление аккаунта ─────────────────────────
 -- Удалить пользователя из auth.users клиент с anon-ключом не может, а
