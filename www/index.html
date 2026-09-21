@@ -246,9 +246,37 @@
         .rs-wx-load { color: rgba(255,255,255,.45); }
 
         /* ── Профиль, приватность, друзья (profile.js) ─────────── */
-        .pf-inner { max-width: 460px; }
-        .pf-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
-        .pf-head .pf-name { flex: 1; color: #fff; font-size: 15px; font-weight: 600; align-self: center; }
+        /* Карточка профиля — во всю ширину, с обложкой: у окна свои отступы,
+           поэтому здесь их снимаем и задаём телу профиля свои */
+        .pf-inner { max-width: 460px; padding: 0; overflow: hidden auto; }
+        .pf-body { padding: 4px 20px 26px; }
+        /* Обложка. Оттенок приходит в --hue и считается из ника: у каждого
+           профиля свой вид, и ничего для этого загружать не надо */
+        .pf-hero {
+            position: relative; padding: 12px 14px 18px;
+            background:
+                radial-gradient(120% 130% at 12% -20%, hsla(var(--hue, 270), 62%, 42%, .55), transparent 62%),
+                linear-gradient(180deg, hsla(var(--hue, 270), 42%, 26%, .55), rgba(15,15,17,0));
+        }
+        .pf-hero-flat { padding-bottom: 6px; background: none; }
+        .pf-nav { display: flex; align-items: center; gap: 10px; }
+        .pf-nav-t {
+            flex: 1; text-align: center; color: rgba(255,255,255,.8);
+            font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+        }
+        .pf-nav > span { flex: 1; }
+        .pf-nav > span:first-child { flex: 0 0 30px; }
+        .pf-hero-main { display: flex; align-items: center; gap: 14px; margin-top: 14px; min-width: 0; }
+        .pf-hero-t { min-width: 0; }
+        .pf-closed {
+            padding: 16px; border-radius: 14px; margin-bottom: 16px;
+            background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+        }
+        .pf-closed-t {
+            display: flex; align-items: center; gap: 9px;
+            color: #fff; font-size: 13.5px; font-weight: 600;
+        }
+        .pf-closed-t svg { color: rgba(255,255,255,.45); flex-shrink: 0; }
         .pf-x {
             flex-shrink: 0; padding: 7px; border-radius: 999px; cursor: pointer;
             background: rgba(255,255,255,.1); color: #fff; transition: background .2s;
@@ -261,13 +289,20 @@
             display: flex; align-items: center; justify-content: center;
             background: #7A5EA6; color: #fff; font-size: 13px; font-weight: 700; text-transform: uppercase;
         }
-        .pf-ava.lg { width: 54px; height: 54px; font-size: 21px; }
-        .pf-name { color: #fff; font-size: 16px; font-weight: 600; }
-        .pf-nick { color: rgba(255,255,255,.4); font-size: 12px; }
-        .pf-bio { color: rgba(255,255,255,.72); font-size: 13px; line-height: 1.55; margin-bottom: 14px; white-space: pre-line; }
+        .pf-ava.lg {
+            width: 68px; height: 68px; font-size: 26px;
+            box-shadow: 0 0 0 3px rgba(15,15,17,.75), 0 8px 24px rgba(0,0,0,.5);
+        }
+        .pf-name {
+            color: #fff; font-size: 19px; font-weight: 650; line-height: 1.2;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            text-shadow: 0 1px 10px rgba(0,0,0,.5);
+        }
+        .pf-nick { color: rgba(255,255,255,.55); font-size: 12.5px; margin-top: 2px; }
+        .pf-bio { color: rgba(255,255,255,.72); font-size: 13px; line-height: 1.55; margin: 12px 0 14px; white-space: pre-line; }
         .pf-note { color: rgba(255,255,255,.4); font-size: 11.5px; line-height: 1.5; margin-top: 8px; }
         .pf-hidden { border-top: 1px solid rgba(255,255,255,.07); padding-top: 12px; margin-top: 14px; }
-        .pf-actions { margin-bottom: 16px; }
+        .pf-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
         .pf-btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 8px;
             padding: 10px 14px; border-radius: 11px; cursor: pointer;
@@ -297,7 +332,7 @@
         .pf-friend-on { color: #c4b0e8; background: rgba(122,94,166,.16); border: 1px solid rgba(122,94,166,.4); }
         .pf-friend-wait { color: #FFB347; background: rgba(255,140,0,.12); border: 1px solid rgba(255,140,0,.32); }
 
-        .pf-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+        .pf-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 18px 0 12px; }
         .pf-tile {
             padding: 11px 10px; border-radius: 12px; text-align: center;
             background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.07);
@@ -314,7 +349,7 @@
         .pf-badge-next { color: rgba(255,255,255,.4); background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.08); }
 
         .pf-sec { margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.08); }
-        .pf-sec:first-of-type { border-top: none; padding-top: 0; }
+        .pf-body > .pf-sec:first-child { border-top: none; padding-top: 4px; }
         .pf-sec-h {
             color: rgba(255,255,255,.45); font-size: 9px; letter-spacing: .14em;
             text-transform: uppercase; margin-bottom: 10px;
@@ -354,8 +389,14 @@
         .pf-fnick { color: rgba(255,255,255,.3); font-size: 11px; flex-shrink: 0; }
         .pf-fbtns { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-        .pf-linkbox { display: flex; gap: 8px; align-items: center; }
-        .pf-linkbox input { flex: 1; min-width: 0; font-size: 11.5px; color: rgba(255,255,255,.7); }
+        /* Ссылка отдельной строкой, кнопки под ней: в один ряд поле сжималось
+           до «http://localh» и ссылку было не прочитать */
+        .pf-linkbox { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .pf-linkbox input {
+            flex: 1 1 100%; min-width: 0; font-size: 11.5px;
+            color: rgba(255,255,255,.7); text-overflow: ellipsis;
+        }
+        .pf-linkbox .pf-btn { flex: 1 1 0; }
         .pf-nickbox { display: flex; gap: 8px; align-items: center; }
         .pf-nickbox input { flex: 1; min-width: 0; }
         .pf-at { color: rgba(255,255,255,.35); font-size: 14px; }

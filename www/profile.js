@@ -53,11 +53,8 @@
     ];
 
     let me = null;          // своя строка profiles
-    let viewed = null;      // ответ get_public_profile
-    let viewedNick = null;
     let requests = [];
     let friends = [];
-    let view = null;        // 'public' | 'settings' | 'friends' | null
     let busy = false;
     let nickState = null;   // { value, state: 'checking'|'free'|'taken'|'bad' }
     let qrLoading = null;
@@ -85,7 +82,8 @@
         back:   'M15 19l-7-7 7-7',
         plus:   'M12 5v14M5 12h14',
         gear:   'M12 15a3 3 0 100-6 3 3 0 000 6zm7.4-3a7.4 7.4 0 00-.1-1.2l2-1.5-2-3.4-2.3 1a7.4 7.4 0 00-2-1.2L14.5 2h-4l-.4 2.5c-.8.3-1.4.7-2 1.2l-2.3-1-2 3.4 2 1.5A7.4 7.4 0 005.6 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-1c.6.5 1.3.9 2 1.2l.4 2.5h4l.4-2.5c.7-.3 1.4-.7 2-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z',
-        cal:    'M8 3v3m8-3v3M4 9h16M5 6h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1z'
+        cal:    'M8 3v3m8-3v3M4 9h16M5 6h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1z',
+        lock:   'M7 11V8a5 5 0 0110 0v3M6 11h12a1 1 0 011 1v8a1 1 0 01-1 1H6a1 1 0 01-1-1v-8a1 1 0 011-1z'
     };
 
     function profileLink(nick) {
@@ -235,43 +233,13 @@
         }, 420);
     }
 
-    // ── Чужой профиль ───────────────────────────────────────────────────────
-
-    async function openUser(nick) {
-        nick = String(nick || '').trim().toLowerCase();
-        if (!nick) return;
-        const c = client();
-        viewedNick = nick;
-        viewed = null;
-        view = 'public';
-        show();
-        render();
-        if (!c) {
-            // SDK ещё едет — попробуем, когда приедет. С потолком: в
-            // Capacitor-обёртке клиента не будет вовсе, и цикл не кончился бы
-            if ((openUser._tries = (openUser._tries || 0) + 1) > 12) {
-                viewed = { state: 'error' };
-                render();
-                return;
-            }
-            setTimeout(() => { if (view === 'public' && !viewed) openUser(nick); }, 600);
-            return;
-        }
-        openUser._tries = 0;
-        try {
-            const { data, error } = await c.rpc('get_public_profile', { handle: nick });
-            if (error) throw error;
-            viewed = data || { state: 'not_found' };
-        } catch (e) {
-            console.warn('[profile] чужой профиль:', e);
-            viewed = { state: 'error' };
-        }
-        render();
-    }
+    // ── Дружба ──────────────────────────────────────────────────────────────
 
     async function friendAction(action) {
         const c = client();
         if (!c || !signedIn()) { Account.openModal(); return; }
+        const entry = top();
+        const viewed = entry && entry.data;
         if (!viewed || !viewed.id) return;
         busy = true; render();
         try {
@@ -298,10 +266,11 @@
                 viewed.friend = 'none';
             }
             await load(true);
-            // Дружба меняет видимость — профиль надо перечитать целиком
-            if (viewedNick) {
-                const { data } = await c.rpc('get_public_profile', { handle: viewedNick });
-                if (data) viewed = data;
+            // Дружба меняет видимость — профиль надо перечитать целиком:
+            // после подтверждения могли открыться блоки «только друзьям»
+            if (entry.nick) {
+                const fresh = await fetchProfile(entry.nick);
+                if (fresh) entry.data = fresh;
             }
         } catch (e) {
             console.warn('[profile] дружба:', e);
@@ -331,7 +300,32 @@
         }
     }
 
-    // ── Интерфейс ───────────────────────────────────────────────────────────
+    // ── Экраны и переходы ───────────────────────────────────────────────────
+
+    /**
+     * Стек экранов. Профиль → друзья → чужой профиль → его друзья — всё это
+     * переходы, и из каждого нужно уметь вернуться туда, откуда пришёл.
+     *
+     * ⚠️ Раньше экран был один (`view`), и «назад» существовало только из
+     * друзей в настройки. Провалившись из чужого профиля в его друзей, выйти
+     * можно было лишь закрыв весь профиль и открыв заново (фидбэк 2026-09-21).
+     *
+     * Запись: `{ kind: 'public'|'settings'|'friends', nick?, data? }`.
+     * `data` — уже полученный ответ базы, чтобы «назад» не перезапрашивал.
+     */
+    let stack = [];
+    const top = () => stack[stack.length - 1] || null;
+
+    function push(entry) {
+        stack.push(entry);
+        show();
+        render();
+    }
+
+    function back() {
+        if (stack.length > 1) { stack.pop(); render(); }
+        else close();
+    }
 
     function host() { return document.getElementById('profile-modal'); }
 
@@ -358,27 +352,72 @@
     function close() {
         const el = host();
         if (el) el.classList.remove('open');
-        view = null;
-        viewed = null;
-        viewedNick = null;
+        stack = [];
         // Ссылка на профиль в адресной строке больше не нужна: иначе
-        // перезагрузка снова откроет чужой профиль
+        // перезагрузка снова открыла бы чужой профиль
         if (location.hash.startsWith(HASH)) {
             history.replaceState(null, '', location.pathname + location.search);
         }
     }
 
     function open(which) {
-        view = which || 'public';
         if (which === 'public') {
-            if (!me || !me.username) { view = 'settings'; }
-            else { openUser(me.username); return; }
+            if (!me || !me.username) { stack = [{ kind: 'settings' }]; show(); render(); return; }
+            stack = [];
+            openUser(me.username);
+            return;
         }
+        stack = [{ kind: which || 'settings' }];
         show();
         render();
     }
 
-    const closeBtn = `<button class="pf-x" id="pf-close" aria-label="Закрыть">${svg(ICON.close, 16)}</button>`;
+    async function openUser(nick) {
+        nick = String(nick || '').trim().toLowerCase();
+        if (!nick) return;
+        const entry = { kind: 'public', nick, data: null };
+        push(entry);
+
+        const c = client();
+        if (!c) {
+            // SDK ещё едет — попробуем, когда приедет. С потолком: в
+            // Capacitor-обёртке клиента не будет вовсе, и цикл не кончился бы
+            if ((openUser._tries = (openUser._tries || 0) + 1) > 12) {
+                entry.data = { state: 'error' };
+                render();
+                return;
+            }
+            setTimeout(() => {
+                if (top() === entry && !entry.data) { stack.pop(); openUser(nick); }
+            }, 600);
+            return;
+        }
+        openUser._tries = 0;
+        entry.data = await fetchProfile(nick);
+        if (top() === entry) render();
+    }
+
+    async function fetchProfile(nick) {
+        const c = client();
+        if (!c) return { state: 'error' };
+        try {
+            const { data, error } = await c.rpc('get_public_profile', { handle: nick });
+            if (error) throw error;
+            return data || { state: 'not_found' };
+        } catch (e) {
+            console.warn('[profile] чужой профиль:', e);
+            return { state: 'error' };
+        }
+    }
+
+    // ── Общие куски разметки ────────────────────────────────────────────────
+
+    /** Оттенок обложки — из ника: у каждого профиля свой, без загрузок. */
+    function hueOf(seed) {
+        let h = 0;
+        for (const ch of String(seed || 'tw')) h = (h * 31 + ch.charCodeAt(0)) % 360;
+        return h;
+    }
 
     function avatar(url, name, big) {
         const letter = esc(((name || '?').trim()[0] || '?'));
@@ -388,33 +427,86 @@
             : `<span class="${cls}">${letter}</span>`;
     }
 
+    /**
+     * Шапка экрана: обложка, аватар, имя и ряд кнопок. «Назад» появляется,
+     * как только в стеке есть куда возвращаться, — на каждом экране.
+     */
+    function hero(opts) {
+        const nav = `<div class="pf-nav">
+            ${stack.length > 1 ? `<button class="pf-x" id="pf-back" aria-label="Назад">${svg(ICON.back, 16)}</button>` : '<span></span>'}
+            ${opts.title ? `<div class="pf-nav-t">${esc(opts.title)}</div>` : '<span></span>'}
+            <button class="pf-x" id="pf-close" aria-label="Закрыть">${svg(ICON.close, 16)}</button>
+        </div>`;
+        if (!opts.person) return `<div class="pf-hero pf-hero-flat">${nav}</div>`;
+        return `<div class="pf-hero" style="--hue:${hueOf(opts.nick || opts.name)}">
+            ${nav}
+            <div class="pf-hero-main">
+                ${avatar(opts.avatar, opts.name, true)}
+                <div class="pf-hero-t">
+                    <div class="pf-name">${esc(opts.name || 'Без имени')}</div>
+                    ${opts.nick ? `<div class="pf-nick">@${esc(opts.nick)}</div>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function section(title, count, body) {
+        return `<div class="pf-sec"><div class="pf-sec-h">${esc(title)}${
+            count != null ? ` <em>${count}</em>` : ''}</div>${body}</div>`;
+    }
+
+    /**
+     * «Поделиться профилем» — ссылка, копирование и QR. Нужен на всех своих
+     * экранах: показать профиль другу хочется из любого места, а не только
+     * из настроек (фидбэк 2026-09-21).
+     */
+    function shareBlock() {
+        if (!me) return '';
+        if (!me.username) {
+            return section('Ссылка на профиль', null,
+                `<p class="pf-note" style="margin-top:0">Ссылка появится, когда вы выберете ник.</p>
+                 <button class="pf-btn pf-btn-ghost mt-2" id="pf-to-settings">${svg(ICON.gear, 14)}Выбрать ник</button>`);
+        }
+        return section('Поделиться профилем', null, `
+            <div class="pf-linkbox">
+                <input class="review-input" id="pf-link" readonly value="${esc(profileLink(me.username))}">
+                <button class="pf-btn pf-btn-ghost" id="pf-copy" title="Скопировать ссылку">${svg(ICON.link, 14)}Копировать</button>
+                <button class="pf-btn pf-btn-ghost" id="pf-qr" title="QR-код профиля">${svg(ICON.qr, 14)}QR</button>
+            </div>
+            <div id="pf-qr-box" class="pf-qr hidden"></div>`);
+    }
+
     function render() {
         const el = host();
         if (!el || !el.classList.contains('open')) return;
-        if (view === 'settings') return renderSettings();
-        if (view === 'friends')  return renderFriends();
-        return renderPublic();
+        const t = top();
+        if (!t) { close(); return; }
+        if (t.kind === 'settings') return renderSettings();
+        if (t.kind === 'friends')  return renderFriends();
+        return renderPublic(t);
     }
 
-    // ── Чужой (или свой) профиль ────────────────────────────────────────────
+    // ── Профиль (свой и чужой) ──────────────────────────────────────────────
 
-    function statsTiles(s) {
+    function statsBlock(s, isSelf) {
+        if (!s || !s.done_count) {
+            return section('Достижения', null, `<div class="pf-none">${isSelf
+                ? 'Пройденных маршрутов пока нет. Откройте маршрут и отметьте его пройденным — километры и значки появятся здесь.'
+                : 'Пройденных маршрутов пока нет.'}</div>`);
+        }
         const tiles = [
             { v: Number(s.done_km || 0).toFixed(1), l: 'км пройдено' },
-            { v: s.done_count || 0, l: plural(s.done_count || 0, 'маршрут', 'маршрута', 'маршрутов') },
+            { v: s.done_count, l: plural(s.done_count, 'маршрут', 'маршрута', 'маршрутов') },
             { v: Number(s.longest_km || 0).toFixed(1), l: 'км самый длинный' }
         ];
-        return `<div class="pf-tiles">${tiles.map(t =>
-            `<div class="pf-tile"><b>${esc(t.v)}</b><span>${esc(t.l)}</span></div>`).join('')}</div>`;
-    }
-
-    function badgesRow(s) {
         const earned = BADGES.filter(b => b.test(s));
         const next = BADGES.find(b => !b.test(s));
-        if (!earned.length && !next) return '';
-        const chips = earned.map(b => `<span class="pf-badge">${svg(ICON.check, 11)}${esc(b.label)}</span>`).join('');
-        const hint = next ? `<span class="pf-badge pf-badge-next">Следующее: ${esc(next.label)}</span>` : '';
-        return `<div class="pf-badges">${chips}${hint}</div>`;
+        return `<div class="pf-tiles">${tiles.map(t =>
+                `<div class="pf-tile"><b>${esc(t.v)}</b><span>${esc(t.l)}</span></div>`).join('')}</div>
+            <div class="pf-badges">
+                ${earned.map(b => `<span class="pf-badge">${svg(ICON.check, 11)}${esc(b.label)}</span>`).join('')}
+                ${next ? `<span class="pf-badge pf-badge-next">Следующее: ${esc(next.label)}</span>` : ''}
+            </div>`;
     }
 
     function routeRow(r) {
@@ -428,102 +520,106 @@
                 </button>`;
     }
 
-    function section(title, count, body) {
-        return `<div class="pf-sec"><div class="pf-sec-h">${esc(title)}${
-            count != null ? ` <em>${count}</em>` : ''}</div>${body}</div>`;
-    }
-
     function friendButton(p) {
         if (p.friend === 'self') {
-            return `<button class="pf-btn pf-btn-ghost" id="pf-to-settings">${svg(ICON.gear, 14)}Настройки профиля</button>`;
+            return `<button class="pf-btn pf-btn-ghost" id="pf-to-settings">${svg(ICON.gear, 14)}Настройки</button>
+                    <button class="pf-btn pf-btn-ghost" id="pf-to-friends">${svg(ICON.users, 14)}Друзья${
+                        requests.length ? ` <b class="tw-pill">${requests.length}</b>` : ''}</button>`;
         }
         if (!signedIn()) {
             return `<button class="pf-btn pf-btn-ghost" id="pf-signin">${svg(ICON.user, 14)}Войти, чтобы добавить в друзья</button>`;
         }
         if (p.friend === 'friends') {
-            return `<div class="pf-frow">
-                <span class="pf-friend-on">${svg(ICON.check, 13)}В друзьях</span>
-                <button class="pf-link" data-friend="remove">удалить из друзей</button></div>`;
+            return `<span class="pf-friend-on">${svg(ICON.check, 13)}В друзьях</span>
+                    <button class="pf-link" data-friend="remove">удалить из друзей</button>`;
         }
         if (p.friend === 'pending_out') {
-            return `<div class="pf-frow">
-                <span class="pf-friend-wait">Заявка отправлена</span>
-                <button class="pf-link" data-friend="cancel">отменить</button></div>`;
+            return `<span class="pf-friend-wait">Заявка отправлена</span>
+                    <button class="pf-link" data-friend="cancel">отменить</button>`;
         }
         if (p.friend === 'pending_in') {
-            return `<div class="pf-frow">
-                <button class="pf-btn pf-btn-accent" data-friend="accept">${svg(ICON.check, 14)}Принять заявку</button>
-                <button class="pf-link" data-friend="cancel">отклонить</button></div>`;
+            return `<button class="pf-btn pf-btn-accent" data-friend="accept">${svg(ICON.check, 14)}Принять заявку</button>
+                    <button class="pf-link" data-friend="cancel">отклонить</button>`;
         }
         return `<button class="pf-btn pf-btn-accent" data-friend="add">${svg(ICON.plus, 14)}Добавить в друзья</button>`;
     }
 
-    function renderPublic() {
+    function renderPublic(entry) {
         const box = document.getElementById('profile-modal-inner');
         if (!box) return;
-        const p = viewed;
+        const p = entry.data;
+        const nick = entry.nick;
 
         if (!p) {
-            box.innerHTML = `<div class="pf-head">${closeBtn}</div>
-                <div class="pf-empty">Открываю профиль @${esc(viewedNick || '')}…</div>`;
-            wire(box);
-            return;
+            box.innerHTML = hero({ title: '@' + nick }) +
+                `<div class="pf-body"><div class="pf-empty">Открываю профиль…</div></div>`;
+            return wire(box);
         }
         if (p.state === 'not_found') {
-            box.innerHTML = `<div class="pf-head">${closeBtn}</div>
-                <div class="pf-empty">Профиля <b>@${esc(viewedNick)}</b> нет.<br>
-                Проверьте ссылку — возможно, ник изменился.</div>`;
-            wire(box);
-            return;
+            box.innerHTML = hero({ title: '@' + nick }) + `<div class="pf-body"><div class="pf-empty">
+                ${svg(ICON.user, 26)}
+                <div class="mt-3">Профиля <b>@${esc(nick)}</b> нет.</div>
+                <p class="pf-note">Проверьте ссылку — возможно, ник изменился.</p></div></div>`;
+            return wire(box);
         }
+        if (p.state !== 'ok' && p.state !== 'closed') {
+            box.innerHTML = hero({ title: '@' + nick }) + `<div class="pf-body"><div class="pf-empty">
+                Не удалось открыть профиль. Попробуйте позже.</div></div>`;
+            return wire(box);
+        }
+
+        // ── Закрытый профиль ────────────────────────────────────────────────
+        // ⚠️ Кнопка дружбы нужна и здесь: заявкой закрытый профиль и
+        // открывается. И текст обязан различать «закрыт от всех» и «только
+        // друзьям» — иначе другу, от которого профиль закрыли полностью,
+        // предлагалось «добавиться в друзья» (фидбэк 2026-09-21).
         if (p.state === 'closed') {
-            const canAsk = signedIn() && p.friend === 'none';
-            box.innerHTML = `<div class="pf-head">${closeBtn}</div>
-                <div class="pf-empty">
-                    ${svg(ICON.user, 28)}
-                    <div class="mt-3">Профиль <b>@${esc(viewedNick)}</b> закрыт.</div>
-                    <p class="pf-note mt-2">Владелец открыл его только друзьям.
-                       ${canAsk ? 'Отправьте заявку — если он её примет, профиль откроется.' : ''}</p>
-                </div>`;
-            wire(box);
-            return;
-        }
-        if (p.state !== 'ok') {
-            box.innerHTML = `<div class="pf-head">${closeBtn}</div>
-                <div class="pf-empty">Не удалось открыть профиль. Попробуйте позже.</div>`;
-            wire(box);
-            return;
-        }
-
-        const done = p.done || null, planned = p.planned || null;
-        const parts = [`
-            <div class="pf-head">
-                <div class="pf-id">
-                    ${avatar(p.avatar_url, p.display_name, true)}
-                    <div class="pf-id-t">
-                        <div class="pf-name">${esc(p.display_name || 'Без имени')}</div>
-                        <div class="pf-nick">@${esc(p.username)}</div>
+            const priv = p.visibility === 'private';
+            const title = priv ? 'Профиль закрыт для всех' : 'Профиль открыт только друзьям';
+            const note = priv
+                ? (p.friend === 'friends'
+                    ? 'Владелец закрыл его полностью — даже для друзей.'
+                    : 'Заявку в друзья отправить можно, но профиль откроется только если владелец изменит настройки.')
+                : (p.friend === 'friends'
+                    ? 'Вы друзья — профиль должен быть виден. Обновите страницу.'
+                    : 'Добавьтесь в друзья — и профиль откроется.');
+            box.innerHTML = hero({ person: true, nick: p.username || nick,
+                                   name: p.display_name || ('@' + (p.username || nick)),
+                                   avatar: p.avatar_url }) +
+                `<div class="pf-body">
+                    <div class="pf-closed">
+                        <div class="pf-closed-t">${svg(ICON.lock, 15)}${esc(title)}</div>
+                        <p class="pf-note" style="margin-top:6px">${esc(note)}</p>
                     </div>
-                </div>
-                ${closeBtn}
-            </div>
-            ${p.bio ? `<p class="pf-bio">${esc(p.bio)}</p>` : ''}
-            <div class="pf-actions">${friendButton(p)}</div>`];
+                    <div class="pf-actions">${friendButton(p)}</div>
+                </div>`;
+            return wire(box);
+        }
 
-        if (p.stats) parts.push(statsTiles(p.stats) + badgesRow(p.stats));
+        const isSelf = p.friend === 'self';
+        const done = p.done || null, planned = p.planned || null;
+        const parts = [hero({ person: true, nick: p.username, name: p.display_name, avatar: p.avatar_url })];
+        const body = [];
+
+        if (p.bio) body.push(`<p class="pf-bio">${esc(p.bio)}</p>`);
+        body.push(`<div class="pf-actions">${friendButton(p)}</div>`);
+        if (isSelf) body.push(shareBlock());
+        if (p.stats || isSelf) body.push(statsBlock(p.stats, isSelf));
 
         if (done) {
-            parts.push(section('Пройденные', done.length, done.length
-                ? `<div class="pf-rows">${done.slice(0, 40).map(routeRow).join('')}</div>`
-                : `<div class="pf-none">Пока ничего</div>`));
+            body.push(section('Пройденные', done.length, done.length
+                ? `<div class="pf-rows">${done.slice(0, 60).map(routeRow).join('')}</div>`
+                : `<div class="pf-none">${isSelf
+                    ? 'Отметьте маршрут пройденным в его карточке — он появится здесь.'
+                    : 'Пока ничего'}</div>`));
         }
         if (planned) {
-            parts.push(section('Планируемые', planned.length, planned.length
+            body.push(section('Планируемые', planned.length, planned.length
                 ? `<div class="pf-rows">${planned.map(routeRow).join('')}</div>`
                 : `<div class="pf-none">Планов пока нет</div>`));
         }
         if (p.friends) {
-            parts.push(section('Друзья', p.friends.length, p.friends.length
+            body.push(section('Друзья', p.friends.length, p.friends.length
                 ? `<div class="pf-people">${p.friends.map(f => `
                     <button class="pf-person" data-nick="${esc(f.username)}">
                         ${avatar(f.avatar_url, f.display_name)}
@@ -534,10 +630,11 @@
         // Чего не видно — о том и говорим: пустота выглядит как поломка
         const hidden = [!p.stats && 'достижения', !done && 'пройденные', !planned && 'планы',
                         !p.friends && 'друзей'].filter(Boolean);
-        if (hidden.length && p.friend !== 'self') {
-            parts.push(`<p class="pf-note pf-hidden">Владелец скрыл ${hidden.join(', ')}.</p>`);
+        if (hidden.length && !isSelf) {
+            body.push(`<p class="pf-note pf-hidden">Владелец скрыл ${hidden.join(', ')}.</p>`);
         }
 
+        parts.push(`<div class="pf-body">${body.join('')}</div>`);
         box.innerHTML = parts.join('');
         wire(box);
     }
@@ -549,10 +646,9 @@
     function visRow(f) {
         const cur = (me && me[f.key]) || 'public';
         const i = Math.max(0, LEVELS.findIndex(l => l.value === cur));
-        const color = levelColor(cur);
         return `<div class="pf-vis">
             <div class="pf-vis-l">${esc(f.label)}${f.hint ? `<em>${esc(f.hint)}</em>` : ''}</div>
-            <div class="rs-seg pf-seg" style="--seg-n:3;--seg-i:${i};--seg-color:${color}">
+            <div class="rs-seg pf-seg" style="--seg-n:3;--seg-i:${i};--seg-color:${levelColor(cur)}">
                 <span class="rs-seg-thumb"></span>
                 ${LEVELS.map(l => `<button class="rs-seg-btn${l.value === cur ? ' active' : ''}"
                     data-vis="${f.key}" data-level="${l.value}" ${busy ? 'disabled' : ''}>${l.label}</button>`).join('')}
@@ -562,60 +658,34 @@
 
     function renderSettings() {
         const box = document.getElementById('profile-modal-inner');
-        if (!box || view !== 'settings') return;
+        if (!box) return;
         if (!signedIn() || !me) {
-            box.innerHTML = `<div class="pf-head"><div class="pf-name">Профиль</div>${closeBtn}</div>
-                <div class="pf-empty">Войдите, чтобы настроить профиль.</div>`;
-            wire(box);
-            return;
+            box.innerHTML = hero({ title: 'Профиль' }) +
+                `<div class="pf-body"><div class="pf-empty">Войдите, чтобы настроить профиль.</div></div>`;
+            return wire(box);
         }
-        const nick = me.username || '';
-        const nickNote = nickNoteHTML();
-
-        const link = nick ? profileLink(nick) : '';
-        box.innerHTML = `
-            <div class="pf-head">
-                <div class="pf-id">
-                    ${avatar(me.avatar_url, me.display_name, true)}
-                    <div class="pf-id-t">
-                        <div class="pf-name">${esc(me.display_name || 'Мой профиль')}</div>
-                        <div class="pf-nick">${nick ? '@' + esc(nick) : 'ник не выбран'}</div>
-                    </div>
-                </div>
-                ${closeBtn}
-            </div>
-
-            ${section('Ссылка на профиль', null, link ? `
-                <div class="pf-linkbox">
-                    <input class="review-input" id="pf-link" readonly value="${esc(link)}">
-                    <button class="pf-btn pf-btn-ghost" id="pf-copy">${svg(ICON.link, 14)}Копировать</button>
-                    <button class="pf-btn pf-btn-ghost" id="pf-qr">${svg(ICON.qr, 14)}QR</button>
-                </div>
-                <div id="pf-qr-box" class="pf-qr hidden"></div>
-                <p class="pf-note">Кому дали ссылку или показали QR — тот увидит профиль по вашим настройкам ниже.</p>`
-                : `<p class="pf-note">Ссылка появится, когда вы выберете ник.</p>`)}
-
+        box.innerHTML = hero({ person: true, nick: me.username, name: me.display_name || 'Мой профиль',
+                               avatar: me.avatar_url }) + `<div class="pf-body">
+            ${shareBlock()}
             ${section('Ник', null, `
                 <div class="pf-nickbox">
                     <span class="pf-at">@</span>
                     <input class="review-input" id="pf-nick" maxlength="20" spellcheck="false"
-                           placeholder="${esc(suggestNick())}" value="${esc(nick)}">
+                           placeholder="${esc(suggestNick())}" value="${esc(me.username || '')}">
                     <button class="pf-btn pf-btn-accent" id="pf-nick-save" ${busy ? 'disabled' : ''}>Сохранить</button>
                 </div>
-                <div class="pf-nicknote" id="pf-nicknote">${nickNote}</div>`)}
-
+                <div class="pf-nicknote" id="pf-nicknote">${nickNoteHTML()}</div>`)}
             ${section('О себе', null, `
                 <textarea class="review-input" id="pf-bio" maxlength="280" rows="3"
                     placeholder="Пара слов — их увидят в профиле" style="resize:none;display:block">${esc(me.bio || '')}</textarea>
                 <button class="pf-btn pf-btn-ghost mt-2" id="pf-bio-save" ${busy ? 'disabled' : ''}>Сохранить</button>`)}
-
             ${section('Кто что видит', null, FIELDS.map(visRow).join(''))}
-
             <div class="pf-foot">
                 <button class="pf-btn pf-btn-ghost" id="pf-to-friends">${svg(ICON.users, 14)}Друзья${
-                    requests.length ? ` <b class="pf-dot">${requests.length}</b>` : ''}</button>
-                ${nick ? `<button class="pf-btn pf-btn-ghost" id="pf-preview">${svg(ICON.user, 14)}Как видят другие</button>` : ''}
-            </div>`;
+                    requests.length ? ` <b class="tw-pill">${requests.length}</b>` : ''}</button>
+                ${me.username ? `<button class="pf-btn pf-btn-ghost" id="pf-preview">${svg(ICON.user, 14)}Как видят другие</button>` : ''}
+            </div>
+        </div>`;
         wire(box);
     }
 
@@ -623,7 +693,7 @@
 
     function renderFriends() {
         const box = document.getElementById('profile-modal-inner');
-        if (!box || view !== 'friends') return;
+        if (!box) return;
         const person = (f, extra) => `
             <div class="pf-fitem">
                 <button class="pf-fmain" ${f.username ? `data-nick="${esc(f.username)}"` : 'disabled'}>
@@ -634,12 +704,7 @@
                 ${extra || ''}
             </div>`;
 
-        box.innerHTML = `
-            <div class="pf-head">
-                <button class="pf-x" id="pf-back" aria-label="Назад">${svg(ICON.back, 16)}</button>
-                <div class="pf-name">Друзья</div>
-                ${closeBtn}
-            </div>
+        box.innerHTML = hero({ title: 'Друзья' }) + `<div class="pf-body">
             ${requests.length ? section('Заявки', requests.length,
                 requests.map(r => person(r, `
                     <div class="pf-fbtns">
@@ -648,17 +713,19 @@
                     </div>`)).join('')) : ''}
             ${section('Мои друзья', friends.length, friends.length
                 ? friends.map(f => person(f)).join('')
-                : `<div class="pf-none">Пока никого. Профилем делятся ссылкой или QR-кодом — откройте «Настройки профиля».</div>`)}`;
+                : `<div class="pf-none">Пока никого. Профилем делятся ссылкой или QR-кодом — они ниже.</div>`)}
+            ${shareBlock()}
+        </div>`;
         wire(box);
     }
 
-    // ── QR ──────────────────────────────────────────────────────────────────
+    // ── QR и ссылка ─────────────────────────────────────────────────────────
 
     /**
      * QR рисуем **у себя**, библиотекой в `libs/` (55 КБ, грузится по первому
      * показу). Через чужой сервис-генератор ссылка на профиль уезжала бы
      * третьей стороне, и её пришлось бы вписывать в политику
-     * конфиденциальности — ради картинки, которую рисуют за 3 мс.
+     * конфиденциальности — ради картинки, которую рисуют за три миллисекунды.
      */
     async function showQR() {
         const box = document.getElementById('pf-qr-box');
@@ -715,8 +782,19 @@
             await navigator.clipboard.writeText(link);
             toast('Ссылка скопирована');
         } catch (e) {
+            // Без https и без разрешения clipboard остаётся старый способ
             const input = document.getElementById('pf-link');
             if (input) { input.select(); document.execCommand('copy'); toast('Ссылка скопирована'); }
+        }
+    }
+
+    async function saveNick(value) {
+        const v = String(value || '').trim().toLowerCase();
+        if (!/^[a-z0-9_]{3,20}$/.test(v)) { toast('Ник: 3–20 символов, латиница, цифры, подчёркивание'); return; }
+        if (me && v === me.username) return;
+        if (await saveProfile({ username: v })) {
+            nickState = null;
+            toast('Ник сохранён');
         }
     }
 
@@ -725,10 +803,10 @@
     function wire(box) {
         const on = (sel, fn) => { const el = box.querySelector(sel); if (el) el.onclick = fn; };
         on('#pf-close', close);
-        on('#pf-back', () => { view = 'settings'; render(); });
+        on('#pf-back', back);
         on('#pf-signin', () => { close(); Account.openModal(); });
-        on('#pf-to-settings', () => { view = 'settings'; render(); });
-        on('#pf-to-friends', () => { view = 'friends'; render(); });
+        on('#pf-to-settings', () => push({ kind: 'settings' }));
+        on('#pf-to-friends', () => push({ kind: 'friends' }));
         on('#pf-preview', () => openUser(me.username));
         on('#pf-copy', copyLink);
         on('#pf-qr', showQR);
@@ -750,11 +828,11 @@
                 // Пилюля переезжает сразу, как в блоке статуса маршрута, —
                 // и возвращается, если база не приняла
                 const seg = b.closest('.rs-seg');
+                const btns = [...seg.querySelectorAll('.rs-seg-btn')];
                 const was = { i: seg.style.getPropertyValue('--seg-i'),
                               color: seg.style.getPropertyValue('--seg-color'),
                               level: me ? me[b.dataset.vis] : null,
                               active: seg.querySelector('.rs-seg-btn.active') };
-                const btns = [...seg.querySelectorAll('.rs-seg-btn')];
                 seg.style.setProperty('--seg-i', btns.indexOf(b));
                 seg.style.setProperty('--seg-color', levelColor(b.dataset.level));
                 btns.forEach(x => x.classList.toggle('active', x === b));
@@ -788,16 +866,6 @@
         });
     }
 
-    async function saveNick(value) {
-        const v = String(value || '').trim().toLowerCase();
-        if (!/^[a-z0-9_]{3,20}$/.test(v)) { toast('Ник: 3–20 символов, латиница, цифры, подчёркивание'); return; }
-        if (me && v === me.username) return;
-        if (await saveProfile({ username: v })) {
-            nickState = null;
-            toast('Ник сохранён');
-        }
-    }
-
     // ── Запуск ──────────────────────────────────────────────────────────────
 
     /** `#u/<ник>` — ссылка на чужой профиль, входа не требует. */
@@ -810,7 +878,9 @@
     function onAccount() {
         if (!signedIn()) {
             me = null; requests = []; friends = []; loadedFor = null;
-            if (view === 'settings' || view === 'friends') close();
+            const t = top();
+            // Свои экраны без сессии смысла не имеют; чужой профиль — имеет
+            if (t && t.kind !== 'public') close();
             return;
         }
         load();

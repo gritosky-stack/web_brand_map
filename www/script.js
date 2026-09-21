@@ -374,7 +374,10 @@ const routesList = [
  * маршрут оставался фиолетовым, хотя пройден (фидбэк 2026-09-21).
  */
 const STATUS_COLOR = { done: '#ff4d4d', planned: '#FF8C00', idle: '#7A5EA6' };
-window.STATUS_COLOR = STATUS_COLOR;
+// ⚠️ Этот кусок script.js исполняется и в Node — `tools/build_route_index.js`
+// берёт из него настоящий `routes`, чтобы цифры индекса не разъехались с
+// сайтом. Там нет `window`, и обращение к нему валит сборку индекса.
+if (typeof window !== 'undefined') window.STATUS_COLOR = STATUS_COLOR;
 
 /** `future` остался производным от статуса — на него смотрит weather.js. */
 function _isPlanned(status) { return status === 'planned'; }

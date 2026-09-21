@@ -463,7 +463,17 @@ begin
             or (p.visibility = 'friends' and friend);
 
     if not allowed then
-        return jsonb_build_object('state', 'closed', 'friend', rel);
+        -- ⚠️ `id` и `visibility` отдаём и здесь. Без `id` закрытому профилю
+        -- нельзя отправить заявку в друзья, а именно этим он и открывается;
+        -- без `visibility` интерфейс не знает, закрыт профиль от всех или
+        -- только «для друзей», и писал «добавьтесь в друзья» даже тому, кто
+        -- уже друг (фидбэк 2026-09-21). Имя и фото — только если вы уже
+        -- как-то связаны: постороннему закрытый профиль не показывает ничего.
+        return jsonb_build_object(
+            'state', 'closed', 'friend', rel, 'id', p.id,
+            'username', p.username, 'visibility', p.visibility,
+            'display_name', case when rel <> 'none' then p.display_name end,
+            'avatar_url',   case when rel <> 'none' then p.avatar_url end);
     end if;
 
     out_json := jsonb_build_object(
