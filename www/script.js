@@ -1050,6 +1050,36 @@ let currentPhotoCoords = null;
 
 window.flyToRoute = (routeId) => triggerRouteSelection(routeId);
 
+/**
+ * Маршрут из адресной строки (`#route_3`, `#pub_…`) — открыть, как только он
+ * появился.
+ *
+ * ⚠️ Зовётся **дважды**: из загрузки каталога и из `registerUserRoute`.
+ * Маршруты каталога лежат файлами и готовы сразу, а опубликованный
+ * (`catalog_admin.js`) и свой из облака приезжают из базы через секунду
+ * после загрузки страницы. Проверка на старте к этому моменту уже прошла, и
+ * ссылка на такой маршрут открывала карту Сербии вместо него.
+ *
+ * Открываем один раз (`_hashHandled`) и только пока ничего не открыто: если
+ * человек успел ткнуть в другой маршрут, уводить у него камеру нельзя.
+ * Закрытие карточки чистит хеш (`btn-back`), так что второй раз он и не
+ * сработает.
+ */
+let _hashHandled = false;
+window.openHashRoute = function() {
+    const id = location.hash.slice(1);
+    if (_hashHandled || currentViewedRoute) return false;
+    if (!id || !routes[id] || !parsedRouteDataCache[id]) return false;
+    // Свой маршрут и присланный по ссылке открывает account.js — у него своя
+    // проверка хеша, и второй вызов заставил бы камеру лететь дважды
+    if (routes[id].mine || routes[id].shared) return false;
+    _hashHandled = true;
+    const go = () => triggerRouteSelection(id);
+    if (map && map.getLayer('route-markers-layer')) go();
+    else if (map) map.once('load', go);
+    return true;
+};
+
 function triggerRouteSelection(routeId) {
     const routeInfo = routes[routeId];
     const routeData = parsedRouteDataCache[routeId];
@@ -2321,6 +2351,8 @@ window.registerUserRoute = function(routeInfo, routeData) {
     _overviewFeatures.push({ type: 'Feature', properties: _routeProps(routeInfo),
                              geometry: { type: 'LineString', coordinates: routeData.coordinates } });
     _flushRouteSources();
+    // Ссылка вида `#pub_…` или `#my_…`: маршрут приехал только сейчас
+    openHashRoute();
 };
 
 /**
@@ -2523,12 +2555,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const all = Object.values(routes);
         for (let i = 0; i < all.length; i += 6) await Promise.all(all.slice(i, i+6).map(loadRouteData));
 
-        const hashId = location.hash.slice(1);
-        if (hashId && routes[hashId]) {
-            const doSelect = () => triggerRouteSelection(hashId);
-            if (map.isStyleLoaded()) doSelect();
-            else map.once('load', doSelect);
-        }
+        openHashRoute();
     })();
 
     // React to hash changes while the page is open (e.g. sharing a link or browser back/forward)
@@ -2536,6 +2563,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const hashId = location.hash.slice(1);
         if (hashId && routes[hashId] && parsedRouteDataCache[hashId]) {
             triggerRouteSelection(hashId);
+        } else if (hashId) {
+            // Ссылку на опубликованный маршрут бросили в уже открытую
+            // страницу, а он ещё не приехал — откроем, когда появится
+            _hashHandled = false;
         }
     });
 
