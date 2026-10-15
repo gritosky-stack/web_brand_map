@@ -1178,7 +1178,7 @@ function triggerRouteSelection(routeId) {
         const descFade = document.getElementById('panel-desc-fade');
         const descBtn  = document.getElementById('panel-desc-toggle');
         if (routeInfo.description) {
-            descEl.textContent = routeInfo.description;
+            descEl.innerHTML = richText(routeInfo.description);
             descWrap.classList.remove('hidden');
             // Start collapsed; show expand button only if text is actually long
             descBody.classList.remove('expanded');
@@ -1556,6 +1556,66 @@ const PHOTO_CDN = 'https://pub-46dba1bca6754d2499a2a5aa9d5c879f.r2.dev';
  * (`pub-…r2.dev/https%3A%2F%2F…`), и просмотр своих фото ломался.
  */
 const _isURL = src => typeof src === 'string' && /^(https?:|blob:|data:)/.test(src);
+
+/**
+ * Текст, написанный человеком (описание маршрута, отчёт, анонс похода), —
+ * в безопасный HTML со ссылками.
+ *
+ * Разметки ровно две: голый адрес (`https://…`, `www.…`) и подпись словами
+ * — `[Пещера Маре](https://…)`. Больше ничего: это описание похода, а не
+ * документ, и всё остальное человек пишет обычным текстом.
+ *
+ * ⚠️ Экранируем **по кускам**. Сначала текст режется на ссылки и всё
+ * остальное, и только потом каждый кусок уходит в `_escHTML`. Экранировать
+ * целиком, а потом искать ссылки, нельзя: `&` в адресе к этому моменту уже
+ * стал `&amp;`, и ссылка ведёт не туда.
+ *
+ * ⚠️ Показываем адрес **расшифрованным** (`decodeURI`) и без `https://`: у
+ * сербской Википедии путь в процентах занимает три строки, а расшифрованный
+ * читается как «sr.wikipedia.org/wiki/Пешћера_Маре». В `href` при этом
+ * уезжает исходный адрес, как написан.
+ */
+const _escHTML = s => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+// Хвостовая пунктуация в адрес не входит: «смотри https://site.org/x.» —
+// точка здесь от предложения, а не от ссылки
+const _TRAIL = /[.,;:!?)\]}»"'…]+$/;
+const _LINK_RE = /\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]+|www\.[^\s)]+)\)|(https?:\/\/[^\s<]+|\bwww\.[^\s<]+)/g;
+
+function _linkHref(url) {
+    return /^www\./i.test(url) ? 'https://' + url : url;
+}
+
+function _linkLabel(url) {
+    let s = url.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+    try { s = decodeURI(s); } catch (e) { /* кривые проценты — оставляем как есть */ }
+    return s.length > 70 ? s.slice(0, 69) + '…' : s;
+}
+
+window.richText = function(text) {
+    if (!text) return '';
+    const src = String(text);
+    let out = '', last = 0, m;
+    _LINK_RE.lastIndex = 0;
+    while ((m = _LINK_RE.exec(src)) !== null) {
+        let [whole, label, mdUrl, bare] = m;
+        let url = mdUrl || bare;
+        let tail = '';
+        if (bare) {
+            const cut = url.match(_TRAIL);
+            if (cut) { tail = cut[0]; url = url.slice(0, -tail.length); }
+        }
+        if (!url) continue;
+        out += _escHTML(src.slice(last, m.index));
+        out += `<a class="tw-link" href="${_escHTML(_linkHref(url))}" target="_blank" rel="noopener noreferrer">` +
+               `${_escHTML(label || _linkLabel(url))}</a>` + _escHTML(tail);
+        last = m.index + whole.length;
+    }
+    return out + _escHTML(src.slice(last));
+};
+
 
 function _photoVariant(src, suffix) {
     if (!src || typeof src !== 'string' || _isURL(src)) return src;

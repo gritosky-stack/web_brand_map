@@ -442,7 +442,8 @@
                     ${e.meet_lat != null ? `<button class="pf-link" id="ev-meet-show">на карте</button>` : ''}
                 </div>`);
             }
-            if (e.description) body.push(`<p class="ev-desc">${esc(e.description)}</p>`);
+            if (e.description) body.push(`<p class="ev-desc">${
+                window.richText ? richText(e.description) : esc(e.description)}</p>`);
 
             body.push(`<div class="pf-sec"><div class="pf-sec-h">Кто идёт <em>${e.members.length}</em></div>
                 <div class="ev-people">${e.members.map(m => `
@@ -605,6 +606,8 @@
             <label class="rs-field mt-4"><span>Описание</span>
                 <textarea class="review-input" id="ef-desc" maxlength="2000" rows="4" style="resize:none;display:block"
                     placeholder="Что взять, какой темп, чего ждать от погоды">${esc(d.description || '')}</textarea></label>
+                <div class="tw-note">Ссылка станет ссылкой; подписать словами —
+                    <code>[Пещера Маре](https://…)</code></div>
             <label class="rs-field mt-4"><span>Кто может присоединиться</span>
                 <select class="review-input" id="ef-vis">
                     <option value="link"${(d.visibility || 'link') === 'link' ? ' selected' : ''}>любой, у кого есть ссылка</option>

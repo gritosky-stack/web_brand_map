@@ -468,7 +468,7 @@
         }
         .rs-report-t {
             margin-top: 8px; color: rgba(255,255,255,.78); font-size: 12.5px;
-            line-height: 1.55; white-space: pre-line;
+            line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere;
         }
         .rs-cta-sm { margin-top: 12px; padding: 9px 12px; font-size: 12px; }
         /* Сводка по выбранному треку в окне авторской карточки */
@@ -599,7 +599,7 @@
                    color: rgba(255,255,255,.72); font-size: 12.5px; line-height: 1.5; }
         .ev-line svg { flex-shrink: 0; margin-top: 2px; color: rgba(255,255,255,.4); }
         .ev-desc { margin-top: 14px; color: rgba(255,255,255,.75); font-size: 13px;
-                   line-height: 1.6; white-space: pre-line; }
+                   line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
         .ev-route {
             display: flex; align-items: center; gap: 11px; width: 100%; margin-top: 14px;
             padding: 12px 14px; border-radius: 13px; cursor: pointer; text-align: left;
@@ -1011,6 +1011,20 @@
         .tw-btn-danger { background: rgba(239,68,68,.12); color: #f87171; border: 1px solid rgba(239,68,68,.3); }
         .tw-btn-danger:hover { background: rgba(239,68,68,.2); }
         .tw-note { color: rgba(255,255,255,.5); font-size: 12px; line-height: 1.5; }
+        .tw-note code {
+            font-size: 11px; padding: 1px 5px; border-radius: 5px;
+            background: rgba(255,255,255,.07); color: rgba(255,255,255,.72);
+        }
+        /* Ссылка внутри текста, написанного человеком (описание маршрута,
+           отчёт, анонс похода) — `richText` в script.js. `anywhere` обязателен:
+           адрес из Википедии в процентах длиннее колонки панели, и без переноса
+           он уезжал за край, а выделить его было нечем */
+        .tw-link {
+            color: #fff; text-decoration: underline; text-underline-offset: 2px;
+            text-decoration-color: rgba(255,255,255,.38);
+            overflow-wrap: anywhere; transition: text-decoration-color .2s;
+        }
+        .tw-link:hover { text-decoration-color: #ff4d4d; }
         .tw-delete-link {
             display: block; margin: 18px auto 0; padding: 4px 8px; cursor: pointer;
             color: rgba(248,113,113,.75); font-size: 12px; text-decoration: underline; text-underline-offset: 3px;
@@ -2004,7 +2018,7 @@
                 <!-- Description -->
                 <div id="panel-description-wrapper" class="hidden p-5 border-b border-zinc-800/60 shrink-0">
                     <div id="panel-desc-body" style="position:relative;overflow:hidden;">
-                        <p id="panel-description" class="text-zinc-300 text-sm leading-relaxed" style="white-space:pre-line"></p>
+                        <p id="panel-description" class="text-zinc-300 text-sm leading-relaxed" style="white-space:pre-line;overflow-wrap:anywhere"></p>
                         <!-- fade-out gradient shown when collapsed -->
                         <div id="panel-desc-fade" style="position:absolute;bottom:0;left:0;right:0;height:52px;background:linear-gradient(to bottom,transparent,rgba(9,9,11,.94));pointer-events:none;"></div>
                     </div>

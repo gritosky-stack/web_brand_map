@@ -355,7 +355,10 @@
         if (window.RouteStatus) RouteStatus.renderPanel(r);
         const d = document.getElementById('panel-description');
         const w = document.getElementById('panel-description-wrapper');
-        if (d && w && r.description) { d.textContent = r.description; w.classList.remove('hidden'); }
+        if (d && w && r.description) {
+            d.innerHTML = window.richText ? richText(r.description) : r.description;
+            w.classList.remove('hidden');
+        }
         const t = document.getElementById('panel-time');
         if (t && r.overrideTime) t.textContent = r.overrideTime;
     }
@@ -552,6 +555,8 @@
                 <textarea class="review-input" id="ca-note" maxlength="4000" rows="4"
                     placeholder="Как прошло, что было по дороге — это описание увидят все"
                     style="resize:none;display:block">${esc(st.note)}</textarea></label>
+            <div class="tw-note">Ссылку можно вставить как есть или подписать словами:
+                <code>[Пещера Маре](https://…)</code></div>
             <div class="tw-note mt-3" id="ca-msg">${esc(st.msg)}</div>
             <div class="flex gap-2 mt-5">
                 <button class="tw-btn tw-btn-ghost" id="ca-cancel">Отмена</button>

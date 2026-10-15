@@ -627,7 +627,7 @@
                 rows.push(`<div class="rs-report">
                     <div class="rs-report-h">Мой отчёт${nPh ? ` · ${nPh} фото` : ''}
                         <button class="rs-link" id="rs-report-edit">изменить</button></div>
-                    ${note ? `<p class="rs-report-t">${esc(note)}</p>` : ''}
+                    ${note ? `<p class="rs-report-t">${window.richText ? richText(note) : esc(note)}</p>` : ''}
                     ${unplaced ? `<button class="rs-place" id="rs-place">${svg(ICON.pin, 13)}
                         <span>${unplaced} ${plural(unplaced, 'фото без места', 'фото без места', 'фото без места')}
                         на карте — указать</span></button>` : ''}
@@ -898,6 +898,8 @@
                     <textarea class="review-input" id="rs-note" maxlength="1000" rows="4"
                         placeholder="Как прошло, что запомнилось"
                         style="resize:none;display:block">${esc(st.note)}</textarea></label>
+                <div class="tw-note">Ссылка станет ссылкой; подписать словами —
+                    <code>[Пещера Маре](https://…)</code></div>
                 <div class="flex gap-2 mt-5">
                     <button class="tw-btn tw-btn-ghost" id="rs-cancel">Отмена</button>
                     <button class="tw-btn tw-btn-mine" id="rs-ok">Готово</button>
@@ -934,6 +936,8 @@
                     <textarea class="review-input" id="rs-note" maxlength="1000" rows="3"
                         placeholder="Пара слов о походе — их увидите вы и те, кому открыт ваш профиль"
                         style="resize:none;display:block">${esc(st.note)}</textarea></label>
+                <div class="tw-note">Ссылка станет ссылкой; подписать словами —
+                    <code>[Пещера Маре](https://…)</code></div>
                 <p class="tw-note mt-2">Километры зачтутся в ваш счётчик. Свои фото и текст заменят
                    авторские в карточке этого маршрута — у вас.</p>`;
         }
