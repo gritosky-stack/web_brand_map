@@ -7,7 +7,7 @@
  *   - Mapbox: стиль, спрайты и шрифты — Network-first; **тайлы не трогаем**
  */
 
-const SHELL_VERSION = 'v32';
+const SHELL_VERSION = 'v33';
 const SHELL_CACHE   = `shell-${SHELL_VERSION}`;
 const GPX_CACHE     = 'gpx-v1';
 const PHOTO_CACHE   = 'photos-v1';
@@ -22,6 +22,7 @@ const SHELL_ASSETS = [
   '/supa.js',
   '/account.js',
   '/route_status.js',
+  '/catalog_admin.js',
   '/profile.js',
   '/events.js',
   '/user_photos.js',

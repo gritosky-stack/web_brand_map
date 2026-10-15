@@ -1707,6 +1707,10 @@ function loadExifForRoute(routeInfo) {
     return _exifPromises[routeInfo.id];
 }
 
+/** Фото маршрута поменялись (авторские заменили на свои и обратно) — EXIF
+ *  придётся читать заново: обещание на маршрут кэшируется навсегда. */
+window.resetRouteExif = function(id) { delete _exifPromises[id]; };
+
 // ── Lightbox ───────────────────────────────────────────────────────────────────
 // Сам просмотр (карусель, зум, жесты) — в photo_viewer.js; здесь — связка с
 // панелью маршрута, лентой миниатюр и кнопкой «Переместиться на трек».
@@ -2191,7 +2195,13 @@ async function loadRouteData(routeInfo) {
     try {
         let routeData;
         const pre = _geomIndex && _geomIndex.routes[routeInfo.id];
-        if (pre && pre.file === routeInfo.file) {
+        // Админ переписал трек фактическим (catalog_admin.js) — тогда ни файл
+        // из `www/`, ни запись индекса уже не про этот маршрут
+        if (routeInfo.trackURL) {
+            const res = await fetch(routeInfo.trackURL);
+            if (!res.ok) throw new Error(`Failed to load ${routeInfo.trackURL}`);
+            routeData = parseGPX(await res.text());
+        } else if (pre && pre.file === routeInfo.file) {
             routeData = Object.assign({}, pre);
         } else {
             // Маршрут добавили, а индекс не пересобрали — разбираем GPX как раньше
@@ -2209,6 +2219,9 @@ async function loadRouteData(routeInfo) {
         routeData.photoGeoms = [];
         routeData._exifDone = false;
         parsedRouteDataCache[routeInfo.id] = routeData;
+        // Авторские фото могли быть заменены из базы ещё до того, как маршрут
+        // дочитался: переопределения каталога приезжают своим запросом
+        if (window.CatalogAdmin) CatalogAdmin.onRouteLoaded(routeInfo, routeData);
 
         window.recomputeAuthorKm();
 
@@ -2248,6 +2261,30 @@ window.registerUserRoute = function(routeInfo, routeData) {
     _overviewFeatures.push({ type: 'Feature', properties: _routeProps(routeInfo),
                              geometry: { type: 'LineString', coordinates: routeData.coordinates } });
     _flushRouteSources();
+};
+
+/**
+ * Замена геометрии уже загруженного маршрута: админ переписал трек каталога
+ * фактическим (catalog_admin.js). Метка вершины, линия обзора и кэш
+ * геометрии правятся на месте, а открытая карточка переоткрывается — её
+ * заполняет `_onArrive`, и пересобирать её по кусочкам было бы вдвое больше
+ * кода и ровно та же картинка.
+ */
+window.replaceRouteGeometry = function(routeInfo, routeData) {
+    const id = routeInfo.id;
+    if (!routes[id] || !routeData || !routeData.coordinates) return;
+    routeData.photoGeoms = routeData.photoGeoms || [];
+    parsedRouteDataCache[id] = routeData;
+    delete _exifPromises[id];
+    const c = routeData.coordinates;
+    const peak = routeData.peakCoords || c[Math.floor(c.length / 2)];
+    const mf = routeFeatures.find(f => f.properties.id === id);
+    if (mf) mf.geometry = { type: 'Point', coordinates: peak };
+    const lf = _overviewFeatures.find(f => f.properties.id === id);
+    if (lf) lf.geometry = { type: 'LineString', coordinates: routeData.coordinates };
+    _flushRouteSources();
+    window.recomputeAuthorKm();
+    if (currentViewedRoute && currentViewedRoute.id === id) triggerRouteSelection(id);
 };
 
 window.unregisterUserRoute = function(id, keepOpen) {
@@ -2502,6 +2539,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Carousel
     if (marqueeTrack) {
+        let manualOffset = 0, inManual = false;
+        /**
+         * Карточки ленты. Пересобирается, а не строится один раз: админ
+         * публикует маршрут из своего (catalog_admin.js), и новый маршрут
+         * обязан появиться в ленте так же, как в меню и на карте.
+         */
+        function buildCarousel() {
+        marqueeTrack.innerHTML = '';
+        carouselCards.length = 0;
+        _carouselHW = 0;
+        manualOffset = 0; inManual = false;
+        marqueeTrack.style.animation = '';
+        marqueeTrack.style.transform = '';
         // Анонсы — в начале ленты: карусель листают слева направо
         const g0 = splitRoutes();
         [...g0.planned, ...g0.done, ...g0.idle].forEach(route => {
@@ -2548,6 +2598,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Duplicate for seamless loop
         carouselCards.forEach(c => marqueeTrack.appendChild(c.cloneNode(true)));
+        }
+        buildCarousel();
+        window.refreshCarousel = buildCarousel;
 
         // Click delegation
         let didDrag = false;
@@ -2558,7 +2611,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Wheel + drag scroll
-        let manualOffset = 0, inManual = false;
         const getHW = () => { if (!_carouselHW) _carouselHW = marqueeTrack.scrollWidth / 2; return _carouselHW; };
         window.addEventListener('resize', () => { _carouselHW = 0; }, { passive: true });
 

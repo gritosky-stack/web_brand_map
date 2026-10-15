@@ -183,6 +183,17 @@
 
     function registerRow(row) {
         const p = row.payload || {};
+        // ⚠️ Маршрут, опубликованный в каталоге (catalog_admin.js), показывается
+        // авторским — у всех. Личной копии рядом быть не должно: на одном месте
+        // висели бы две метки с одним названием, авторская и своя. Сняли с
+        // публикации — строка никуда не делась, и копия возвращается сама.
+        if (window.CatalogAdmin && CatalogAdmin.isPublishedSource(row.id)) {
+            row._ok = false;
+            row._published = true;
+            unregisterUserRoute(routeIdOf(row.id));
+            return;
+        }
+        row._published = false;
         const data = toRouteData(p);
         row._ok = !!data;
         if (!data) return;
@@ -353,6 +364,18 @@
             toast('Не удалось сохранить фото и заметку');
             return false;
         }
+    }
+
+    /** GPX своего маршрута — из него catalog_admin.js делает трек каталога. */
+    function gpxOf(cloudId) {
+        const row = rows.get(cloudId);
+        return row && row.payload ? gpxString(row.payload) : null;
+    }
+
+    /** Публикация в каталоге поменялась — пересобрать, что из «Моих» на карте. */
+    function refreshRegistrations() {
+        rows.forEach(row => registerRow(row));
+        render();
     }
 
     function statusOf(cloudId) {
@@ -1257,6 +1280,8 @@
         renderPanelActions, saveDrawn, toast,
         // Личный статус своего маршрута (route_status.js рисует интерфейс)
         setStatus, statusOf, doneKm, saveReport,
+        // Публикация своего маршрута в каталог (catalog_admin.js)
+        gpxOf, refreshRegistrations,
         rowOf(cloudId) { return rows.get(cloudId) || null; },
         refreshStrip() { renderStrip(); renderMobileList(); renderModal(); }
     };

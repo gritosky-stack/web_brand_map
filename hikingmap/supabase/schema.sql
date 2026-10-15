@@ -257,6 +257,52 @@ create policy "catalog_status: удаляет админ"
 
 grant select on public.catalog_status to anon, authenticated;
 
+-- ─── Авторская карточка: фактический трек, фото, описание, время ───────
+-- «Пройден» — это не только цвет метки: группа прошла не ровно по
+-- запланированной тропе, фотографии появились свои, время известно
+-- фактическое. Поэтому строка каталога может нести замену авторской
+-- карточке, а строка с ключом `pub_<uuid>` — целый маршрут, опубликованный
+-- админом из своего (в `www/` файла у него нет).
+alter table public.catalog_status add column if not exists name         text;
+alter table public.catalog_status add column if not exists track        text;   -- GPX в бакете route-tracks
+alter table public.catalog_status add column if not exists photos       jsonb not null default '[]'::jsonb;
+alter table public.catalog_status add column if not exists note         text;   -- описание вместо авторского
+alter table public.catalog_status add column if not exists duration_min integer;
+alter table public.catalog_status add column if not exists distance_km  double precision;
+alter table public.catalog_status add column if not exists source_id    uuid;   -- строка routes, откуда опубликован
+
+-- Треки — отдельным бакетом от фотографий: у тех политика пускает владельца
+-- по первому сегменту пути (`<user_id>/…`), а трек каталога принадлежит не
+-- человеку, а каталогу, и писать его может только админ.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('route-tracks', 'route-tracks', true, 20971520,
+        array['application/gpx+xml', 'application/xml', 'text/xml',
+              'application/octet-stream', 'text/plain'])
+    on conflict (id) do update
+   set public             = true,
+       file_size_limit    = 20971520,
+       allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "route-tracks: читают все" on storage.objects;
+create policy "route-tracks: читают все"
+    on storage.objects for select
+    using (bucket_id = 'route-tracks');
+
+drop policy if exists "route-tracks: пишет админ" on storage.objects;
+create policy "route-tracks: пишет админ"
+    on storage.objects for insert to authenticated
+    with check (bucket_id = 'route-tracks' and public.is_admin());
+
+drop policy if exists "route-tracks: правит админ" on storage.objects;
+create policy "route-tracks: правит админ"
+    on storage.objects for update to authenticated
+    using (bucket_id = 'route-tracks' and public.is_admin());
+
+drop policy if exists "route-tracks: удаляет админ" on storage.objects;
+create policy "route-tracks: удаляет админ"
+    on storage.objects for delete to authenticated
+    using (bucket_id = 'route-tracks' and public.is_admin());
+
 -- ─────────────── Личный статус своего маршрута ─────────────────────────
 alter table public.routes add column if not exists status      text not null default 'mine';
 alter table public.routes add column if not exists planned_at  timestamptz;

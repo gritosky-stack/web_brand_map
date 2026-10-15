@@ -46,7 +46,8 @@
         done:    'M5 13l4 4L19 7',
         flag:    'M5 21V4m0 0h9l1 2h5l-2.5 4.5L20 15h-6l-1-2H5',
         camera:  'M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1zm8 9a4 4 0 100-8 4 4 0 000 8z',
-        pin:     'M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11zm0-8.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z'
+        pin:     'M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11zm0-8.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z',
+        plus:    'M12 5v14M5 12h14'
     };
 
     const svg = (d, size = 13) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"
@@ -185,7 +186,10 @@
      * Читают их все, включая гостей: от статуса зависит цвет метки.
      */
     async function loadCatalog() {
-        const rows = await SUPA.rest('catalog_status?select=route_key,status,date');
+        // `*`, а не список колонок: авторская карточка (трек, фото, описание,
+        // время) приезжает той же строкой, и новые колонки добавляются
+        // заплатками — явный список ронял бы загрузку до миграции
+        const rows = await SUPA.rest('catalog_status?select=*');
         if (!rows) return;
         catalog.clear();
         rows.forEach(r => catalog.set(r.route_key, r));
@@ -207,10 +211,20 @@
             }
             if (row.date && r.date !== row.date) { r.date = row.date; changed = true; }
         });
+        // Фактический трек, фото, описание и время похода, а заодно маршруты,
+        // опубликованные админом из своих, — всё это catalog_admin.js.
+        // Зовём **до** проверки `changed`: карточку могли поменять, не трогая
+        // статуса (новые фото, переписанный трек)
+        if (window.CatalogAdmin) CatalogAdmin.apply(catalog);
         if (!changed) return;
-        // Поменялся статус маршрута: разделы меню, свойства меток, счётчик
-        // авторских километров и видимость карточек карусели — всё по нему
+        refreshCatalogUI();
+    }
+
+    /** Поменялся статус маршрута: разделы меню, свойства меток, счётчик
+     *  авторских километров и видимость карточек — всё по нему. */
+    function refreshCatalogUI() {
         if (window.refreshCatalogMenus) refreshCatalogMenus();
+        if (window.refreshCarousel)     refreshCarousel();
         if (window.refreshRouteProps)   refreshRouteProps();
         if (window.recomputeAuthorKm)   recomputeAuthorKm();
         if (window.setFilter && window.activeFilter) setFilter(activeFilter());
@@ -228,7 +242,11 @@
                           updated_at: new Date().toISOString() };
             const { error } = await c.from('catalog_status').upsert(row);
             if (error) throw error;
-            catalog.set(routeKey, row);
+            // ⚠️ **Сливаем**, а не подменяем. PostgREST правит только
+            // переданные колонки, и трек с фотографиями в базе остаются; а
+            // подменив строку здесь, мы бы решили, что их убрали, и стёрли бы
+            // фактический трек с карты
+            mergeRow(row);
             applyCatalog();
             flash(status);
             toast(status === 'planned' ? 'Анонс: маршрут показан как «скоро идём»'
@@ -242,6 +260,12 @@
         } finally {
             setBusy(false);
         }
+    }
+
+    /** Строка каталога из базы — поверх того, что уже знаем о маршруте. */
+    function mergeRow(row) {
+        const prev = catalog.get(row.route_key) || {};
+        catalog.set(row.route_key, Object.assign({}, prev, row));
     }
 
     // ── Личная отметка каталожного маршрута ─────────────────────────────────
@@ -492,6 +516,54 @@
 
     function box() { return document.getElementById('panel-status-actions'); }
 
+    /**
+     * Авторская часть карточки — то, что видят все.
+     *
+     * У маршрута каталога это статус и его карточка (фактический трек, фото,
+     * описание, время похода — catalog_admin.js). У **своего** маршрута —
+     * кнопка «Опубликовать в каталоге»: до неё авторским мог стать только
+     * тот маршрут, что лежит файлом в репозитории, и свежедобавленный
+     * оставался личным навсегда (фидбэк 2026-10-15).
+     */
+    function adminBlock(routeInfo, own) {
+        if (own) {
+            if (routeInfo.shared) return '';
+            return `<div class="rs-admin">
+                <div class="rs-head">Каталог <em>виден всем</em></div>
+                <button class="rs-cta rs-cta-sm" id="rs-cat-publish">
+                    ${svg(ICON.flag, 14)}<span>Опубликовать в каталоге</span></button>
+                <p class="rs-note">Маршрут станет авторским: появится у всех на карте, в меню
+                   и в каталоге. Трек возьмём ваш — в окне его можно заменить фактическим,
+                   добавить фото, описание и время похода. Из «Моих» он при этом уедет.</p>
+            </div>`;
+        }
+
+        const row = catalog.get(keyOf(routeInfo)) || {};
+        const nPh = (row.photos || []).length;
+        const bits = [];
+        if (row.track) bits.push('свой трек');
+        if (nPh) bits.push(`${nPh} фото`);
+        if (row.note) bits.push('описание');
+        if (row.duration_min && window.CatalogAdmin) bits.push(CatalogAdmin.fmtDur(row.duration_min));
+        return `<div class="rs-admin">
+                <div class="rs-head">Авторский статус <em>виден всем</em></div>
+                ${segment([
+                    { value: 'done',    label: 'Пройден',    icon: ICON.done,    color: C().done },
+                    { value: 'planned', label: 'Скоро идём', icon: ICON.flag,    color: C().planned },
+                    { value: 'idle',    label: 'В запасе',   icon: ICON.idle,    color: C().idle }
+                ], routeInfo.status || 'done', 'data-cat', busy)}
+                <button class="rs-cta rs-cta-sm" id="rs-cat-edit">
+                    ${svg(ICON.camera, 14)}<span>${bits.length
+                        ? 'Изменить авторскую карточку' : 'Трек, фото, описание, время'}</span></button>
+                ${bits.length ? `<div class="rs-when">В каталоге: ${esc(bits.join(' · '))}</div>` : ''}
+                ${routeInfo.published
+                    ? `<div class="rs-when"><button class="rs-link" id="rs-cat-unpublish">Убрать из каталога</button></div>`
+                    : ''}
+                <p class="rs-note">Меняет маршрут в каталоге для всех: цвет метки, раздел
+                   меню и вкладку. «Скоро идём» выводит его наверх и выделяет на карте.</p>
+            </div>`;
+    }
+
     function renderPanel(routeInfo) {
         const el = box();
         if (!el) return;
@@ -566,19 +638,8 @@
             }
         }
 
-        // Авторский статус каталога — только автору
-        if (admin && !own) {
-            rows.push(`<div class="rs-admin">
-                    <div class="rs-head">Авторский статус <em>виден всем</em></div>
-                    ${segment([
-                        { value: 'done',    label: 'Пройден',    icon: ICON.done,    color: C().done },
-                        { value: 'planned', label: 'Скоро идём', icon: ICON.flag,    color: C().planned },
-                        { value: 'idle',    label: 'В запасе',   icon: ICON.idle,    color: C().idle }
-                    ], routeInfo.status || 'done', 'data-cat', busy)}
-                    <p class="rs-note">Меняет маршрут в каталоге для всех: цвет метки, раздел
-                       меню и вкладку. «Скоро идём» выводит его наверх и выделяет на карте.</p>
-                </div>`);
-        }
+        // Авторская часть — только автору каталога
+        if (admin) rows.push(adminBlock(routeInfo, own));
 
         el.innerHTML = rows.join('');
 
@@ -618,14 +679,44 @@
                 if (!await onPick(routeInfo, b.dataset.status, own)) undo();
             };
         });
+        /**
+         * Смена авторского статуса — это не переключатель цвета, а флоу.
+         * «Пройден» и «Скоро идём» ведут в окно авторской карточки: у
+         * пройденного спрашиваем фактический трек, дату, время похода, фото
+         * и описание, у анонса — когда идём. «В запасе» — просто снятие
+         * планов, ему спрашивать нечего.
+         */
         el.querySelectorAll('.rs-seg-btn[data-cat]').forEach(b => {
             b.onclick = async () => {
-                if (b.dataset.cat === (routeInfo.status || 'done')) return;
+                const next = b.dataset.cat;
+                if (next === (routeInfo.status || 'done')) return;
                 const undo = moveThumb(b);
-                if (!await setCatalogStatus(routeInfo.id, b.dataset.cat,
-                                            (routeInfo.date || '').slice(0, 10) || null)) undo();
+                const ok = (next === 'idle' || !window.CatalogAdmin)
+                    ? await setCatalogStatus(routeInfo.id, next,
+                                             (routeInfo.date || '').slice(0, 10) || null)
+                    : await CatalogAdmin.edit(routeInfo, catalog.get(keyOf(routeInfo)), next);
+                if (!ok) undo();
             };
         });
+        const catEdit = el.querySelector('#rs-cat-edit');
+        if (catEdit) catEdit.onclick = () =>
+            CatalogAdmin.edit(routeInfo, catalog.get(keyOf(routeInfo)), routeInfo.status || 'done');
+        const catPub = el.querySelector('#rs-cat-publish');
+        if (catPub) catPub.onclick = () => CatalogAdmin.publish(routeInfo);
+        const catOff = el.querySelector('#rs-cat-unpublish');
+        if (catOff) catOff.onclick = async () => {
+            if (catOff.dataset.armed !== '1') {
+                catOff.dataset.armed = '1';
+                catOff.textContent = 'Точно убрать? Нажмите ещё раз';
+                setTimeout(() => {
+                    if (!catOff.isConnected) return;
+                    catOff.dataset.armed = '';
+                    catOff.textContent = 'Убрать из каталога';
+                }, 3500);
+                return;
+            }
+            await CatalogAdmin.unpublish(keyOf(routeInfo));
+        };
         const edit = el.querySelector('#rs-edit');
         if (edit) edit.onclick = () => onPick(routeInfo, personal, own, true);
         const report = el.querySelector('#rs-report-edit');
@@ -1027,6 +1118,22 @@
 
     window.RouteStatus = {
         STATUS, askStatus, renderPanel, personalStatusOf, personalDateOf,
+        /** Строки `catalog_status` — ими пользуется catalog_admin.js. */
+        catalogRows() { return catalog; },
+        /** Строка записана в базу — принять её и перерисовать каталог. */
+        ingestRow(row) {
+            mergeRow(row);
+            applyCatalog();
+            refreshCatalogUI();
+            flash(row.status || 'done');
+        },
+        /** Маршрут снят с публикации: строки больше нет. */
+        dropRow(key) {
+            catalog.delete(key);
+            applyCatalog();
+            refreshCatalogUI();
+        },
+        refreshCatalogUI,
         photosFor, isPersonalized, noteOf, editReport, unplacedCount, setPhotoCoords,
         markedCards, onAccount, refreshKm, personalKm, applyCatalog,
         isAdmin() { return admin; },
